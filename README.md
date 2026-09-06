@@ -26,8 +26,8 @@ Build is already set for Vercel (`nitro` vercel preset). Set these environment v
 |---|---|---|
 | `DATABASE_URL` | yes | Postgres connection string (Neon, Supabase, or any Postgres) |
 | `BETTER_AUTH_SECRET` | yes | Session signing secret |
-| `BETTER_AUTH_URL` | yes | Public site URL, e.g. `https://forge.vercel.app` |
-| `XAI_API_KEY` | for AI coach | Grok coach + plan generation |
+| `BETTER_AUTH_URL` | yes | Public site URL, e.g. `https://forgexyx.vercel.app` |
+| `GEMINI_API_KEY` | for AI coach | Google Gemini (AI Studio) |
 | `VITE_AUTH_ENABLED` | recommended | Set to `true` |
 
 Google / X login also need Grok auth broker credentials (`GROK_AUTH_ISSUER`, `GROK_AUTH_CLIENT_ID`, `GROK_AUTH_CLIENT_SECRET`). Email/password works without them.

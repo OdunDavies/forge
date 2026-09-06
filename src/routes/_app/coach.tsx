@@ -41,7 +41,7 @@ function CoachPage() {
   return (
     <div className="flex min-h-[70dvh] flex-col">
       <header className="mb-4">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Coach · powered by Grok</p>
+        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Coach · Gemini</p>
         <h1 className="display text-3xl font-semibold">Coach</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
           Ask about load, swaps, or pain. Forge reads your log — it will not diagnose injuries.

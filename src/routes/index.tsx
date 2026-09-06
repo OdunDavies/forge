@@ -22,6 +22,9 @@ function Home() {
         <Wordmark />
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+            <Link to="/pricing">Pricing</Link>
+          </Button>
+          <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
             <Link to="/login">Sign in</Link>
           </Button>
           <Button size="sm" asChild>
@@ -50,7 +53,7 @@ function Home() {
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link to="/login">Sign in</Link>
+              <Link to="/pricing">Nigeria ₦ · World $</Link>
             </Button>
           </div>
           <dl className="mt-14 grid grid-cols-3 gap-4 max-w-xl">

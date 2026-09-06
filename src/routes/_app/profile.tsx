@@ -57,6 +57,19 @@ function ProfilePage() {
         <UserButton />
       </header>
 
+      {p?.plan !== "pro" && (
+        <Link
+          to="/pricing"
+          className="flex items-center justify-between rounded-xl bg-card px-5 py-4 shadow-[var(--shadow-border)]"
+        >
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Free · 5 coach asks / week</p>
+            <p className="mt-1 text-sm">Upgrade to Pro — ₦4,900/mo in Nigeria, $8.99 elsewhere.</p>
+          </div>
+          <span className="text-sm text-steel">See plans</span>
+        </Link>
+      )}
+
       <form
         className="space-y-3 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]"
         onSubmit={(e) => {

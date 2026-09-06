@@ -25,6 +25,7 @@ type ProfileRow = {
   available_days: unknown;
   focus_muscles: unknown;
   onboarded_at: string | null;
+  plan: string | null;
 };
 
 function mapProfile(row: ProfileRow): Profile {
@@ -47,6 +48,7 @@ function mapProfile(row: ProfileRow): Profile {
     availableDays: asNumberArray(row.available_days),
     focusMuscles: asStringArray(row.focus_muscles),
     onboardedAt: row.onboarded_at,
+    plan: row.plan === "pro" ? "pro" : "free",
   };
 }
 

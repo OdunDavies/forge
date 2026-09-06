@@ -280,6 +280,11 @@ export const tweakTodayPlan = createServerFn({ method: "POST" })
     if (!target) return { plan, message: "No training day to retune." };
 
     const sql = await getSql();
+    const planRows = await sql<{ plan: string }>`
+      select plan from profiles where user_id = ${context.userId} limit 1`;
+    if (planRows[0]?.plan !== "pro") {
+      throw new Error("Daily retunes are Pro. Upgrade to keep Forge rewriting sessions from your log.");
+    }
     const recent = await sql<{ title: string; notes: string; volume_kg: unknown; started_at: string }>`
       select title, notes, volume_kg, started_at from workout_sessions
       where user_id = ${context.userId} and completed_at is not null

@@ -22,6 +22,18 @@ export const sendCoachMessage = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ content: z.string().min(1).max(800) }).parse(input))
   .handler(async ({ context, data }) => {
     const sql = await getSql();
+    const planRows = await sql<{ plan: string }>`
+      select plan from profiles where user_id = ${context.userId} limit 1`;
+    const isPro = planRows[0]?.plan === "pro";
+    if (!isPro) {
+      const used = await sql<{ c: number }>`
+        select count(*)::int as c from coach_messages
+        where user_id = ${context.userId} and role = 'user'
+          and created_at >= date_trunc('week', now())`;
+      if ((used[0]?.c ?? 0) >= 5) {
+        throw new Error("Free coach is 5 questions a week. Upgrade to Pro for unlimited.");
+      }
+    }
     await sql`insert into coach_messages (user_id, role, content)
               values (${context.userId}, 'user', ${data.content})`;
 
