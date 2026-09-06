@@ -1,0 +1,105 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-background: #070708;
+  --color-foreground: #f2f2f0;
+  --color-card: #101012;
+  --color-card-foreground: #f2f2f0;
+  --color-popover: #161618;
+  --color-popover-foreground: #f2f2f0;
+  --color-primary: #c9d4dc;
+  --color-primary-foreground: #070708;
+  --color-secondary: #1c1c20;
+  --color-secondary-foreground: #f2f2f0;
+  --color-muted: #1c1c20;
+  --color-muted-foreground: #8b8b90;
+  --color-accent: #1c1c20;
+  --color-accent-foreground: #f2f2f0;
+  --color-destructive: #c45c4a;
+  --color-border: rgb(242 242 240 / 0.12);
+  --color-input: rgb(242 242 240 / 0.14);
+  --color-ring: #c9d4dc;
+  --color-steel: #c9d4dc;
+  --color-signal: #c45c4a;
+  --color-go: #6f9e7a;
+  --color-warn: #c4a15a;
+  --color-subtle: #5c5c62;
+  --color-elevated: #161618;
+
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.75rem;
+
+  --shadow-border: 0 0 0 1px rgb(242 242 240 / 0.08);
+  --shadow-border-hover: 0 0 0 1px rgb(242 242 240 / 0.16);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    background-image:
+      radial-gradient(1200px 600px at 80% -10%, rgb(201 212 220 / 0.05), transparent 55%),
+      linear-gradient(180deg, #09090b 0%, #070708 40%);
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.display {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}

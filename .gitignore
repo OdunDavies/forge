@@ -1,0 +1,31 @@
+node_modules/
+dist/
+.output/
+.nitro/
+.tanstack/
+.vercel/
+.vite/
+coverage/
+playwright-report/
+test-results/
+*.log
+.env
+.env.*
+!.env.example
+
+# Sandbox / local-only
+.grok/
+artifacts/
+screenshots/
+startup.sh
+AGENTS.md
+AGENTS.project.md
+.project_id
+.node_modules.lock
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
