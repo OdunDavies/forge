@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Check, Globe, Landmark } from "lucide-react";
+import { useState } from "react";
+import { Check } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,9 @@ import { joinProWaitlist } from "@/lib/api/billing";
 import {
   PLANS,
   PRICES,
-  detectRegion,
   formatPrice,
-  persistRegion,
+  useBillingRegion,
   type BillingInterval,
-  type BillingRegion,
 } from "@/lib/billing";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
@@ -23,11 +21,13 @@ export const Route = createFileRoute("/pricing")({ component: PricingPage });
 
 function PricingPage() {
   const user = useCurrentUser();
-  const [region, setRegion] = useState<BillingRegion>(() => detectRegion());
+  const { region, setRegion, tz } = useBillingRegion();
   const [interval, setInterval] = useState<BillingInterval>("month");
   const [email, setEmail] = useState(user?.primaryEmail ?? "");
   const price = PRICES[region];
+  const other: typeof region = region === "ng" ? "intl" : "ng";
   const display = formatPrice(region, interval);
+  const otherDisplay = formatPrice(other, interval);
   const period = interval === "year" ? "/year" : "/month";
 
   const join = useMutation({
@@ -40,13 +40,6 @@ function PricingPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const switchRegion = (next: BillingRegion) => {
-    setRegion(next);
-    persistRegion(next);
-  };
-
-  const yearlySaving = useMemo(() => price.yearNote, [price.yearNote]);
 
   return (
     <div className="min-h-dvh">
@@ -62,37 +55,18 @@ function PricingPage() {
       <section className="mx-auto max-w-6xl px-5 pb-20 pt-6">
         <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Membership</p>
         <h1 className="display mt-3 max-w-3xl text-4xl font-semibold leading-[1.05] sm:text-6xl">
-          Pay in Naira at home. Dollars everywhere else.
+          {region === "ng" ? "Naira in Nigeria. Dollars everywhere else." : "Dollars worldwide. Naira if you’re in Nigeria."}
         </h1>
         <p className="mt-4 max-w-xl text-base text-muted-foreground">
           Logging stays free. Pro is the coach that reads yesterday and rewrites tomorrow.
         </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Showing {price.place} pricing
+          {tz ? ` · ${tz}` : ""}. {PRICES.ng.symbol}
+          {PRICES.ng.month.toLocaleString("en-NG")}/mo in Nigeria · ${PRICES.intl.month}/mo elsewhere.
+        </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <div className="flex rounded-full bg-secondary p-1">
-            <button
-              type="button"
-              onClick={() => switchRegion("ng")}
-              className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm",
-                region === "ng" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-              )}
-            >
-              <Landmark className="size-3.5" />
-              Nigeria · ₦
-            </button>
-            <button
-              type="button"
-              onClick={() => switchRegion("intl")}
-              className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm",
-                region === "intl" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-              )}
-            >
-              <Globe className="size-3.5" />
-              Rest of world · $
-            </button>
-          </div>
           <div className="flex rounded-full bg-secondary p-1">
             <button
               type="button"
@@ -112,7 +86,7 @@ function PricingPage() {
                 interval === "year" ? "bg-elevated text-foreground" : "text-muted-foreground",
               )}
             >
-              Yearly · {yearlySaving}
+              Yearly · {price.yearNote}
             </button>
           </div>
         </div>
@@ -141,7 +115,7 @@ function PricingPage() {
 
           <article className="relative rounded-2xl bg-card p-6 shadow-[var(--shadow-border-hover)]">
             <span className="absolute right-5 top-5 rounded-full bg-primary px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-primary-foreground">
-              Flagship
+              {price.place}
             </span>
             <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Forge Pro</p>
             <h2 className="display mt-2 text-3xl font-semibold">{PLANS.pro.name}</h2>
@@ -152,6 +126,10 @@ function PricingPage() {
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               {price.processor} · {price.processorHint}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {PRICES[other].place}: {otherDisplay}
+              {period} via {PRICES[other].processor}
             </p>
             <ul className="mt-6 space-y-2">
               {PLANS.pro.features.map((f) => (
@@ -188,9 +166,15 @@ function PricingPage() {
               </Button>
             </form>
             <p className="mt-3 text-xs text-muted-foreground">
-              Checkout opens in {price.currency}. Cancel any time. No charge until Paystack / Stripe keys are
-              live on this project.
+              Checkout opens in {price.currency}. Cancel any time.
             </p>
+            <button
+              type="button"
+              className="mt-4 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              onClick={() => setRegion(other)}
+            >
+              Not {price.place}? Show {PRICES[other].place} ({PRICES[other].symbol})
+            </button>
           </article>
         </div>
       </section>

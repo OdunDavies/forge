@@ -1,10 +1,10 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { authClient, authEnabled, signIn, signInWithGoogle } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
 export const Route = createFileRoute("/login")({ component: Login });
@@ -18,6 +18,14 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const inSandbox =
+    typeof window !== "undefined" && window.location.hostname.endsWith(".grok-sandbox.com");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get("error") || params.get("error_description");
+    if (oauthError) setError(oauthError.replaceAll("_", " "));
+  }, []);
 
   if (!isPending && user) return <Navigate to="/today" />;
 
@@ -45,6 +53,32 @@ function Login() {
     }
   }
 
+  async function onGoogle() {
+    setError(null);
+    setBusy(true);
+    try {
+      await signInWithGoogle({ callbackURL: "/today", errorCallbackURL: "/login" });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Google sign-in failed. Use email, or add GOOGLE_CLIENT_ID on Vercel.",
+      );
+      setBusy(false);
+    }
+  }
+
+  async function onX() {
+    setError(null);
+    setBusy(true);
+    try {
+      await signIn("grok-x", { callbackURL: "/today", errorCallbackURL: "/login" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "X sign-in failed");
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-md">
@@ -55,7 +89,7 @@ function Login() {
           {mode === "in" ? "Welcome back" : "Create your log"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Email works here. Google and X too.
+          Email works here. Google too.
         </p>
 
         {authEnabled ? (
@@ -103,16 +137,14 @@ function Login() {
             </div>
 
             <div className="grid gap-2">
-              {GROK_PROVIDERS.map((p) => (
-                <Button
-                  key={p.providerId}
-                  type="button"
-                  variant="outline"
-                  onClick={() => signIn(p.providerId, { callbackURL: "/today" })}
-                >
-                  Continue with {p.label}
+              <Button type="button" variant="outline" onClick={() => void onGoogle()} disabled={busy}>
+                Continue with Google
+              </Button>
+              {inSandbox && (
+                <Button type="button" variant="outline" onClick={() => void onX()} disabled={busy}>
+                  Continue with X
                 </Button>
-              ))}
+              )}
             </div>
 
             <button

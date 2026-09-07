@@ -10,6 +10,7 @@ import { getPersonalRecords, listMyHistory } from "@/lib/api/sessions";
 import { getMyProfile, upsertMyProfile } from "@/lib/api/profile";
 import { FOCUS_MUSCLES } from "@/lib/muscles";
 import { cn, formatKg, formatDuration } from "@/lib/utils";
+import { formatPrice, useBillingRegion } from "@/lib/billing";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({ component: ProfilePage });
@@ -43,6 +44,8 @@ function ProfilePage() {
 
   const p = me.data;
   const units = p?.units ?? "metric";
+  const { region } = useBillingRegion();
+  const localPrice = formatPrice(region, "month");
 
   return (
     <div className="space-y-8">
@@ -64,7 +67,9 @@ function ProfilePage() {
         >
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Free · 5 coach asks / week</p>
-            <p className="mt-1 text-sm">Upgrade to Pro — ₦4,900/mo in Nigeria, $8.99 elsewhere.</p>
+            <p className="mt-1 text-sm">
+              Upgrade to Pro — {localPrice}/mo where you are. Nigeria ₦4,900 · elsewhere $8.99.
+            </p>
           </div>
           <span className="text-sm text-steel">See plans</span>
         </Link>

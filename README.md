@@ -28,8 +28,16 @@ Build is already set for Vercel (`nitro` vercel preset). Set these environment v
 | `BETTER_AUTH_SECRET` | yes | Session signing secret |
 | `BETTER_AUTH_URL` | yes | Public site URL, e.g. `https://forgexyx.vercel.app` |
 | `GEMINI_API_KEY` | for AI coach | Google Gemini (AI Studio) |
+| `GOOGLE_CLIENT_ID` | for Google login | Google Cloud OAuth web client |
+| `GOOGLE_CLIENT_SECRET` | for Google login | Google Cloud OAuth web client |
 | `VITE_AUTH_ENABLED` | recommended | Set to `true` |
 
-Google / X login also need Grok auth broker credentials (`GROK_AUTH_ISSUER`, `GROK_AUTH_CLIENT_ID`, `GROK_AUTH_CLIENT_SECRET`). Email/password works without them.
+Google login on Vercel is **native Google OAuth** (not the Grok broker). Create a Web client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+
+- Authorized JavaScript origins: `https://forgexyx.vercel.app`
+- Authorized redirect URIs: `https://forgexyx.vercel.app/api/auth/callback/google`
+
+Email/password works without Google keys. The Grok broker (`GROK_AUTH_*`) is only for the sandbox live preview.
+
 
 Migrations in `migrations/` apply automatically during `npm run build` when `DATABASE_URL` is set.
