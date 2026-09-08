@@ -7,7 +7,7 @@ AI training OS for lifting. Log sessions in a few taps, follow a plan biased to 
 - TanStack Start + React 19
 - Postgres (Neon in production, embedded PGLite in local preview)
 - Better Auth (email/password, Google, X)
-- xAI Grok for the coach
+- Gemini for the coach
 
 ## Local
 

@@ -46,8 +46,7 @@ function Home() {
             The training OS for people who lift.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Strava energy, built for barbells. Log sets in seconds. Let Forge rewrite tomorrow from
-            yesterday’s data, injuries, and PRs.
+            Log sets in seconds. Let Forge rewrite tomorrow from yesterday’s data, injuries, and PRs.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button size="lg" asChild>
@@ -162,7 +161,6 @@ function Home() {
 
       <footer className="mx-auto flex max-w-6xl items-center justify-between px-5 py-10 text-xs text-muted-foreground">
         <span>Forge · train like a mission</span>
-        <span>Powered by Grok</span>
       </footer>
     </div>
   );
