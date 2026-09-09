@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#070708" />
+    <title>Forge · offline</title>
+    <style>
+      html, body { margin: 0; min-height: 100dvh; background: #070708; color: #f2f2f0;
+        font-family: "IBM Plex Sans", system-ui, sans-serif; }
+      main { min-height: 100dvh; display: grid; place-items: center; padding: 24px; text-align: center; }
+      h1 { font-family: "Space Grotesk", system-ui, sans-serif; letter-spacing: -0.03em; font-size: 2rem; margin: 16px 0 8px; }
+      p { color: #8b8b90; max-width: 28ch; margin: 0 auto 24px; line-height: 1.45; }
+      a { display: inline-flex; height: 44px; align-items: center; padding: 0 18px; border-radius: 999px;
+        background: #c9d4dc; color: #070708; text-decoration: none; font-weight: 600; }
+      svg { width: 56px; height: 56px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#070708"/>
+        <circle cx="16" cy="16" r="8.2" fill="none" stroke="#C9D4DC" stroke-width="3.2"/>
+        <rect x="16" y="14.4" width="9.2" height="3.2" fill="#070708"/>
+        <rect x="18.4" y="14.4" width="6.2" height="3.2" fill="#C9D4DC"/>
+        <rect x="22.8" y="14.4" width="2.2" height="3.2" fill="#C45C4A"/>
+      </svg>
+      <h1>You’re offline</h1>
+      <p>Forge needs a connection to load your log. Reconnect and try again.</p>
+      <a href="/">Retry</a>
+    </main>
+  </body>
+</html>
