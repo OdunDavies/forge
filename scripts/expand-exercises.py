@@ -50,7 +50,7 @@ def add(
     category: str = "strength",
     secondary: list[str] | None = None,
     instructions: list[str] | None = None,
-    source: str = "gymify-catalog",
+    source: str = "forge-catalog",
 ):
     EXTRAS.append(
         {
@@ -708,7 +708,7 @@ def main() -> None:
                     "id": slug(name),
                     "name": name,
                     "imageUrl": None,
-                    "source": "gymify-variation",
+                    "source": "forge-variation",
                     "instructions": [
                         f"Perform {ex['name']} with a {prefix.lower()} emphasis.",
                         *(ex.get("instructions") or [])[:2],
