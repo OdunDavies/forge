@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, Trophy, Zap } from "lucide-react";
+import { Dumbbell, MessageCircle, Trophy, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatDuration, formatKg, initials, relativeTime } from "@/lib/utils";
+import { durationParts } from "@/lib/share";
+import { formatKg, initials, relativeTime } from "@/lib/utils";
 import type { FeedItem } from "@/lib/api/social";
 import { cn } from "@/lib/utils";
 
@@ -14,9 +15,12 @@ export function ActivityCard({
   units?: "metric" | "imperial";
   onKudos?: () => void;
 }) {
+  const time = durationParts(item.durationSec);
+  const volume = formatKg(item.volumeKg, units);
+
   return (
-    <article className="rounded-xl bg-card p-4 shadow-[var(--shadow-border)]">
-      <header className="flex items-center gap-3">
+    <article className="overflow-hidden rounded-xl bg-card shadow-[var(--shadow-border)]">
+      <header className="flex items-center gap-3 p-4 pb-3">
         <Link
           to="/u/$handle"
           params={{ handle: item.handle }}
@@ -40,41 +44,44 @@ export function ActivityCard({
         )}
       </header>
 
-      <Link to="/session/$id" params={{ id: String(item.id) }} className="mt-4 block">
-        {item.photoUrl && (
-          <img src={item.photoUrl} alt="" className="mb-3 aspect-[16/10] w-full rounded-lg object-cover" />
-        )}
-        <h3 className="display text-xl font-semibold">{item.title}</h3>
-        <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
-          <div>
-            <dt className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Volume</dt>
-            <dd className="tabular">{formatKg(item.volumeKg, units)}</dd>
+      <Link to="/session/$id" params={{ id: String(item.id) }} className="block">
+        <div className="relative aspect-[3/4] overflow-hidden bg-[#070708]">
+          {item.photoUrl ? (
+            <img src={item.photoUrl} alt="" className="absolute inset-0 size-full object-cover" />
+          ) : (
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(700px 500px at 60% 30%, rgb(22 22 24) 0%, #070708 72%)",
+              }}
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#070708] via-[#070708]/40 to-black/10" />
+          <p className="absolute right-4 top-[44%] display text-sm font-semibold uppercase tracking-[0.22em] text-white">
+            FORGE
+          </p>
+          <div className="absolute inset-x-0 bottom-0 px-4 pb-4">
+            <Dumbbell className="mb-2 size-7 text-white" strokeWidth={1.75} />
+            <h3 className="display text-2xl font-semibold leading-tight text-white">{item.title}</h3>
+            <dl className="mt-4 grid grid-cols-2 gap-4 text-white">
+              <div>
+                <dt className="text-[12px] text-white/70">Volume</dt>
+                <dd className="display text-xl font-semibold tabular">{volume}</dd>
+              </div>
+              <div>
+                <dt className="text-[12px] text-white/70">Time</dt>
+                <dd className="display text-xl font-semibold tabular">
+                  {time.primary}
+                  {time.secondary ? <span className="ml-1 text-lg">{time.secondary}</span> : null}
+                </dd>
+              </div>
+            </dl>
           </div>
-          <div>
-            <dt className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Sets</dt>
-            <dd className="tabular">{item.setCount}</dd>
-          </div>
-          <div>
-            <dt className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Time</dt>
-            <dd className="tabular">{formatDuration(item.durationSec)}</dd>
-          </div>
-        </dl>
-        {item.topSets.length > 0 && (
-          <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
-            {item.topSets.map((s, i) => (
-              <li key={i} className="flex justify-between gap-3">
-                <span className="truncate">{s.exerciseName}</span>
-                <span className="tabular text-foreground">
-                  {s.weightKg ? formatKg(s.weightKg, units) : "BW"} × {s.reps ?? "—"}
-                  {s.isPr ? " PR" : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        </div>
       </Link>
 
-      <footer className="mt-4 flex items-center gap-2">
+      <footer className="flex items-center gap-2 p-4">
         <button
           type="button"
           onClick={onKudos}
