@@ -1,6 +1,6 @@
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-const GEMINI_MODEL = "gemini-3.8-flash";
+const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash"];
 
 /**
  * Coach LLM. Gemini via GEMINI_API_KEY (Google AI Studio).
@@ -35,44 +35,58 @@ export async function grokChat(
     contents.unshift({ role: "user", parts: [{ text: "Ready." }] });
   }
 
-  let res: Response;
-  try {
-    res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      {
+  const payload = {
+    ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+    contents,
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: opts.maxTokens ?? 1200,
+      ...(opts.json ? { responseMimeType: "application/json" } : {}),
+    },
+  };
+
+  let lastError = "Coach unavailable";
+  for (const model of GEMINI_MODELS) {
+    let res: Response;
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-goog-api-key": apiKey,
         },
-        body: JSON.stringify({
-          ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
-          contents,
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: opts.maxTokens ?? 900,
-            ...(opts.json ? { responseMimeType: "application/json" } : {}),
-          },
-        }),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(22000),
-      },
-    );
-  } catch {
-    return { ok: false, error: "Coach timed out" };
-  }
-  if (!res.ok) {
-    return { ok: false, error: `Coach unavailable (${res.status})` };
+      });
+    } catch {
+      lastError = "Coach timed out";
+      continue;
+    }
+    if (res.status === 503 || res.status === 429) {
+      lastError = `Coach unavailable (${res.status})`;
+      continue;
+    }
+    if (!res.ok) {
+      lastError = `Coach unavailable (${res.status})`;
+      continue;
+    }
+
+    const body = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text =
+      body.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text ?? "")
+        .join("")
+        .trim() ?? "";
+    if (!text) {
+      lastError = "Coach returned an empty reply";
+      continue;
+    }
+    return { ok: true, text };
   }
 
-  const body = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text =
-    body.candidates?.[0]?.content?.parts
-      ?.map((p) => p.text ?? "")
-      .join("")
-      .trim() ?? "";
-  return { ok: true, text };
+  return { ok: false, error: lastError };
 }
 
 export function extractJson(text: string): unknown {
@@ -83,8 +97,12 @@ export function extractJson(text: string): unknown {
     const start = trimmed.indexOf("{");
     const end = trimmed.lastIndexOf("}");
     if (start >= 0 && end > start) {
-      return JSON.parse(trimmed.slice(start, end + 1));
+      try {
+        return JSON.parse(trimmed.slice(start, end + 1));
+      } catch {
+        return null;
+      }
     }
-    throw new Error("No JSON in model response");
+    return null;
   }
 }
