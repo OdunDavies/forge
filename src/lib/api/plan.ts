@@ -185,6 +185,28 @@ export const generateFirstPlan = createServerFn({ method: "POST" })
     if (!profile) throw new Error("Complete your profile first");
 
     const fallback = buildFallbackPlan(profile);
+    const starterPayload = {
+      title: fallback.title,
+      split: fallback.split,
+      focus: fallback.focus,
+      rationale: fallback.rationale,
+      days: fallback.days.map((d) => ({
+        weekday: d.weekday,
+        title: d.title,
+        isRest: d.isRest,
+        notes: d.coachNotes,
+        exercises: d.exercises.map((e) => ({
+          name: e.name,
+          sets: e.sets,
+          reps: e.reps,
+          restSec: e.restSec,
+          rpe: e.rpe,
+          notes: e.notes ?? "",
+        })),
+      })),
+    };
+    const starter = await persistGenerated(context.userId, starterPayload);
+
     const catalogHint = fallback.days
       .flatMap((d) => d.exercises.map((e) => e.name))
       .slice(0, 40)
@@ -227,31 +249,11 @@ Rules:
         const plan = await persistGenerated(context.userId, parsed);
         return { plan, source: "ai" as const };
       } catch {
-        /* fall through */
+        /* keep starter */
       }
     }
 
-    const plan = await persistGenerated(context.userId, {
-      title: fallback.title,
-      split: fallback.split,
-      focus: fallback.focus,
-      rationale: fallback.rationale,
-      days: fallback.days.map((d) => ({
-        weekday: d.weekday,
-        title: d.title,
-        isRest: d.isRest,
-        notes: d.coachNotes,
-        exercises: d.exercises.map((e) => ({
-          name: e.name,
-          sets: e.sets,
-          reps: e.reps,
-          restSec: e.restSec,
-          rpe: e.rpe,
-          notes: e.notes ?? "",
-        })),
-      })),
-    });
-    return { plan, source: "starter" as const };
+    return { plan: starter, source: "starter" as const };
   });
 
 const tweakSchema = z.object({

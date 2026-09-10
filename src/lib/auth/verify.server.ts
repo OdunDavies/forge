@@ -60,12 +60,23 @@ export async function getSessionUser(
   if (!authConfigured && !gateIdentityEnabled()) return null;
   const request = getRequest();
   if (!request) return null;
-  let headers = request.headers;
-  if (bearerToken) {
-    headers = new Headers(request.headers);
-    headers.set("Authorization", `Bearer ${bearerToken}`);
+  const headers = new Headers();
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers.set("cookie", cookie);
+  for (const name of ["host", "x-forwarded-host", "x-forwarded-proto", "origin"]) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
   }
-  const session = await auth.api.getSession({ headers });
+  const existingAuth = request.headers.get("authorization");
+  if (bearerToken) headers.set("Authorization", `Bearer ${bearerToken}`);
+  else if (existingAuth) headers.set("Authorization", existingAuth);
+
+  let session: { user?: { id: string; email?: string | null } } | null = null;
+  try {
+    session = await auth.api.getSession({ headers });
+  } catch {
+    session = null;
+  }
   if (!session?.user) return null;
   return { id: session.user.id, email: session.user.email ?? null };
 }

@@ -41,11 +41,14 @@ function Login() {
           name: name || email.split("@")[0] || "Athlete",
         });
         if (err) throw new Error(err.message);
+        await authClient.getSession();
+        await navigate({ to: "/onboarding" });
       } else {
         const { error: err } = await authClient.signIn.email({ email, password });
         if (err) throw new Error(err.message);
+        await authClient.getSession();
+        await navigate({ to: "/today" });
       }
-      await navigate({ to: "/today" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not authenticate");
     } finally {
@@ -57,7 +60,7 @@ function Login() {
     setError(null);
     setBusy(true);
     try {
-      await signInWithGoogle({ callbackURL: "/today", errorCallbackURL: "/login" });
+      await signInWithGoogle({ callbackURL: "/onboarding", errorCallbackURL: "/login" });
     } catch (err) {
       setError(
         err instanceof Error

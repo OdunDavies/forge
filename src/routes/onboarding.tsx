@@ -84,7 +84,14 @@ function Onboarding() {
     onSuccess: async () => {
       await navigate({ to: "/today" });
     },
-    onError: (e: Error) => setError(e.message),
+    onError: (e: Error) => {
+      const msg = e.message || "Could not build your plan";
+      if (/unauthorized|deferSessionRefresh|method not allowed/i.test(msg)) {
+        setError("Your session dropped. Sign in again, then tap Build my plan.");
+        return;
+      }
+      setError(msg);
+    },
   });
 
   if (isPending || profileQ.isPending) return <div className="min-h-dvh bg-background" />;
