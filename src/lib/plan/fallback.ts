@@ -168,7 +168,7 @@ export function buildFallbackPlan(input: {
       }
     }
   }
-  const ratio = totalSets > 0 ? targetedSets / totalSets : 0;
+  let ratio = totalSets > 0 ? targetedSets / totalSets : 0;
   const targetLow = 0.35;
   const targetHigh = 0.45;
 
