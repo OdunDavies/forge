@@ -125,6 +125,29 @@ export function SetLogger({
             {g.sets.some((s) => s.isPr) && (
               <p className="mt-2 text-xs uppercase tracking-[0.14em] text-signal">Personal record locked</p>
             )}
+            {g.sets.some((s) => s.completed) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  const lastLogged = g.sets.filter((s) => s.completed).pop();
+                  const defaultW = lastLogged?.weightKg ?? null;
+                  const defaultR = lastLogged?.reps ?? null;
+                  const newSet: SessionSet = {
+                    id: crypto.randomUUID(),
+                    setIndex: g.sets.length + 1,
+                    exerciseId: g.exerciseId,
+                    exerciseName: g.name,
+                    weightKg: defaultW,
+                    reps: defaultR,
+                    completed: false,
+                  };
+                  onLog(newSet, { weightKg: defaultW, reps: defaultR, completed: false });
+                }}
+              >
+                + set
+              </Button>
+            )}
           </section>
         );
       })}

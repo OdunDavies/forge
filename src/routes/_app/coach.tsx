@@ -94,7 +94,7 @@ function CoachPage() {
         />
         <div className="flex gap-2">
           <Button type="submit" disabled={send.isPending || !text.trim()} className="flex-1">
-            {send.isPending ? "Thinking…" : "Send"}
+            {send.isPending ? "Reading your log" : "Send"}
           </Button>
           <Button type="button" variant="outline" disabled={tweak.isPending} onClick={() => tweak.mutate()}>
             Apply to plan

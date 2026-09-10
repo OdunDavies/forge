@@ -70,7 +70,14 @@ function LibraryPage() {
       {list.isPending && (
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            <Skeleton
+              key={i}
+              className="grid grid-cols-[auto_1fr] gap-3 rounded-xl bg-card p-3 shadow-[var(--shadow-border)]"
+            >
+              <div className="h-6 rounded-md bg-secondary" />
+              <div className="h-6 rounded-md bg-secondary" />
+              <div className="h-6 rounded-md bg-secondary" />
+            </Skeleton>
           ))}
         </div>
       )}

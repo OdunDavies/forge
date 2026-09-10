@@ -29,6 +29,16 @@ const EXP = [
 const EQUIP = ["barbell", "dumbbell", "kettlebells", "machine", "cable", "bands", "body only", "full gym"];
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
+function determineSplit(days: number, exp: string) {
+  if (days <= 3) return "full-body";
+  if (days === 4) return "upper-lower";
+  if (days >= 3 && days <= 6) {
+    if (exp === "advanced" && days >= 5) return "bro-split";
+    return "push-pull-legs";
+  }
+  return "push-pull-legs";
+}
+
 function Onboarding() {
   const { user, isPending } = useCurrentUserState();
   const me = useCurrentUser();
@@ -315,9 +325,12 @@ function Onboarding() {
           style={{ width: `${((step + 1) / steps.length) * 100}%` }}
         />
       </div>
-      <h1 className="display mt-8 text-3xl font-semibold">{steps[step].title}</h1>
-      <div className="mt-6 flex-1">{steps[step].body}</div>
-      {error && <p className="mb-3 text-sm text-signal">{error}</p>}
+<h1 className="display mt-8 text-3xl font-semibold">{steps[step].title}</h1>
+          <div className="mt-6 flex-1">{steps[step].body}</div>
+          <div className="mt-2 text-sm text-muted-foreground">
+            Selected split: <span className="font-medium">{determineSplit(daysPerWeek, experience)}</span>
+          </div>
+          {error && <p className="mb-3 text-sm text-signal">{error}</p>}
       <div className="flex gap-3">
         {step > 0 && (
           <Button variant="outline" className="flex-1" onClick={() => setStep((s) => s - 1)}>
@@ -332,7 +345,9 @@ function Onboarding() {
             else save.mutate();
           }}
         >
-          {save.isPending ? "Writing your block…" : last ? "Build my plan" : "Continue"}
+          {save.isPending
+            ? "Reading your goals → Balancing muscle groups → Writing your first block"
+            : last ? "Build my plan" : "Continue"}
         </Button>
       </div>
     </main>

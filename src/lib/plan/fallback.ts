@@ -156,6 +156,55 @@ export function buildFallbackPlan(input: {
     }
   }
 
+  // 40/60 volume‑bias: keep targeted muscle volume in the 35‑45 % band
+  let totalSets = 0;
+  let targetedSets = 0;
+  for (const d of days) {
+    if (d.isRest) continue;
+    for (const ex of d.exercises) {
+      totalSets += ex.sets;
+      if (focus.includes(ex.name.toLowerCase())) {
+        targetedSets += ex.sets;
+      }
+    }
+  }
+  const ratio = totalSets > 0 ? targetedSets / totalSets : 0;
+  const targetLow = 0.35;
+  const targetHigh = 0.45;
+
+  if (ratio > targetHigh) {
+    // trim focus extras starting from the last muscle added until we are in range
+    for (const muscle of focus) {
+      const extra = FOCUS_EXTRA[muscle];
+      if (!extra) continue;
+      const dayIdx = days.findIndex((d) => !d.isRest && d.exercises.some((e) => e.name === extra.name));
+      if (dayIdx >= 0) {
+        const ex = days[dayIdx].exercises.find((e) => e.name === extra.name);
+        if (ex) {
+          if (ex.sets > 1) {
+            days[dayIdx].exercises = days[dayIdx].exercises.map((e) =>
+              e.name === extra.name ? { ...e, sets: ex.sets - 1 } : e,
+            );
+          } else {
+            days[dayIdx].exercises = days[dayIdx].exercises.filter((e) => e.name !== extra.name);
+          }
+        }
+      }
+      // recompute ratio after each trim
+      let rTotal = 0,
+        rTarget = 0;
+      for (const d of days) {
+        if (d.isRest) continue;
+        for (const e of d.exercises) {
+          rTotal += e.sets;
+          if (focus.includes(e.name.toLowerCase())) rTarget += e.sets;
+        }
+      }
+      ratio = rTotal > 0 ? rTarget / rTotal : 0;
+      if (ratio <= targetHigh) break;
+    }
+  }
+
   const injured = input.injuries.toLowerCase();
   if (injured.includes("knee") || injured.includes("back")) {
     for (const d of days) {
