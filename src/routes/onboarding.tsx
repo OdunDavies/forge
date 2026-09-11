@@ -13,6 +13,7 @@ import { RedirectToSignIn } from "@/lib/auth/gates";
 import { FOCUS_MUSCLES } from "@/lib/muscles";
 import { determineSplit } from "@/lib/plan/fallback";
 import { cn, kgFromInput } from "@/lib/utils";
+import { CenteredLoading } from "@/components/ui/centered-loading";
 
 export const Route = createFileRoute("/onboarding")({ component: Onboarding });
 
@@ -350,11 +351,10 @@ function Onboarding() {
             else save.mutate();
           }}
         >
-          {save.isPending
-            ? "Reading your goals → Balancing muscle groups → Writing your first block"
-            : last ? "Build my plan" : "Continue"}
+          {last ? "Build my plan" : "Continue"}
         </Button>
       </div>
+      {save.isPending && <CenteredLoading overlay={false} />}
     </main>
   );
 }

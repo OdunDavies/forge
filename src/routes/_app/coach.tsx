@@ -7,6 +7,7 @@ import { listCoachMessages, sendCoachMessage } from "@/lib/api/coach";
 import { tweakTodayPlan } from "@/lib/api/plan";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { CenteredLoading } from "@/components/ui/centered-loading";
 
 export const Route = createFileRoute("/_app/coach")({ component: CoachPage });
 
@@ -94,13 +95,15 @@ function CoachPage() {
         />
         <div className="flex gap-2">
           <Button type="submit" disabled={send.isPending || !text.trim()} className="flex-1">
-            {send.isPending ? "Reading your log" : "Send"}
+            Send
           </Button>
-          <Button type="button" variant="outline" disabled={tweak.isPending} onClick={() => tweak.mutate()}>
+          <Button type="button" variant="outline" disabled={tweak.isPending || send.isPending} onClick={() => tweak.mutate()}>
             Apply to plan
           </Button>
         </div>
       </form>
+      {send.isPending && <CenteredLoading steps={["Reading your log", "Writing your response"]} />}
+      {tweak.isPending && <CenteredLoading />}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { generateFirstPlan, getActivePlan } from "@/lib/api/plan";
 import { cn, weekdayName } from "@/lib/utils";
+import { CenteredLoading } from "@/components/ui/centered-loading";
 
 export const Route = createFileRoute("/_app/plan")({ component: PlanPage });
 
@@ -28,12 +29,13 @@ function PlanPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="display text-3xl font-semibold">{plan.data.title}</h1>
         <Button variant="outline" size="sm" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>
-          {rebuild.isPending ? "Rewriting…" : "Rebuild from profile"}
+          Rebuild from profile
         </Button>
       </div>
       {plan.data.aiRationale && (
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">{plan.data.aiRationale}</p>
       )}
+      {rebuild.isPending && <CenteredLoading />}
       <div className="mt-6 space-y-3">
         {plan.data.days.map((d) => {
           const isToday = d.weekday === weekday;
