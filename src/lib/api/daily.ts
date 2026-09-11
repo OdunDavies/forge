@@ -98,5 +98,11 @@ export const saveDailyLog = createServerFn({ method: "POST" })
         data.notes ?? "",
       ],
     );
-    return { ok: true };
+    return {
+      ok: true,
+      retune:
+        (data.energy != null && data.energy <= 2) ||
+        (data.sleepHours != null && data.sleepHours < 6) ||
+        (data.soreness != null && data.soreness >= 4),
+    };
   });

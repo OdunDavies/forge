@@ -45,7 +45,8 @@ function CoachPage() {
         <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Coach · Gemini</p>
         <h1 className="display text-3xl font-semibold">Coach</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Ask about load, swaps, or pain. Forge reads your log — it will not diagnose injuries.
+          Ask about load, swaps, or pain. Finishing a workout already rewrites the next session — this chat is extra.
+          Forge will not diagnose injuries.
         </p>
       </header>
 

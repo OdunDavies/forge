@@ -6,6 +6,7 @@ import { num } from "@/lib/db-map";
 import { extractJson, grokChat } from "@/lib/ai/grok";
 import { findExerciseByName } from "@/lib/exercises/seed";
 import { buildFallbackPlan } from "@/lib/plan/fallback";
+import { todayIso } from "@/lib/utils";
 import { loadProfileByUserId } from "./profile";
 import type { ActivePlan, PlanDay, PlanExercise } from "./types";
 
@@ -261,96 +262,199 @@ Rules:
     return { plan: starter, source: "starter" as const };
   });
 
-const tweakSchema = z.object({
-  reason: z.string().max(400).optional(),
+const retuneExerciseSchema = z.object({
+  name: z.string(),
+  sets: z.number().int().min(1).max(8),
+  reps: z.string(),
+  restSec: z.number().int().min(0).max(400).optional(),
+  rpe: z.number().min(5).max(10).optional(),
+  notes: z.string().optional(),
 });
 
-export const tweakTodayPlan = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator((input: unknown) => tweakSchema.parse(input ?? {}))
-  .handler(async ({ context, data }) => {
-    const profile = await loadProfileByUserId(context.userId);
-    const plan = await loadPlan(context.userId);
-    if (!profile || !plan) throw new Error("No active plan");
-    const weekday = new Date().getDay();
-    const today = plan.days.find((d) => d.weekday === weekday);
-    let target = today && !today.isRest ? today : undefined;
-    if (!target) {
-      for (let i = 1; i <= 7; i++) {
-        const day = plan.days.find((d) => d.weekday === (weekday + i) % 7 && !d.isRest);
-        if (day) {
-          target = day;
-          break;
-        }
-      }
-    }
-    if (!target) return { plan, message: "No training day to retune." };
+function pickTargetDay(plan: ActivePlan, prefer: "today" | "next"): PlanDay | undefined {
+  const weekday = new Date().getDay();
+  const today = plan.days.find((d) => d.weekday === weekday);
+  if (prefer === "today" && today && !today.isRest && today.exercises.length) return today;
+  for (let i = 1; i <= 7; i++) {
+    const day = plan.days.find((d) => d.weekday === (weekday + i) % 7 && !d.isRest && d.exercises.length);
+    if (day) return day;
+  }
+  return today && !today.isRest ? today : undefined;
+}
 
-    const sql = await getSql();
-    const planRows = await sql<{ plan: string }>`
-      select plan from profiles where user_id = ${context.userId} limit 1`;
-    if (planRows[0]?.plan !== "pro") {
-      throw new Error("Daily retunes are Pro. Upgrade to keep Forge rewriting sessions from your log.");
-    }
-    const recent = await sql<{ title: string; notes: string; volume_kg: unknown; started_at: string }>`
-      select title, notes, volume_kg, started_at from workout_sessions
-      where user_id = ${context.userId} and completed_at is not null
-      order by completed_at desc limit 5`;
+async function writeDayExercises(
+  userId: string,
+  dayId: number,
+  exercises: z.infer<typeof retuneExerciseSchema>[],
+  coachNotes: string,
+) {
+  const sql = await getSql();
+  await sql`delete from plan_exercises where plan_day_id = ${dayId} and user_id = ${userId}`;
+  let sort = 0;
+  for (const ex of exercises.slice(0, 8)) {
+    const match = await findExerciseByName(ex.name);
+    await sql`
+      insert into plan_exercises (
+        plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
+      ) values (
+        ${dayId}, ${userId}, ${match?.id ?? null}, ${match?.name ?? ex.name},
+        ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
+      )`;
+    sort += 1;
+  }
+  await sql`update plan_days set coach_notes = ${coachNotes.slice(0, 500)} where id = ${dayId} and user_id = ${userId}`;
+}
 
-    const ai = await grokChat(
-      [
-        {
-          role: "system",
-          content: "You are Forge, a conservative strength coach. Output JSON only.",
-        },
-        {
-          role: "user",
-          content: `Adjust this upcoming session only (${target.title}).
+async function applyUpcomingRetune(
+  userId: string,
+  opts: { reason?: string; prefer: "today" | "next" },
+): Promise<{ plan: ActivePlan | null; applied: boolean; message: string; dayTitle?: string }> {
+  const profile = await loadProfileByUserId(userId);
+  const plan = await loadPlan(userId);
+  if (!profile || !plan) return { plan: plan ?? null, applied: false, message: "No active plan" };
+
+  const target = pickTargetDay(plan, opts.prefer);
+  if (!target) return { plan, applied: false, message: "No training day to retune." };
+
+  const sql = await getSql();
+  const recent = await sql<{
+    title: string;
+    notes: string;
+    volume_kg: unknown;
+    set_count: number;
+    pr_count: number;
+    energy: number | null;
+    soreness: number | null;
+    started_at: string;
+  }>`
+    select title, notes, volume_kg, set_count, pr_count, energy, soreness, started_at
+    from workout_sessions
+    where user_id = ${userId} and completed_at is not null
+    order by completed_at desc limit 5`;
+  const day = todayIso();
+  const checkin = await sql<{
+    sleep_hours: unknown;
+    energy: number | null;
+    soreness: number | null;
+    notes: string;
+  }>`
+    select sleep_hours, energy, soreness, notes from daily_logs
+    where user_id = ${userId} and log_date = ${day}::date limit 1`;
+
+  const last = recent[0];
+  const energy = last?.energy ?? checkin[0]?.energy ?? null;
+  const soreness = last?.soreness ?? checkin[0]?.soreness ?? null;
+  const sleep = num(checkin[0]?.sleep_hours);
+  const beatUp = (energy != null && energy <= 2) || (soreness != null && soreness >= 4) || (sleep != null && sleep < 6);
+  const crushed = (last?.pr_count ?? 0) > 0 && !beatUp;
+
+  const ai = await grokChat(
+    [
+      {
+        role: "system",
+        content: "You are Forge, a conservative strength coach. Output JSON only.",
+      },
+      {
+        role: "user",
+        content: `Adjust this upcoming session only (${target.title}). Keep the same day theme — do not turn a ${target.title} day into a different muscle group.
 Injuries: ${profile.injuries || "none"}
-Energy/soreness notes: ${data.reason ?? "none"}
+Focus muscles: ${(profile.focusMuscles ?? []).join(", ") || "none"}
+Athlete note: ${opts.reason ?? "none"}
+Check-in: ${JSON.stringify(checkin[0] ?? null)}
 Recent sessions: ${JSON.stringify(recent)}
-Session: ${JSON.stringify(target)}
+Session: ${JSON.stringify({
+          title: target.title,
+          coachNotes: target.coachNotes,
+          exercises: target.exercises.map((e) => ({
+            name: e.exerciseName,
+            sets: e.sets,
+            reps: e.reps,
+            restSec: e.restSec,
+            rpe: e.targetRpe,
+            notes: e.notes,
+          })),
+        })}
 Return {"message":"one paragraph to the athlete","exercises":[{"name":"...","sets":3,"reps":"8","restSec":90,"rpe":7,"notes":""}]}
-If they are beat up, cut volume. If they crushed last time, add a small load cue in notes, not extra junk volume.`,
-        },
-      ],
-      { maxTokens: 900, json: true },
-    );
+If they are beat up, cut volume. If they crushed last time, add a small load cue in notes, not extra junk volume.
+Keep 4-6 lifts.`,
+      },
+    ],
+    { maxTokens: 700, json: true, timeoutMs: 8000, modelLimit: 1 },
+  );
 
-    if (!ai.ok) return { plan, message: ai.error };
+  if (ai.ok) {
     try {
       const parsed = z
         .object({
           message: z.string(),
-          exercises: z.array(
-            z.object({
-              name: z.string(),
-              sets: z.number(),
-              reps: z.string(),
-              restSec: z.number().optional(),
-              rpe: z.number().optional(),
-              notes: z.string().optional(),
-            }),
-          ),
+          exercises: z.array(retuneExerciseSchema).min(3).max(8),
         })
         .parse(extractJson(ai.text));
-
-      await sql`delete from plan_exercises where plan_day_id = ${target.id} and user_id = ${context.userId}`;
-      let sort = 0;
-      for (const ex of parsed.exercises.slice(0, 8)) {
-        const match = await findExerciseByName(ex.name);
-        await sql`
-          insert into plan_exercises (
-            plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
-          ) values (
-            ${target.id}, ${context.userId}, ${match?.id ?? null}, ${match?.name ?? ex.name},
-            ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
-          )`;
-        sort += 1;
-      }
-      await sql`update plan_days set coach_notes = ${parsed.message.slice(0, 500)} where id = ${target.id} and user_id = ${context.userId}`;
-      return { plan: await loadPlan(context.userId), message: parsed.message };
+      await writeDayExercises(userId, target.id, parsed.exercises, parsed.message);
+      return {
+        plan: await loadPlan(userId),
+        applied: true,
+        message: parsed.message,
+        dayTitle: target.title,
+      };
     } catch {
-      return { plan, message: "Coach could not apply a structured tweak. Try again." };
+      /* fall through to conservative rewrite */
     }
+  }
+
+  if (beatUp) {
+    const exercises = target.exercises.map((e) => ({
+      name: e.exerciseName,
+      sets: Math.max(2, e.sets - 1),
+      reps: e.reps,
+      restSec: e.restSec,
+      rpe: e.targetRpe ?? undefined,
+      notes: e.notes,
+    }));
+    const message = `Cut a set on ${target.title}. Recover, then come back heavy.`;
+    await writeDayExercises(userId, target.id, exercises, message);
+    return { plan: await loadPlan(userId), applied: true, message, dayTitle: target.title };
+  }
+
+  if (crushed) {
+    const exercises = target.exercises.map((e, i) => ({
+      name: e.exerciseName,
+      sets: e.sets,
+      reps: e.reps,
+      restSec: e.restSec,
+      rpe: e.targetRpe ?? undefined,
+      notes: i === 0 ? "Add a little load if the last top set was clean." : e.notes,
+    }));
+    const message = `Last session had a PR. Nudge load on ${target.title} — no extra junk volume.`;
+    await writeDayExercises(userId, target.id, exercises, message);
+    return { plan: await loadPlan(userId), applied: true, message, dayTitle: target.title };
+  }
+
+  return {
+    plan,
+    applied: false,
+    message: ai.ok ? "Next session unchanged." : "Coach is offline — next session left as written.",
+    dayTitle: target.title,
+  };
+}
+
+const retuneSchema = z.object({
+  trigger: z.enum(["session", "checkin", "manual"]).default("manual"),
+  reason: z.string().max(400).optional(),
+});
+
+export const retuneUpcoming = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => retuneSchema.parse(input ?? {}))
+  .handler(async ({ context, data }) => {
+    const prefer = data.trigger === "session" ? "next" : "today";
+    return applyUpcomingRetune(context.userId, { reason: data.reason, prefer });
+  });
+
+export const tweakTodayPlan = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => z.object({ reason: z.string().max(400).optional() }).parse(input ?? {}))
+  .handler(async ({ context, data }) => {
+    const result = await applyUpcomingRetune(context.userId, { reason: data.reason, prefer: "today" });
+    return { plan: result.plan, message: result.message, applied: result.applied };
   });

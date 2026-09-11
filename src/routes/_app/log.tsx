@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SessionHeader, SetLogger } from "@/components/workout/set-logger";
 import { searchExercises } from "@/lib/api/library";
-import { getActivePlan } from "@/lib/api/plan";
+import { getActivePlan, retuneUpcoming } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
 import {
   addExerciseToSession,
@@ -52,9 +52,17 @@ function LogPage() {
   const finish = useMutation({
     mutationFn: () => finishSession({ data: { sessionId: sessionQ.data!.id, visibility: "public" } }),
     onSuccess: (s) => {
-      toast("Workout logged");
+      toast("Workout logged — rewriting the next session…");
       void qc.invalidateQueries();
       void navigate({ to: "/session/$id", params: { id: String(s.id) } });
+      void retuneUpcoming({ data: { trigger: "session" } })
+        .then((r) => {
+          if (r.applied) toast(r.message);
+          void qc.invalidateQueries({ queryKey: ["plan"] });
+        })
+        .catch(() => {
+          /* session is saved even if the coach is offline */
+        });
     },
   });
 
@@ -170,7 +178,7 @@ function LogPage() {
               {finish.isPending ? "Saving recap…" : "Finish workout"}
             </Button>
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              Remaining sets are marked done with the numbers already filled in.
+              Remaining sets are marked done. Forge then rewrites the next session from this log.
             </p>
           </div>
         </>

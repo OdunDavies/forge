@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { getTodaySummary, saveDailyLog } from "@/lib/api/daily";
-import { getActivePlan, tweakTodayPlan } from "@/lib/api/plan";
+import { getActivePlan, retuneUpcoming, tweakTodayPlan } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
 import { getActiveSession, startTodaysSession } from "@/lib/api/sessions";
 import type { PlanDay } from "@/lib/api/types";
@@ -57,9 +57,19 @@ function TodayPage() {
   const checkin = useMutation({
     mutationFn: (payload: { energy?: number; sleepHours?: number; bodyweightKg?: number }) =>
       saveDailyLog({ data: payload }),
-    onSuccess: () => {
+    onSuccess: async (res) => {
       toast("Check-in saved");
       void qc.invalidateQueries({ queryKey: ["today-summary"] });
+      if (!res.retune) return;
+      try {
+        const r = await retuneUpcoming({ data: { trigger: "checkin" } });
+        if (r.applied) {
+          toast(r.message);
+          void qc.invalidateQueries({ queryKey: ["plan"] });
+        }
+      } catch {
+        /* check-in is saved even if the rewrite misses */
+      }
     },
   });
 
@@ -195,6 +205,9 @@ function TodayPage() {
 
       <Card className="p-5">
         <h2 className="display text-lg font-semibold">Daily check-in</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Energy 1–2 or short sleep automatically cuts today’s volume. Finishing a workout rewrites the next one.
+        </p>
         <form
           className="mt-4 grid gap-3 sm:grid-cols-3"
           onSubmit={(e) => {

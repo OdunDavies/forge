@@ -8,7 +8,7 @@ const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash
  */
 export async function grokChat(
   messages: ChatMessage[],
-  opts: { maxTokens?: number; json?: boolean } = {},
+  opts: { maxTokens?: number; json?: boolean; timeoutMs?: number; modelLimit?: number } = {},
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return { ok: false, error: "AI is not available in this environment" };
@@ -46,7 +46,8 @@ export async function grokChat(
   };
 
   let lastError = "Coach unavailable";
-  for (const model of GEMINI_MODELS) {
+  const models = GEMINI_MODELS.slice(0, Math.max(1, opts.modelLimit ?? GEMINI_MODELS.length));
+  for (const model of models) {
     let res: Response;
     try {
       res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -56,7 +57,7 @@ export async function grokChat(
           "x-goog-api-key": apiKey,
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(22000),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? 22000),
       });
     } catch {
       lastError = "Coach timed out";
