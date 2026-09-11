@@ -3,9 +3,14 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { WorkoutSession } from "@/lib/api/types";
-import { compressImage, durationParts, renderShareCardPng, sessionShareText, shareOrCopy } from "@/lib/share";
+import { compressImage, durationParts, renderShareCardPng, shareOrCopy } from "@/lib/share";
 import { formatKg } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+
+function shortLift(name: string) {
+  const cut = name.split(" - ")[0]?.trim() ?? name;
+  return cut.length > 28 ? `${cut.slice(0, 26)}…` : cut;
+}
 
 export function SessionSummary({
   session,
@@ -23,22 +28,19 @@ export function SessionSummary({
   const [sharing, setSharing] = useState(false);
   const volume = formatKg(session.volumeKg, units);
   const time = durationParts(session.durationSec);
-  const groups = new Map<string, { sets: number; top: string }>();
+  const groups = new Map<string, { sets: number; top: string; score: number }>();
   for (const s of session.sets.filter((x) => x.completed)) {
-    const prev = groups.get(s.exerciseName) ?? { sets: 0, top: "" };
+    const prev = groups.get(s.exerciseName) ?? { sets: 0, top: "", score: 0 };
     prev.sets += 1;
-    prev.top = s.weightKg != null ? `${formatKg(s.weightKg, units)} × ${s.reps ?? "—"}` : `${s.reps ?? "—"} reps`;
+    const score = (s.weightKg ?? 0) * (s.reps ?? 0);
+    if (score >= prev.score) {
+      prev.score = score;
+      prev.top = s.weightKg != null ? `${formatKg(s.weightKg, units)} × ${s.reps ?? "—"}` : `${s.reps ?? "—"} reps`;
+    }
     groups.set(s.exerciseName, prev);
   }
-  const topLift = [...groups.entries()][0];
-
-  const url = typeof window !== "undefined" ? window.location.href.split("?")[0] : "";
-  const text = sessionShareText({
-    title: session.title,
-    setCount: session.setCount,
-    volume,
-    duration: time.secondary ? `${time.primary} ${time.secondary}` : time.primary,
-  });
+  const topEntry = [...groups.entries()].sort((a, b) => b[1].score - a[1].score)[0];
+  const topLift = topEntry ? `${shortLift(topEntry[0])}  ${topEntry[1].top}` : null;
 
   async function onPick(file: File | undefined) {
     if (!file) return;
@@ -69,7 +71,7 @@ export function SessionSummary({
           time={time}
           setCount={session.setCount}
           photoUrl={session.photoUrl}
-          topLift={topLift ? `${topLift[0]}  ${topLift[1].top}` : null}
+          topLift={topLift}
           emptyHint={isOwner && !session.photoUrl}
         />
       </button>
@@ -102,17 +104,15 @@ export function SessionSummary({
                   durationSec: session.durationSec,
                   setCount: session.setCount,
                   photoUrl: session.photoUrl,
-                  topLift: topLift ? `${topLift[0]} ${topLift[1].top}` : null,
+                  topLift,
                 });
                 const file = new File([blob], `${session.title}-forge.png`, { type: "image/png" });
                 const result = await shareOrCopy({
-                  title: `${session.title} · Forge`,
-                  text,
-                  url,
+                  title: "Forge",
                   file,
                 });
-                if (result === "copied") toast("Share text copied");
-                if (result === "downloaded") toast("Card saved — attach it in your post");
+                if (result === "downloaded") toast("Card saved");
+                if (result === "shared") toast("Shared");
               } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Could not share");
               } finally {
@@ -193,33 +193,31 @@ export function ShareCardFace({
       )}
 
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-5">
-        <Dumbbell className="mb-3 size-10 text-white" strokeWidth={1.75} />
-        <h2 className="display text-[2.15rem] font-semibold leading-[1.05] text-white">{title}</h2>
-        <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 text-white">
-          <div>
-            <dt className="text-[13px] text-white/70">Volume</dt>
-            <dd className="display mt-1 text-[2rem] font-semibold tabular leading-none">{volume}</dd>
+        <Dumbbell className="mb-3 size-8 text-white" strokeWidth={1.75} />
+        <h2 className="display text-[1.85rem] font-semibold leading-[1.1] text-white">{title}</h2>
+        <dl className="mt-6 grid grid-cols-3 gap-3 text-white">
+          <div className="min-w-0">
+            <dt className="text-[11px] uppercase tracking-[0.14em] text-white/65">Volume</dt>
+            <dd className="display mt-1 truncate text-[1.45rem] font-semibold tabular leading-none">{volume}</dd>
           </div>
-          <div>
-            <dt className="text-[13px] text-white/70">Time</dt>
-            <dd className="display mt-1 text-[2rem] font-semibold tabular leading-none">
+          <div className="min-w-0">
+            <dt className="text-[11px] uppercase tracking-[0.14em] text-white/65">Time</dt>
+            <dd className="display mt-1 truncate text-[1.45rem] font-semibold tabular leading-none">
               {time.primary}
-              {time.secondary ? (
-                <span className="mt-1 block text-[1.65rem] leading-none">{time.secondary}</span>
-              ) : null}
+              {time.secondary ? ` ${time.secondary}` : ""}
             </dd>
           </div>
-          <div>
-            <dt className="text-[13px] text-white/70">Sets</dt>
-            <dd className="display mt-1 text-[2rem] font-semibold tabular leading-none">{setCount}</dd>
+          <div className="min-w-0">
+            <dt className="text-[11px] uppercase tracking-[0.14em] text-white/65">Sets</dt>
+            <dd className="display mt-1 truncate text-[1.45rem] font-semibold tabular leading-none">{setCount}</dd>
           </div>
-          {topLift ? (
-            <div>
-              <dt className="text-[13px] text-white/70">Top set</dt>
-              <dd className="mt-1 text-lg font-medium leading-tight">{topLift}</dd>
-            </div>
-          ) : null}
         </dl>
+        {topLift ? (
+          <div className="mt-5 min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-white/65">Top set</p>
+            <p className="mt-1 truncate text-base font-medium leading-snug text-white">{topLift}</p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

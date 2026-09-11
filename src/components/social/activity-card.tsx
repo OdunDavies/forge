@@ -62,19 +62,23 @@ export function ActivityCard({
             FORGE
           </p>
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-4">
-            <Dumbbell className="mb-2 size-7 text-white" strokeWidth={1.75} />
-            <h3 className="display text-2xl font-semibold leading-tight text-white">{item.title}</h3>
-            <dl className="mt-4 grid grid-cols-2 gap-4 text-white">
-              <div>
-                <dt className="text-[12px] text-white/70">Volume</dt>
-                <dd className="display text-xl font-semibold tabular">{volume}</dd>
+            <Dumbbell className="mb-2 size-6 text-white" strokeWidth={1.75} />
+            <h3 className="display text-xl font-semibold leading-tight text-white">{item.title}</h3>
+            <dl className="mt-4 grid grid-cols-3 gap-3 text-white">
+              <div className="min-w-0">
+                <dt className="text-[11px] text-white/70">Volume</dt>
+                <dd className="display truncate text-lg font-semibold tabular">{volume}</dd>
               </div>
-              <div>
-                <dt className="text-[12px] text-white/70">Time</dt>
-                <dd className="display text-xl font-semibold tabular">
+              <div className="min-w-0">
+                <dt className="text-[11px] text-white/70">Time</dt>
+                <dd className="display truncate text-lg font-semibold tabular">
                   {time.primary}
-                  {time.secondary ? <span className="ml-1 text-lg">{time.secondary}</span> : null}
+                  {time.secondary ? ` ${time.secondary}` : ""}
                 </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-[11px] text-white/70">Sets</dt>
+                <dd className="display truncate text-lg font-semibold tabular">{item.setCount}</dd>
               </div>
             </dl>
           </div>

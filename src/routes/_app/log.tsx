@@ -10,6 +10,7 @@ import { getActivePlan, retuneUpcoming } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
 import {
   addExerciseToSession,
+  addSetToSession,
   completeExercise,
   finishSession,
   getActiveSession,
@@ -100,6 +101,23 @@ function LogPage() {
       const res = await completeExercise({ data: { sessionId: sessionQ.data.id, exerciseName: name } });
       if (res.isPr) toast("New PR");
       qc.setQueryData(["active-session"], res.session);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not finish the lift");
+    } finally {
+      setBusyName(null);
+    }
+  }
+
+  async function onAddSet(name: string) {
+    if (!sessionQ.data) return;
+    setBusyName(name);
+    try {
+      const session = await addSetToSession({
+        data: { sessionId: sessionQ.data.id, exerciseName: name },
+      });
+      qc.setQueryData(["active-session"], session);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not add set");
     } finally {
       setBusyName(null);
     }
@@ -141,6 +159,7 @@ function LogPage() {
             units={units}
             onLog={onLog}
             onCompleteExercise={onCompleteExercise}
+            onAddSet={onAddSet}
             busyId={busyId}
             busyName={busyName}
           />

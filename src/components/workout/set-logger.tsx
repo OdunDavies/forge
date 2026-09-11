@@ -13,6 +13,7 @@ export function SetLogger({
   units,
   onLog,
   onCompleteExercise,
+  onAddSet,
   busyId,
   busyName,
 }: {
@@ -20,6 +21,7 @@ export function SetLogger({
   units: "metric" | "imperial";
   onLog: (set: SessionSet, patch: { weightKg: number | null; reps: number | null; completed: boolean }) => void;
   onCompleteExercise: (name: string) => void;
+  onAddSet: (name: string) => void;
   busyId?: number | null;
   busyName?: string | null;
 }) {
@@ -125,32 +127,15 @@ export function SetLogger({
             {g.sets.some((s) => s.isPr) && (
               <p className="mt-2 text-xs uppercase tracking-[0.14em] text-signal">Personal record locked</p>
             )}
-            {g.sets.some((s) => s.completed) && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  const lastLogged = g.sets.filter((s) => s.completed).pop();
-                  const defaultW = lastLogged?.weightKg ?? null;
-                  const defaultR = lastLogged?.reps ?? null;
-                  const newSet: SessionSet = {
-                    id: Date.now(),
-                    setIndex: g.sets.length + 1,
-                    exerciseId: g.exerciseId,
-                    exerciseName: g.name,
-                    weightKg: defaultW,
-                    reps: defaultR,
-                    rpe: null,
-                    completed: false,
-                    isWarmup: false,
-                    isPr: false,
-                  };
-                  onLog(newSet, { weightKg: defaultW, reps: defaultR, completed: false });
-                }}
-              >
-                + set
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mt-2"
+              disabled={busyName === g.name || g.sets.length >= 12}
+              onClick={() => onAddSet(g.name)}
+            >
+              + set
+            </Button>
           </section>
         );
       })}

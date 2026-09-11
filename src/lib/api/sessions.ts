@@ -217,6 +217,41 @@ export const addExerciseToSession = createServerFn({ method: "POST" })
     return mapSession(row[0]!, await setsFor(data.sessionId, context.userId));
   });
 
+const addSetSchema = z.object({
+  sessionId: z.number(),
+  exerciseName: z.string().min(1),
+});
+
+export const addSetToSession = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => addSetSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const owned = await sql<{ id: number }>`
+      select id from workout_sessions
+      where id = ${data.sessionId} and user_id = ${context.userId} and completed_at is null`;
+    if (!owned[0]) throw new Error("No active session");
+    const existing = await sql<SetRow>`
+      select id, exercise_id, exercise_name, set_index, weight_kg, reps, rpe, completed, is_warmup, is_pr
+      from session_sets
+      where session_id = ${data.sessionId} and user_id = ${context.userId}
+        and exercise_name = ${data.exerciseName}
+      order by set_index desc, id desc`;
+    if (!existing[0]) throw new Error("Add the movement first");
+    if (existing.length >= 12) throw new Error("That’s enough sets for this lift");
+    const last = existing[0];
+    const nextIndex = (last.set_index ?? existing.length) + 1;
+    await sql`
+      insert into session_sets (
+        session_id, user_id, exercise_id, exercise_name, set_index, weight_kg, reps, completed, is_warmup
+      ) values (
+        ${data.sessionId}, ${context.userId}, ${last.exercise_id}, ${data.exerciseName}, ${nextIndex},
+        ${last.weight_kg}, ${last.reps}, false, false
+      )`;
+    const row = await sql<SessionRow>`select * from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId}`;
+    return mapSession(row[0]!, await setsFor(data.sessionId, context.userId));
+  });
+
 const logSetSchema = z.object({
   setId: z.number(),
   weightKg: z.number().nonnegative().nullable(),
