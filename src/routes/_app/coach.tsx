@@ -1,10 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { listCoachMessages, sendCoachMessage } from "@/lib/api/coach";
+import { coachQuota } from "@/lib/api/billing";
 import { tweakTodayPlan } from "@/lib/api/plan";
+import { formatPrice, membershipLabel, PLANS, useBillingRegion } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CenteredLoading } from "@/components/ui/centered-loading";
@@ -20,12 +22,15 @@ const PROMPTS = [
 function CoachPage() {
   const qc = useQueryClient();
   const [text, setText] = useState("");
+  const { region } = useBillingRegion();
   const messages = useQuery({ queryKey: ["coach"], queryFn: () => listCoachMessages() });
+  const quota = useQuery({ queryKey: ["coach-quota"], queryFn: () => coachQuota() });
   const send = useMutation({
     mutationFn: () => sendCoachMessage({ data: { content: text.trim() } }),
     onSuccess: () => {
       setText("");
       void qc.invalidateQueries({ queryKey: ["coach"] });
+      void qc.invalidateQueries({ queryKey: ["coach-quota"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -38,6 +43,8 @@ function CoachPage() {
   });
 
   const thread = [...(messages.data ?? [])].reverse();
+  const exhausted = Boolean(quota.data?.exhausted);
+  const plan = quota.data?.plan ?? "free";
 
   return (
     <div className="flex min-h-[70dvh] flex-col">
@@ -48,7 +55,32 @@ function CoachPage() {
           Ask about load, swaps, or pain. Finishing a workout already rewrites the next session — this chat is extra.
           Forge will not diagnose injuries.
         </p>
+        {quota.data?.limit == null ? (
+          <p className="mt-2 text-sm text-muted-foreground">{membershipLabel(plan)} · unlimited</p>
+        ) : (
+          <p className="mt-2 text-sm tabular text-muted-foreground">
+            {membershipLabel(plan)} · {quota.data.used} / {quota.data.limit} asks this week
+          </p>
+        )}
       </header>
+
+      {exhausted && (quota.data?.upgrades.length ?? 0) > 0 && (
+        <div className="mb-4 space-y-2">
+          {quota.data!.upgrades.map((tier) => (
+            <Link
+              key={tier}
+              to="/pricing"
+              className="flex items-center justify-between rounded-xl bg-card px-5 py-4 text-sm shadow-[var(--shadow-border)]"
+            >
+              <span>
+                {tier === "pro" ? "Best value · " : ""}
+                {PLANS[tier].name} · {formatPrice(region, "month", tier)}/mo
+              </span>
+              <span className="text-steel">See {PLANS[tier].name}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 space-y-3">
         {thread.length === 0 && (
@@ -85,7 +117,7 @@ function CoachPage() {
         className="mt-4 space-y-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (text.trim()) send.mutate();
+          if (text.trim() && !exhausted) send.mutate();
         }}
       >
         <Textarea
@@ -95,8 +127,8 @@ function CoachPage() {
           className="min-h-24"
         />
         <div className="flex gap-2">
-          <Button type="submit" disabled={send.isPending || !text.trim()} className="flex-1">
-            Send
+          <Button type="submit" disabled={send.isPending || !text.trim() || exhausted} className="flex-1">
+            {exhausted ? "Week’s asks used" : send.isPending ? "Reading your log" : "Send"}
           </Button>
           <Button type="button" variant="outline" disabled={tweak.isPending || send.isPending} onClick={() => tweak.mutate()}>
             Apply to plan

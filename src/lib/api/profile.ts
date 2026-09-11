@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { asNumberArray, asStringArray, num } from "@/lib/db-map";
+import { parseMembership } from "@/lib/billing";
 import type { Profile } from "./types";
 import { slugifyHandle, toPgArray } from "@/lib/utils";
 
@@ -48,7 +49,7 @@ function mapProfile(row: ProfileRow): Profile {
     availableDays: asNumberArray(row.available_days),
     focusMuscles: asStringArray(row.focus_muscles),
     onboardedAt: row.onboarded_at,
-    plan: row.plan === "pro" ? "pro" : "free",
+    plan: parseMembership(row.plan),
   };
 }
 
