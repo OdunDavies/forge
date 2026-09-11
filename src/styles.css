@@ -51,15 +51,18 @@
     color-scheme: dark;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    height: 100%;
+    overflow: hidden;
     overscroll-behavior: none;
-    touch-action: pan-y;
   }
 
   body {
     @apply bg-background text-foreground font-sans;
     position: fixed;
     inset: 0;
-    touch-action: pan-x pan-y;
+    overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     background-image:
@@ -124,4 +127,8 @@
 .display {
   font-family: var(--font-display);
   letter-spacing: -0.03em;
+}
+
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top);
 }
