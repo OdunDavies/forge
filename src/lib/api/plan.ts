@@ -229,10 +229,11 @@ ${JSON.stringify({
 Rules:
 - 7 days, weekday 0=Sunday ... 6=Saturday.
 - Rest days on days they did not mark available.
-- EMPHASIZE the focus muscles: extra direct work, more weekly sets, and session titles that name those groups. Other muscles stay as maintenance.
+- HARD VOLUME RULE: at least 70% of all working sets this week must train the focus muscles (${(profile.focusMuscles ?? []).join(", ") || "none listed"}). At most 30% may train anything else, and only as maintenance.
+- Name each training day after the focus (e.g. "Chest / Shoulders", "Glutes"). Do not write a generic upper/lower split when they named specific muscles.
 - Prefer compounds first. Respect injuries by swapping the offending pattern, never by ignoring it.
 - Use exercise names close to: ${catalogHint}
-- JSON shape: {"title":"...","split":"...","focus":"...","rationale":"2-3 sentences","days":[{"weekday":1,"title":"Upper A","isRest":false,"notes":"...","exercises":[{"name":"...","sets":4,"reps":"6-8","restSec":180,"rpe":8,"notes":""}]}]}
+- JSON shape: {"title":"...","split":"...","focus":"...","rationale":"2-3 sentences naming the 70/30 split","days":[{"weekday":1,"title":"Chest A","isRest":false,"notes":"...","exercises":[{"name":"...","sets":4,"reps":"6-8","restSec":180,"rpe":8,"notes":""}]}]}
 - Keep each training day to 4-6 lifts.`;
 
     const ai = await grokChat(
@@ -246,6 +247,10 @@ Rules:
     if (ai.ok) {
       try {
         const parsed = generatedSchema.parse(extractJson(ai.text));
+        const focus = (profile.focusMuscles ?? []).map((m) => m.toLowerCase());
+        const titles = parsed.days.filter((d) => !d.isRest).map((d) => d.title.toLowerCase()).join(" ");
+        const named = focus.filter((m) => titles.includes(m));
+        if (focus.length && named.length === 0) throw new Error("plan ignored focus");
         const plan = await persistGenerated(context.userId, parsed);
         return { plan, source: "ai" as const };
       } catch {

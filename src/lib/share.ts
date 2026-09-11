@@ -103,21 +103,22 @@ export async function renderShareCardPng(stats: ShareCardStats): Promise<Blob> {
     }
   }
 
-  const overlay = ctx.createLinearGradient(0, H * 0.28, 0, H);
-  overlay.addColorStop(0, "rgba(7,7,8,0)");
-  overlay.addColorStop(0.45, "rgba(7,7,8,0.35)");
-  overlay.addColorStop(1, "rgba(7,7,8,0.92)");
+  const overlay = ctx.createLinearGradient(0, 0, 0, H);
+  overlay.addColorStop(0, "rgba(7,7,8,0.2)");
+  overlay.addColorStop(0.38, "rgba(7,7,8,0.72)");
+  overlay.addColorStop(0.62, "rgba(7,7,8,0.72)");
+  overlay.addColorStop(1, "rgba(7,7,8,0.28)");
   ctx.fillStyle = overlay;
   ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = "#F2F2F0";
   ctx.font = "600 42px 'Space Grotesk', 'IBM Plex Sans', sans-serif";
   ctx.textAlign = "right";
-  ctx.fillText("FORGE", W - 72, H * 0.52);
+  ctx.fillText("FORGE", W - 72, 120);
   ctx.textAlign = "left";
 
   const time = durationParts(stats.durationSec);
-  let y = H - 280;
+  let y = Math.round(H * 0.42);
   ctx.font = "700 92px 'Space Grotesk', 'IBM Plex Sans', sans-serif";
   wrapText(ctx, stats.title, 72, y, W - 144, 96);
   y += 130;

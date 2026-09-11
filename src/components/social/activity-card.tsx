@@ -57,11 +57,11 @@ export function ActivityCard({
               }}
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#070708] via-[#070708]/40 to-black/10" />
-          <p className="absolute right-4 top-[44%] display text-sm font-semibold uppercase tracking-[0.22em] text-white">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#070708]/70 to-black/30" />
+          <p className="absolute right-4 top-4 display text-sm font-semibold uppercase tracking-[0.22em] text-white">
             FORGE
           </p>
-          <div className="absolute inset-x-0 bottom-0 px-4 pb-4">
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-4">
             <Dumbbell className="mb-2 size-7 text-white" strokeWidth={1.75} />
             <h3 className="display text-2xl font-semibold leading-tight text-white">{item.title}</h3>
             <dl className="mt-4 grid grid-cols-2 gap-4 text-white">

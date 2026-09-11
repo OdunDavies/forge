@@ -50,15 +50,14 @@ function Onboarding() {
   });
 
   const [step, setStep] = useState(0);
-  const [displayName, setDisplayName] = useState(me?.displayName ?? "");
-  const [goal, setGoal] = useState("strength");
-  const [focusMuscles, setFocusMuscles] = useState<string[]>(["chest", "back"]);
-  const [experience, setExperience] = useState("intermediate");
-  const [equipment, setEquipment] = useState<string[]>(["barbell", "dumbbell"]);
-  const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [daysPerWeek, setDaysPerWeek] = useState(4);
+  const [displayName, setDisplayName] = useState("");
+  const [goal, setGoal] = useState("");
+  const [focusMuscles, setFocusMuscles] = useState<string[]>([]);
+  const [experience, setExperience] = useState("");
+  const [equipment, setEquipment] = useState<string[]>([]);
+  const [availableDays, setAvailableDays] = useState<number[]>([]);
   const [sessionMinutes, setSessionMinutes] = useState(60);
-  const [units, setUnits] = useState<"metric" | "imperial">("metric");
+  const [units, setUnits] = useState<"metric" | "imperial" | "">("");
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [injuries, setInjuries] = useState("");
@@ -66,22 +65,24 @@ function Onboarding() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const weightKg = weight ? kgFromInput(Number(weight), units) : null;
+      const measure = units === "imperial" ? "imperial" : "metric";
+      const weightKg = weight ? kgFromInput(Number(weight), measure) : null;
       const heightCm = height
-        ? units === "imperial"
+        ? measure === "imperial"
           ? Number(height) * 2.54
           : Number(height)
         : null;
+      const days = availableDays.length >= 2 ? availableDays : [1, 2, 3, 4];
       await upsertMyProfile({
         data: {
-          displayName: displayName.trim() || "Athlete",
-          goal,
-          experience,
-          equipment,
-          availableDays,
-          daysPerWeek,
+          displayName: displayName.trim() || me?.displayName || "Athlete",
+          goal: goal || "strength",
+          experience: experience || "intermediate",
+          equipment: equipment.length ? equipment : ["body only"],
+          availableDays: days,
+          daysPerWeek: days.length,
           sessionMinutes,
-          units,
+          units: measure,
           weightKg,
           heightCm,
           injuries,
@@ -243,14 +244,10 @@ function Onboarding() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Days / week</Label>
-              <Input
-                type="number"
-                min={2}
-                max={7}
-                value={daysPerWeek}
-                onChange={(e) => setDaysPerWeek(Number(e.target.value))}
-              />
+              <Label>Training days</Label>
+              <p className="h-11 content-center rounded-md bg-secondary px-3 text-sm tabular">
+                {availableDays.length || "—"}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Minutes</Label>
@@ -287,11 +284,11 @@ function Onboarding() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Bodyweight ({units === "metric" ? "kg" : "lb"})</Label>
+              <Label>Bodyweight ({units === "imperial" ? "lb" : "kg"})</Label>
               <Input value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" />
             </div>
             <div className="space-y-2">
-              <Label>Height ({units === "metric" ? "cm" : "in"})</Label>
+              <Label>Height ({units === "imperial" ? "in" : "cm"})</Label>
               <Input value={height} onChange={(e) => setHeight(e.target.value)} inputMode="decimal" />
             </div>
           </div>
@@ -315,6 +312,20 @@ function Onboarding() {
   ];
 
   const last = step === steps.length - 1;
+  const stepReady =
+    step === 0
+      ? true
+      : step === 1
+        ? Boolean(goal)
+        : step === 2
+          ? focusMuscles.length > 0
+          : step === 3
+            ? Boolean(experience)
+            : step === 4
+              ? equipment.length > 0
+              : step === 5
+                ? availableDays.length >= 2
+                : true;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-5 py-8">
@@ -339,7 +350,7 @@ function Onboarding() {
         )}
         <Button
           className="flex-1"
-          disabled={save.isPending || (steps[step].title.includes("build most") && focusMuscles.length === 0)}
+          disabled={save.isPending || !stepReady}
           onClick={() => {
             if (!last) setStep((s) => s + 1);
             else save.mutate();

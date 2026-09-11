@@ -179,13 +179,20 @@ export function ShareCardFace({
           }}
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#070708] via-[#070708]/45 to-black/15" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-[#070708]/75 to-black/40" />
 
-      <p className="absolute right-5 top-[46%] display text-[1.35rem] font-semibold uppercase tracking-[0.22em] text-white">
+      <p className="absolute right-5 top-6 display text-[1.35rem] font-semibold uppercase tracking-[0.22em] text-white">
         FORGE
       </p>
 
-      <div className="absolute inset-x-0 bottom-0 px-5 pb-7 pt-16">
+      {emptyHint && (
+        <div className="absolute inset-x-0 top-20 flex flex-col items-center gap-2 text-center text-white/80">
+          <Camera className="size-8" />
+          <p className="text-sm font-medium">Tap to add your photo</p>
+        </div>
+      )}
+
+      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-5">
         <Dumbbell className="mb-3 size-10 text-white" strokeWidth={1.75} />
         <h2 className="display text-[2.15rem] font-semibold leading-[1.05] text-white">{title}</h2>
         <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 text-white">
@@ -214,13 +221,6 @@ export function ShareCardFace({
           ) : null}
         </dl>
       </div>
-
-      {emptyHint && (
-        <div className="absolute inset-x-0 top-[28%] flex flex-col items-center gap-2 text-center text-white/80">
-          <Camera className="size-8" />
-          <p className="text-sm font-medium">Tap to add your photo</p>
-        </div>
-      )}
     </div>
   );
 }
