@@ -134,13 +134,16 @@ export function SetLogger({
                   const defaultW = lastLogged?.weightKg ?? null;
                   const defaultR = lastLogged?.reps ?? null;
                   const newSet: SessionSet = {
-                    id: crypto.randomUUID(),
+                    id: Date.now(),
                     setIndex: g.sets.length + 1,
                     exerciseId: g.exerciseId,
                     exerciseName: g.name,
                     weightKg: defaultW,
                     reps: defaultR,
+                    rpe: null,
                     completed: false,
+                    isWarmup: false,
+                    isPr: false,
                   };
                   onLog(newSet, { weightKg: defaultW, reps: defaultR, completed: false });
                 }}

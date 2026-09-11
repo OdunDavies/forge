@@ -193,7 +193,20 @@ const BANK: Record<string, Record<Mode, Slot[]>> = {
 const UPPER = new Set(["chest", "back", "shoulders", "arms"]);
 const LOWER = new Set(["glutes", "quads", "hamstrings", "calves"]);
 const ALL_MUSCLES = Object.keys(BANK);
-const FOCUS_SHARE = 0.7;
+const FOCUS_SHARE = 0.4;
+const FOCUS_BAND = 0.05; // 35-45%
+
+const SECONDARY: Record<string, string[]> = {
+  chest: ["shoulders", "arms"],
+  back: ["arms", "shoulders"],
+  shoulders: ["arms", "chest"],
+  arms: [],
+  core: [],
+  glutes: ["hamstrings"],
+  quads: ["glutes", "hamstrings"],
+  hamstrings: ["glutes"],
+  calves: [],
+};
 
 function modeFromEquipment(equipment: string[]): Mode {
   const eq = new Set(equipment.map((e) => e.toLowerCase()));
@@ -250,10 +263,34 @@ function tally(lifts: Slot[], focus: Set<string>) {
   let focusSets = 0;
   let otherSets = 0;
   for (const l of lifts) {
-    if (focus.has(l.muscle)) focusSets += l.sets;
+    const primaryIsFocus = focus.has(l.muscle);
+    // primary counts fully
+    if (primaryIsFocus) focusSets += l.sets;
     else otherSets += l.sets;
+    // secondary activation counts at 0.5 weight toward volume tally
+    for (const sec of SECONDARY[l.muscle] ?? []) {
+      if (focus.has(sec)) focusSets += l.sets * 0.5;
+      else if (!primaryIsFocus) {
+        // only count other secondary if primary already counted as other, to avoid double counting focus as other
+        // keep otherSets as is, secondary variety is implicit
+      }
+    }
   }
+  // also count secondary hits that land on non-focus muscles as other volume for ratio
+  // recompute other with secondaries
+  let secOther = 0;
+  for (const l of lifts) {
+    for (const sec of SECONDARY[l.muscle] ?? []) {
+      if (!focus.has(sec) && !focus.has(l.muscle)) secOther += l.sets * 0.5;
+    }
+  }
+  otherSets += secOther;
   return { focusSets, otherSets, total: focusSets + otherSets };
+}
+
+export function volumeBreakdown(lifts: Slot[], focus: string[]) {
+  const set = new Set(focus.map((m) => m.toLowerCase()));
+  return tally(lifts, set);
 }
 
 function applyWeeklyFocusRatio(days: { isRest: boolean; lifts: Slot[] }[], focus: Set<string>) {
@@ -273,20 +310,23 @@ function applyWeeklyFocusRatio(days: { isRest: boolean; lifts: Slot[] }[], focus
     return true;
   };
 
-  for (let i = 0; i < 48; i++) {
+  for (let i = 0; i < 80; i++) {
     const all = days.flatMap((d) => (d.isRest ? [] : d.lifts));
     const { focusSets, total } = tally(all, focus);
     if (!total) break;
     const share = focusSets / total;
-    if (share >= FOCUS_SHARE && share <= 0.76) break;
-    if (share < FOCUS_SHARE) {
-      if (trim(listed((l) => !focus.has(l.muscle)), 2)) continue;
-      if (trim(listed((l) => !focus.has(l.muscle)), 1)) continue;
+    const low = FOCUS_SHARE - FOCUS_BAND; // 0.35
+    const high = FOCUS_SHARE + FOCUS_BAND; // 0.45
+    if (share >= low && share <= high) break;
+    if (share < low) {
+      // need more focus volume: bump focus or trim other
       if (bump(listed((l) => focus.has(l.muscle)), 5)) continue;
+      if (trim(listed((l) => !focus.has(l.muscle)), 1)) continue;
       break;
     }
-    if (trim(listed((l) => focus.has(l.muscle)), 3)) continue;
-    if (bump(listed((l) => !focus.has(l.muscle)), 3)) continue;
+    // share > high -> too much focus, trim focus or bump other
+    if (trim(listed((l) => focus.has(l.muscle)), 1)) continue;
+    if (bump(listed((l) => !focus.has(l.muscle)), 5)) continue;
     break;
   }
 
@@ -346,42 +386,69 @@ function buildSession(
 function themesForSplit(split: string, focus: string[], n: number): string[][] {
   const fallbackFocus = focus.length ? focus : ["chest", "back", "quads"];
   if (split === "full-body") {
+    // whole-body each session — rotate emphasis but keep all regions
     return Array.from({ length: n }, () => fallbackFocus.slice(0, 3));
   }
   if (split === "bro-split") {
-    const cycle = fallbackFocus.length ? fallbackFocus : ALL_MUSCLES;
-    return Array.from({ length: n }, (_, i) => [cycle[i % cycle.length]]);
+    // one muscle per session, high per-session volume
+    const cycle = fallbackFocus.length ? fallbackFocus : ALL_MUSCLES.slice(0, 6);
+    // spread across ALL_MUSCLES for variety when focus is small, but prioritise focus first
+    const order = [...cycle, ...ALL_MUSCLES.filter((m) => !cycle.includes(m))];
+    return Array.from({ length: n }, (_, i) => [order[i % order.length]]);
   }
   if (split === "push-pull-legs") {
-    const push = ["chest", "shoulders", "arms"].filter((m) => fallbackFocus.includes(m));
-    const pull = ["back", "arms"].filter((m) => fallbackFocus.includes(m));
-    const legs = ["quads", "glutes", "hamstrings", "calves"].filter((m) => fallbackFocus.includes(m));
-    const cycle = [
-      push.length ? push : ["chest", "shoulders"],
-      pull.length ? pull : ["back"],
-      legs.length ? legs : ["quads", "glutes"],
+    // push = chest/shoulders/triceps(arms), pull = back/biceps(arms), legs = quads/glutes/hamstrings/calves
+    const cycle: string[][] = [
+      ["chest", "shoulders", "arms"],
+      ["back", "arms"],
+      ["quads", "glutes", "hamstrings", "calves"],
     ];
+    if (n === 3) return cycle;
+    if (n === 6) return [...cycle, ...cycle];
+    if (n === 5) return [...cycle, cycle[0], cycle[1]]; // repeat push/pull for 5th day to keep frequency even
+    // n=4 should not happen for PPL (but fallback)
     return Array.from({ length: n }, (_, i) => cycle[i % 3]);
   }
+  // upper-lower: alternate upper / lower
   const upper = fallbackFocus.filter((m) => UPPER.has(m));
   const lower = fallbackFocus.filter((m) => LOWER.has(m));
-  const U = upper.length ? upper : ["chest", "back"];
-  const L = lower.length ? lower : ["quads", "glutes"];
+  const U = upper.length ? upper : ["chest", "back", "shoulders", "arms"];
+  const L = lower.length ? lower : ["quads", "glutes", "hamstrings"];
   return Array.from({ length: n }, (_, i) => (i % 2 === 0 ? U : L));
 }
 
-export function determineSplit(days: number, exp: string, focus: string[] = []) {
-  const picked = focus.map((m) => m.toLowerCase());
-  const hasUpper = picked.some((m) => UPPER.has(m));
-  const hasLower = picked.some((m) => LOWER.has(m));
-  const oneRegion = picked.length > 0 && (!hasUpper || !hasLower);
+export function determineSplit(days: number, exp: string, focus: string[] = [], goal: string | null = null) {
+  const d = Math.min(6, Math.max(2, days));
+  const isAdv = exp === "advanced";
+  const isInterPlus = exp === "intermediate" || isAdv;
+  const isHyper = goal === "hypertrophy" || goal === "recomp";
 
-  if (days <= 3) return "full-body";
-  if (oneRegion) return "bro-split";
-  if (days === 4) return "upper-lower";
-  if (exp === "advanced" && days >= 5) return "bro-split";
-  if (days >= 5) return "push-pull-legs";
+  // 1) Bro Split — narrow: 5-6 days AND explicitly advanced
+  if (d >= 5 && d <= 6 && isAdv) return "bro-split";
+
+  // 2) PPL — 3,5,6 with hypertrophy-leaning goal OR intermediate/advanced
+  if ((d === 3 || d === 5 || d === 6) && (isHyper || isInterPlus)) return "push-pull-legs";
+
+  // 3) Hard constraints by frequency
+  if (d <= 3) return "full-body";
+  if (d === 4) return "upper-lower";
+  if (d >= 5) return "push-pull-legs";
   return "upper-lower";
+}
+
+function splitLabel(split: string, theme: string[], idx: number, n: number): string {
+  const tc = (s: string) => titleCase(s);
+  if (split === "full-body") return `Full Body ${String.fromCharCode(65 + idx)}`;
+  if (split === "upper-lower") return idx % 2 === 0 ? `Upper ${idx < 2 ? "A" : "B"}` : `Lower ${idx < 2 ? "A" : "B"}`;
+  if (split === "push-pull-legs") {
+    const cycle = ["Push", "Pull", "Legs"];
+    return cycle[idx % 3];
+  }
+  if (split === "bro-split") {
+    const m = theme[0] ?? "Body";
+    return `${tc(m)} Day`;
+  }
+  return theme.map(tc).join(" / ");
 }
 
 export type FallbackDay = {
@@ -406,7 +473,7 @@ export function buildFallbackPlan(input: {
   const available = (input.availableDays.length ? input.availableDays : [1, 2, 3, 4, 5]).slice(0, daysWanted);
   const focus = (input.focusMuscles ?? []).map((m) => m.toLowerCase()).filter((m) => BANK[m]);
   const maintain = maintainMuscles(focus.length ? focus : ["chest", "back", "quads"]);
-  const split = determineSplit(available.length, input.experience ?? "", focus);
+  const split = determineSplit(available.length, input.experience ?? "", focus, input.goal ?? null);
   const themes = themesForSplit(split, focus, available.length);
 
   type Built = { weekday: number; title: string; isRest: boolean; coachNotes: string; lifts: Slot[] };
@@ -433,10 +500,10 @@ export function buildFallbackPlan(input: {
       isMaintainDay ? [] : maintain,
       input.injuries,
     );
-    const label = theme.map(titleCase).join(" / ");
+    const label = splitLabel(split, theme, idx, available.length);
     built.push({
       weekday: wd,
-      title: isMaintainDay ? `Maintenance · ${label}` : label,
+      title: label,
       isRest: false,
       coachNotes: isMaintainDay
         ? "Light maintenance so the rest of you keeps moving. Focus volume lives on the named days."

@@ -62,6 +62,10 @@
     touch-action: pan-x pan-y;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    background-image:
+      radial-gradient(1200px 600px at 80% -10%, rgb(201 212 220 / 0.05), transparent 55%),
+      linear-gradient(180deg, #09090b 0%, #070708 40%);
+    min-height: 100dvh;
   }
 
   button:not(:disabled),
@@ -89,11 +93,6 @@
   }
 
   /* Leave text content (paragraphs, coach messages) selectable by default */
-    background-image:
-      radial-gradient(1200px 600px at 80% -10%, rgb(201 212 220 / 0.05), transparent 55%),
-      linear-gradient(180deg, #09090b 0%, #070708 40%);
-    min-height: 100dvh;
-  }
 
   h1,
   h2,

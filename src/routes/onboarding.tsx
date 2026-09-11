@@ -331,8 +331,8 @@ function Onboarding() {
       <div className="mt-6 flex-1">{steps[step].body}</div>
       {availableDays.length >= 2 && experience ? (
         <p className="mt-2 text-sm text-muted-foreground">
-          Split: <span className="font-medium text-foreground">{determineSplit(availableDays.length, experience, focusMuscles)}</span>
-          {focusMuscles.length ? ` · 70% of sets on ${focusMuscles.join(" + ")}` : ""}
+          Split: <span className="font-medium text-foreground">{determineSplit(availableDays.length, experience, focusMuscles, goal)}</span>
+          {focusMuscles.length ? ` · 40% of sets on ${focusMuscles.join(" + ")}` : ""}
         </p>
       ) : null}
       {error && <p className="mb-3 text-sm text-signal">{error}</p>}
