@@ -210,6 +210,18 @@ function titleCase(id: string) {
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 
+function isUnsafe(name: string, injuries: string) {
+  const inj = injuries.toLowerCase();
+  if (!inj) return false;
+  if ((inj.includes("knee") || inj.includes("back")) && /squat|jump/i.test(name)) return true;
+  if (inj.includes("back") && /deadlift/i.test(name)) return true;
+  return false;
+}
+
+function sameRegion(a: string, b: string) {
+  return (UPPER.has(a) && UPPER.has(b)) || (LOWER.has(a) && LOWER.has(b));
+}
+
 function applyFocusRatio(lifts: Slot[], focus: Set<string>): Slot[] {
   if (!focus.size || !lifts.length) return lifts;
   const next = lifts.map((l) => ({ ...l }));
@@ -220,8 +232,8 @@ function applyFocusRatio(lifts: Slot[], focus: Set<string>): Slot[] {
   const wantFocus = Math.max(1, Math.round(total * FOCUS_SHARE));
 
   while (focusSets < wantFocus) {
-    const lift = next.find(isFocus);
-    if (!lift || lift.sets >= 6) break;
+    const lift = next.find((l) => isFocus(l) && l.sets < 5);
+    if (!lift) break;
     lift.sets += 1;
     focusSets += 1;
   }
@@ -232,6 +244,55 @@ function applyFocusRatio(lifts: Slot[], focus: Set<string>): Slot[] {
     otherSets -= 1;
   }
   return next.filter((l) => l.sets > 0);
+}
+
+function tally(lifts: Slot[], focus: Set<string>) {
+  let focusSets = 0;
+  let otherSets = 0;
+  for (const l of lifts) {
+    if (focus.has(l.muscle)) focusSets += l.sets;
+    else otherSets += l.sets;
+  }
+  return { focusSets, otherSets, total: focusSets + otherSets };
+}
+
+function applyWeeklyFocusRatio(days: { isRest: boolean; lifts: Slot[] }[], focus: Set<string>) {
+  if (!focus.size) return;
+  const listed = (pred: (s: Slot) => boolean) =>
+    days.flatMap((d) => (d.isRest ? [] : d.lifts.filter(pred)));
+  const bump = (list: Slot[], cap: number) => {
+    const lift = list.find((l) => l.sets < cap);
+    if (!lift) return false;
+    lift.sets += 1;
+    return true;
+  };
+  const trim = (list: Slot[], floor: number) => {
+    const lift = [...list].reverse().find((l) => l.sets > floor);
+    if (!lift) return false;
+    lift.sets -= 1;
+    return true;
+  };
+
+  for (let i = 0; i < 48; i++) {
+    const all = days.flatMap((d) => (d.isRest ? [] : d.lifts));
+    const { focusSets, total } = tally(all, focus);
+    if (!total) break;
+    const share = focusSets / total;
+    if (share >= FOCUS_SHARE && share <= 0.76) break;
+    if (share < FOCUS_SHARE) {
+      if (trim(listed((l) => !focus.has(l.muscle)), 2)) continue;
+      if (trim(listed((l) => !focus.has(l.muscle)), 1)) continue;
+      if (bump(listed((l) => focus.has(l.muscle)), 5)) continue;
+      break;
+    }
+    if (trim(listed((l) => focus.has(l.muscle)), 3)) continue;
+    if (bump(listed((l) => !focus.has(l.muscle)), 3)) continue;
+    break;
+  }
+
+  for (const d of days) {
+    if (!d.isRest) d.lifts = d.lifts.filter((l) => l.sets > 0);
+  }
 }
 
 function maintainMuscles(focus: string[]): string[] {
@@ -245,26 +306,82 @@ function maintainMuscles(focus: string[]): string[] {
   return (prefer.length ? prefer : pool).slice(0, 3);
 }
 
-function buildSession(theme: string[], focus: string[], mode: Mode, maintain: string[]): Slot[] {
+function buildSession(
+  theme: string[],
+  focus: string[],
+  mode: Mode,
+  maintain: string[],
+  injuries = "",
+): Slot[] {
   const lifts: Slot[] = [];
   const used = new Set<string>();
   const take = (muscle: string, count: number, extraSets = 0) => {
-    const options = BANK[muscle]?.[mode] ?? [];
+    const order: Mode[] = ["gym", "db", "body"];
+    const pools: Mode[] = [mode, ...order.filter((item) => item !== mode)];
     let added = 0;
-    for (const slot of options) {
-      if (used.has(slot.name) || added >= count) continue;
-      used.add(slot.name);
-      lifts.push(clone(slot, Math.min(5, slot.sets + extraSets)));
-      added += 1;
+    for (const md of pools) {
+      const options = (BANK[muscle]?.[md] ?? []).filter((slot) => !isUnsafe(slot.name, injuries));
+      for (const slot of options) {
+        if (used.has(slot.name) || added >= count) continue;
+        used.add(slot.name);
+        lifts.push(clone(slot, Math.min(5, Math.max(2, slot.sets + extraSets))));
+        added += 1;
+      }
+      if (added >= count) break;
     }
   };
-  for (const muscle of theme) take(muscle, theme.length === 1 ? 4 : 2, 1);
-  for (const muscle of focus.filter((m) => !theme.includes(m))) take(muscle, 1);
+  for (const muscle of theme) take(muscle, theme.length === 1 ? 3 : 2, 0);
+  if (theme.length > 1) {
+    for (const muscle of focus.filter((m) => !theme.includes(m))) {
+      if (theme.some((t) => sameRegion(t, muscle))) take(muscle, 1);
+    }
+  }
   for (const muscle of maintain) {
     if (lifts.length >= 6) break;
     take(muscle, 1, -1);
   }
   return applyFocusRatio(lifts.slice(0, 6), new Set(focus));
+}
+
+function themesForSplit(split: string, focus: string[], n: number): string[][] {
+  const fallbackFocus = focus.length ? focus : ["chest", "back", "quads"];
+  if (split === "full-body") {
+    return Array.from({ length: n }, () => fallbackFocus.slice(0, 3));
+  }
+  if (split === "bro-split") {
+    const cycle = fallbackFocus.length ? fallbackFocus : ALL_MUSCLES;
+    return Array.from({ length: n }, (_, i) => [cycle[i % cycle.length]]);
+  }
+  if (split === "push-pull-legs") {
+    const push = ["chest", "shoulders", "arms"].filter((m) => fallbackFocus.includes(m));
+    const pull = ["back", "arms"].filter((m) => fallbackFocus.includes(m));
+    const legs = ["quads", "glutes", "hamstrings", "calves"].filter((m) => fallbackFocus.includes(m));
+    const cycle = [
+      push.length ? push : ["chest", "shoulders"],
+      pull.length ? pull : ["back"],
+      legs.length ? legs : ["quads", "glutes"],
+    ];
+    return Array.from({ length: n }, (_, i) => cycle[i % 3]);
+  }
+  const upper = fallbackFocus.filter((m) => UPPER.has(m));
+  const lower = fallbackFocus.filter((m) => LOWER.has(m));
+  const U = upper.length ? upper : ["chest", "back"];
+  const L = lower.length ? lower : ["quads", "glutes"];
+  return Array.from({ length: n }, (_, i) => (i % 2 === 0 ? U : L));
+}
+
+export function determineSplit(days: number, exp: string, focus: string[] = []) {
+  const picked = focus.map((m) => m.toLowerCase());
+  const hasUpper = picked.some((m) => UPPER.has(m));
+  const hasLower = picked.some((m) => LOWER.has(m));
+  const oneRegion = picked.length > 0 && (!hasUpper || !hasLower);
+
+  if (days <= 3) return "full-body";
+  if (oneRegion) return "bro-split";
+  if (days === 4) return "upper-lower";
+  if (exp === "advanced" && days >= 5) return "bro-split";
+  if (days >= 5) return "push-pull-legs";
+  return "upper-lower";
 }
 
 export type FallbackDay = {
@@ -282,123 +399,73 @@ export function buildFallbackPlan(input: {
   injuries: string;
   availableDays: number[];
   focusMuscles?: string[];
+  experience?: string | null;
 }): { title: string; split: string; focus: string; rationale: string; days: FallbackDay[] } {
   const mode = modeFromEquipment(input.equipment);
   const daysWanted = Math.min(6, Math.max(2, input.availableDays.length || input.daysPerWeek || 4));
   const available = (input.availableDays.length ? input.availableDays : [1, 2, 3, 4, 5]).slice(0, daysWanted);
   const focus = (input.focusMuscles ?? []).map((m) => m.toLowerCase()).filter((m) => BANK[m]);
   const maintain = maintainMuscles(focus.length ? focus : ["chest", "back", "quads"]);
-  const themeMuscles = focus.length ? focus : ["chest", "back", "quads", "hamstrings"];
+  const split = determineSplit(available.length, input.experience ?? "", focus);
+  const themes = themesForSplit(split, focus, available.length);
 
-  const themes: string[][] = [];
-  if (focus.length === 0) {
-    const cycle = [["chest", "shoulders"], ["back", "arms"], ["quads", "glutes"]];
-    for (let i = 0; i < available.length; i++) themes.push(cycle[i % cycle.length]);
-  } else if (focus.length === 1) {
-    for (let i = 0; i < available.length; i++) {
-      themes.push(i === available.length - 1 && available.length >= 3 ? maintain.slice(0, 2) : [focus[0]]);
-    }
-  } else {
-    for (let i = 0; i < available.length; i++) {
-      const a = focus[i % focus.length];
-      const b = focus[(i + 1) % focus.length];
-      themes.push(a === b ? [a] : [a, b]);
-    }
-    if (available.length >= 4) themes[themes.length - 1] = maintain.slice(0, 2);
-  }
+  type Built = { weekday: number; title: string; isRest: boolean; coachNotes: string; lifts: Slot[] };
+  const built: Built[] = [];
 
-  const days: FallbackDay[] = [];
   for (let wd = 0; wd < 7; wd++) {
     const idx = available.indexOf(wd);
     if (idx < 0) {
-      days.push({
+      built.push({
         weekday: wd,
         title: "Rest / walk",
         isRest: true,
         coachNotes: "Easy movement only. Sleep and protein do the work.",
-        exercises: [],
+        lifts: [],
       });
       continue;
     }
-    const theme = themes[idx] ?? themeMuscles.slice(0, 2);
+    const theme = themes[idx] ?? focus.slice(0, 2);
     const isMaintainDay = theme.every((m) => !focus.includes(m)) && focus.length > 0;
-    const lifts = buildSession(theme, isMaintainDay ? theme : focus, mode, isMaintainDay ? [] : maintain);
+    const lifts = buildSession(
+      theme,
+      isMaintainDay ? [] : focus,
+      mode,
+      isMaintainDay ? [] : maintain,
+      input.injuries,
+    );
     const label = theme.map(titleCase).join(" / ");
-    days.push({
+    built.push({
       weekday: wd,
       title: isMaintainDay ? `Maintenance · ${label}` : label,
       isRest: false,
       coachNotes: isMaintainDay
-        ? "Maintenance only — keep the focus muscles fresh."
-        : `About 70% of today's sets hit ${focus.map(titleCase).join(" + ") || label}. Other work is maintenance.`,
-      exercises: lifts.map(({ muscle: _m, ...rest }) => rest),
+        ? "Light maintenance so the rest of you keeps moving. Focus volume lives on the named days."
+        : `Most of today's sets hit ${focus.map(titleCase).join(" + ") || label}. Other work is maintenance.`,
+      lifts,
     });
   }
 
-  // 40/60 volume‑bias: keep targeted muscle volume in the 35‑45 % band
-  let totalSets = 0;
-  let targetedSets = 0;
-  for (const d of days) {
-    if (d.isRest) continue;
-    for (const ex of d.exercises) {
-      totalSets += ex.sets;
-      if (focus.includes(ex.name.toLowerCase())) {
-        targetedSets += ex.sets;
-      }
-    }
-  }
-  let ratio = totalSets > 0 ? targetedSets / totalSets : 0;
-  const targetLow = 0.35;
-  const targetHigh = 0.45;
+  applyWeeklyFocusRatio(built, new Set(focus));
 
-  if (ratio > targetHigh) {
-    // trim focus extras starting from the last muscle added until we are in range
-    for (const muscle of focus) {
-      const extra = FOCUS_EXTRA[muscle];
-      if (!extra) continue;
-      const dayIdx = days.findIndex((d) => !d.isRest && d.exercises.some((e) => e.name === extra.name));
-      if (dayIdx >= 0) {
-        const ex = days[dayIdx].exercises.find((e) => e.name === extra.name);
-        if (ex) {
-          if (ex.sets > 1) {
-            days[dayIdx].exercises = days[dayIdx].exercises.map((e) =>
-              e.name === extra.name ? { ...e, sets: ex.sets - 1 } : e,
-            );
-          } else {
-            days[dayIdx].exercises = days[dayIdx].exercises.filter((e) => e.name !== extra.name);
-          }
-        }
-      }
-      // recompute ratio after each trim
-      let rTotal = 0,
-        rTarget = 0;
-      for (const d of days) {
-        if (d.isRest) continue;
-        for (const e of d.exercises) {
-          rTotal += e.sets;
-          if (focus.includes(e.name.toLowerCase())) rTarget += e.sets;
-        }
-      }
-      ratio = rTotal > 0 ? rTarget / rTotal : 0;
-      if (ratio <= targetHigh) break;
-    }
-  }
+  const days: FallbackDay[] = built.map((d) => ({
+    weekday: d.weekday,
+    title: d.title,
+    isRest: d.isRest,
+    coachNotes: d.coachNotes,
+    exercises: d.lifts.map(({ muscle: _m, ...rest }) => rest),
+  }));
 
-  const injured = input.injuries.toLowerCase();
-  if (injured.includes("knee") || injured.includes("back")) {
-    for (const d of days) {
-      d.exercises = d.exercises.filter((e) => !/squat|jump/i.test(e.name));
-      if (injured.includes("back")) d.exercises = d.exercises.filter((e) => !/deadlift/i.test(e.name));
-    }
-  }
-
+  const allLifts = built.flatMap((d) => (d.isRest ? [] : d.lifts));
+  const { focusSets, total } = tally(allLifts, new Set(focus));
+  const sharePct = total && focus.length ? Math.round((100 * focusSets) / total) : 0;
   const focusLabel = focus.length ? focus.map(titleCase).join(" + ") : (input.goal ?? "general");
+
   return {
     title: `${available.length}-day ${focusLabel}`,
-    split: focus.length ? `${focus.join("-")} bias` : mode === "body" ? "push-pull-legs" : "upper-lower",
+    split,
     focus: focusLabel,
     rationale: focus.length
-      ? `Built around ${focusLabel}. Roughly 70% of weekly sets go there; the rest is maintenance so you still move well.`
+      ? `${split} week built around ${focusLabel}. ${sharePct}% of working sets hit those muscles; the other ${Math.max(0, 100 - sharePct)}% is maintenance.`
       : "Starter week from your equipment and schedule. Rebuild after you pick target muscles.",
     days,
   };
