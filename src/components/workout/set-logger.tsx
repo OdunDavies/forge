@@ -65,9 +65,13 @@ export function SetLogger({
               <div className="min-w-0">
                 <h3 className="display text-lg font-semibold leading-tight">{g.name}</h3>
                 <p className="mt-1 text-xs tabular text-muted-foreground">
-                  {done.length} logged
-                  {g.sets[0]?.reps ? ` · target ${g.sets[0].reps}` : ""}
-                  {g.sets[0]?.weightKg != null ? ` · ${formatKg(g.sets[0].weightKg, units)}` : ""}
+                  {done.length === 0
+                    ? "Not logged yet"
+                    : `${done.length} set${done.length === 1 ? "" : "s"} · last ${
+                        done[done.length - 1]?.weightKg != null
+                          ? `${formatKg(done[done.length - 1]!.weightKg, units)} × ${done[done.length - 1]!.reps ?? "—"}`
+                          : `${done[done.length - 1]!.reps ?? "—"} reps`
+                      }`}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -173,18 +177,24 @@ export function SessionHeader({
   session: WorkoutSession;
   units: "metric" | "imperial";
 }) {
-  const done = session.sets.filter((s) => s.completed).length;
+  const done = session.sets.filter((s) => s.completed);
+  const volume = done.reduce((a, s) => a + (s.weightKg ?? 0) * (s.reps ?? 0), 0);
+  const reps = done.reduce((a, s) => a + (s.reps ?? 0), 0);
   return (
     <div className="mb-4 flex items-end justify-between gap-4">
       <div>
         <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Today’s work</p>
         <h2 className="display text-2xl font-semibold">{session.title}</h2>
       </div>
-      <p className="text-sm tabular text-muted-foreground">
-        {done}/{session.sets.length} ·{" "}
-        {formatKg(
-          session.sets.reduce((a, s) => a + (s.completed ? (s.weightKg ?? 0) * (s.reps ?? 0) : 0), 0),
-          units,
+      <p className="text-right text-sm tabular text-muted-foreground">
+        {done.length === 0 ? (
+          "Nothing logged yet"
+        ) : (
+          <>
+            {done.length} set{done.length === 1 ? "" : "s"}
+            {reps ? ` · ${reps} reps` : ""}
+            <span className="mt-0.5 block text-foreground">{formatKg(volume, units)} vol</span>
+          </>
         )}
       </p>
     </div>
