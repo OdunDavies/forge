@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Minus, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ export function SetLogger({
   onLog,
   onCompleteExercise,
   onAddSet,
+  onRemoveSet,
   busyId,
   busyName,
 }: {
@@ -22,6 +23,7 @@ export function SetLogger({
   onLog: (set: SessionSet, patch: { weightKg: number | null; reps: number | null; completed: boolean }) => void;
   onCompleteExercise: (name: string) => void;
   onAddSet: (name: string) => void;
+  onRemoveSet: (set: SessionSet) => void;
   busyId?: number | null;
   busyName?: string | null;
 }) {
@@ -31,6 +33,9 @@ export function SetLogger({
       const g = map.get(s.exerciseName) ?? { name: s.exerciseName, exerciseId: s.exerciseId, sets: [] };
       g.sets.push(s);
       map.set(s.exerciseName, g);
+    }
+    for (const g of map.values()) {
+      g.sets.sort((a, b) => a.setIndex - b.setIndex || a.id - b.id);
     }
     return [...map.values()];
   }, [session.sets]);
@@ -49,15 +54,19 @@ export function SetLogger({
   return (
     <div className="space-y-4">
       {groups.map((g) => {
-        const allDone = g.sets.every((s) => s.completed);
+        const done = g.sets.filter((s) => s.completed);
+        const open = g.sets.find((s) => !s.completed);
+        const visible = open ? [...done, open] : done;
+        const allDone = !open && done.length > 0;
+        const canRemove = g.sets.length > 1;
         return (
           <section key={g.name} className="rounded-xl bg-card p-4 shadow-[var(--shadow-border)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="display text-lg font-semibold leading-tight">{g.name}</h3>
                 <p className="mt-1 text-xs tabular text-muted-foreground">
-                  {g.sets.length} sets
-                  {g.sets[0]?.reps ? ` × ${g.sets[0].reps}` : ""}
+                  {done.length} logged
+                  {g.sets[0]?.reps ? ` · target ${g.sets[0].reps}` : ""}
                   {g.sets[0]?.weightKg != null ? ` · ${formatKg(g.sets[0].weightKg, units)}` : ""}
                 </p>
               </div>
@@ -80,10 +89,10 @@ export function SetLogger({
               </div>
             </div>
             <div className="mt-3 space-y-2">
-              {g.sets.map((set) => {
+              {visible.map((set) => {
                 const d = val(set);
                 return (
-                  <div key={set.id} className="grid grid-cols-[2rem_1fr_1fr_2.75rem] items-center gap-2">
+                  <div key={set.id} className="grid grid-cols-[2rem_1fr_1fr_2.75rem_2.75rem] items-center gap-2">
                     <span className="text-xs tabular text-muted-foreground">{set.setIndex}</span>
                     <Input
                       inputMode="decimal"
@@ -120,6 +129,15 @@ export function SetLogger({
                     >
                       <Check className="size-4" />
                     </button>
+                    <button
+                      type="button"
+                      disabled={!canRemove || busyId === set.id || busyName === g.name}
+                      onClick={() => onRemoveSet(set)}
+                      className="grid size-11 place-items-center rounded-md bg-secondary text-muted-foreground disabled:opacity-30"
+                      aria-label="Remove set"
+                    >
+                      <Minus className="size-4" />
+                    </button>
                   </div>
                 );
               })}
@@ -127,15 +145,17 @@ export function SetLogger({
             {g.sets.some((s) => s.isPr) && (
               <p className="mt-2 text-xs uppercase tracking-[0.14em] text-signal">Personal record locked</p>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-2"
-              disabled={busyName === g.name || g.sets.length >= 12}
-              onClick={() => onAddSet(g.name)}
-            >
-              + set
-            </Button>
+            <div className="mt-2 flex gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busyName === g.name || Boolean(open) || g.sets.length >= 12}
+                onClick={() => onAddSet(g.name)}
+              >
+                <Plus className="size-3.5" />
+                set
+              </Button>
+            </div>
           </section>
         );
       })}

@@ -15,6 +15,7 @@ import {
   finishSession,
   getActiveSession,
   logSet,
+  removeSetFromSession,
   startEmptySession,
   startTodaysSession,
 } from "@/lib/api/sessions";
@@ -123,6 +124,21 @@ function LogPage() {
     }
   }
 
+  async function onRemoveSet(set: SessionSet) {
+    if (!sessionQ.data) return;
+    setBusyId(set.id);
+    try {
+      const session = await removeSetFromSession({
+        data: { sessionId: sessionQ.data.id, setId: set.id },
+      });
+      qc.setQueryData(["active-session"], session);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove set");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const session = sessionQ.data;
 
   return (
@@ -160,6 +176,7 @@ function LogPage() {
             onLog={onLog}
             onCompleteExercise={onCompleteExercise}
             onAddSet={onAddSet}
+            onRemoveSet={onRemoveSet}
             busyId={busyId}
             busyName={busyName}
           />
@@ -177,7 +194,7 @@ function LogPage() {
                 className="flex h-12 w-full items-center justify-between rounded-md bg-secondary px-3 text-left text-sm"
                 onClick={async () => {
                   await addExerciseToSession({
-                    data: { sessionId: session.id, exerciseId: ex.id, exerciseName: ex.name, sets: 3 },
+                    data: { sessionId: session.id, exerciseId: ex.id, exerciseName: ex.name, sets: 1 },
                   });
                   setQ("");
                   void qc.invalidateQueries({ queryKey: ["active-session"] });

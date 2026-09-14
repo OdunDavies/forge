@@ -86,6 +86,37 @@ async function setsFor(sessionId: number, userId: string) {
   return rows.map(mapSet);
 }
 
+async function collapseExtraOpenSets(sessionId: number, userId: string) {
+  const sql = await getSql();
+  const rows = await sql<SetRow>`
+    select id, exercise_id, exercise_name, set_index, weight_kg, reps, rpe, completed, is_warmup, is_pr
+    from session_sets
+    where session_id = ${sessionId} and user_id = ${userId}
+    order by set_index, id`;
+  const openSeen = new Set<string>();
+  for (const row of rows) {
+    if (row.completed) continue;
+    if (openSeen.has(row.exercise_name)) {
+      await sql`delete from session_sets where id = ${row.id} and user_id = ${userId} and completed = false`;
+    } else {
+      openSeen.add(row.exercise_name);
+    }
+  }
+}
+
+async function reindexExercise(sessionId: number, userId: string, exerciseName: string) {
+  const sql = await getSql();
+  const rows = await sql<{ id: number }>`
+    select id from session_sets
+    where session_id = ${sessionId} and user_id = ${userId} and exercise_name = ${exerciseName}
+    order by set_index, id`;
+  let i = 1;
+  for (const row of rows) {
+    await sql`update session_sets set set_index = ${i} where id = ${row.id} and user_id = ${userId}`;
+    i += 1;
+  }
+}
+
 async function lastWorkingSet(userId: string, exerciseName: string) {
   const sql = await getSql();
   const rows = await sql<{ weight_kg: unknown; reps: number | null }>`
@@ -130,6 +161,7 @@ export const getActiveSession = createServerFn({ method: "GET" })
       where user_id = ${context.userId} and completed_at is null
       order by started_at desc limit 1`;
     if (!rows[0]) return null;
+    if (!rows[0].completed_at) await collapseExtraOpenSets(rows[0].id, context.userId);
     return mapSession(rows[0], await setsFor(rows[0].id, context.userId));
   });
 
@@ -142,6 +174,7 @@ export const startTodaysSession = createServerFn({ method: "POST" })
       where user_id = ${context.userId} and completed_at is null
       order by started_at desc limit 1`;
     if (existing[0]) {
+      await collapseExtraOpenSets(existing[0].id, context.userId);
       return mapSession(existing[0], await setsFor(existing[0].id, context.userId));
     }
 
@@ -159,15 +192,13 @@ export const startTodaysSession = createServerFn({ method: "POST" })
       for (const ex of today.exercises) {
         const last = await lastWorkingSet(context.userId, ex.exerciseName);
         const reps = parseTargetReps(ex.reps) ?? last.reps;
-        for (let i = 1; i <= ex.sets; i++) {
-          await sql`
-            insert into session_sets (
-              session_id, user_id, exercise_id, exercise_name, set_index, weight_kg, reps, completed, is_warmup
-            ) values (
-              ${session.id}, ${context.userId}, ${ex.exerciseId}, ${ex.exerciseName}, ${i},
-              ${last.weightKg}, ${reps}, false, false
-            )`;
-        }
+        await sql`
+          insert into session_sets (
+            session_id, user_id, exercise_id, exercise_name, set_index, weight_kg, reps, completed, is_warmup
+          ) values (
+            ${session.id}, ${context.userId}, ${ex.exerciseId}, ${ex.exerciseName}, 1,
+            ${last.weightKg}, ${reps}, false, false
+          )`;
       }
     }
     return mapSession(session, await setsFor(session.id, context.userId));
@@ -205,14 +236,17 @@ export const addExerciseToSession = createServerFn({ method: "POST" })
     const owned = await sql<{ id: number }>`
       select id from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId} and completed_at is null`;
     if (!owned[0]) throw new Error("No active session");
-    const count = data.sets ?? 3;
+    const already = await sql<{ id: number }>`
+      select id from session_sets
+      where session_id = ${data.sessionId} and user_id = ${context.userId}
+        and exercise_name = ${data.exerciseName}
+      limit 1`;
+    if (already[0]) throw new Error("That lift is already in this session");
     const last = await lastWorkingSet(context.userId, data.exerciseName);
-    for (let i = 1; i <= count; i++) {
-      await sql`
-        insert into session_sets (session_id, user_id, exercise_id, exercise_name, set_index, weight_kg, reps, completed)
-        values (${data.sessionId}, ${context.userId}, ${data.exerciseId ?? null}, ${data.exerciseName}, ${i},
-          ${last.weightKg}, ${last.reps ?? 8}, false)`;
-    }
+    await sql`
+      insert into session_sets (session_id, user_id, exercise_id, exercise_name, set_index, weight_kg, reps, completed)
+      values (${data.sessionId}, ${context.userId}, ${data.exerciseId ?? null}, ${data.exerciseName}, 1,
+        ${last.weightKg}, ${last.reps ?? 8}, false)`;
     const row = await sql<SessionRow>`select * from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId}`;
     return mapSession(row[0]!, await setsFor(data.sessionId, context.userId));
   });
@@ -239,6 +273,7 @@ export const addSetToSession = createServerFn({ method: "POST" })
       order by set_index desc, id desc`;
     if (!existing[0]) throw new Error("Add the movement first");
     if (existing.length >= 12) throw new Error("That’s enough sets for this lift");
+    if (existing.some((s) => !s.completed)) throw new Error("Log this set first");
     const last = existing[0];
     const nextIndex = (last.set_index ?? existing.length) + 1;
     await sql`
@@ -248,8 +283,40 @@ export const addSetToSession = createServerFn({ method: "POST" })
         ${data.sessionId}, ${context.userId}, ${last.exercise_id}, ${data.exerciseName}, ${nextIndex},
         ${last.weight_kg}, ${last.reps}, false, false
       )`;
-    const row = await sql<SessionRow>`select * from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId}`;
-    return mapSession(row[0]!, await setsFor(data.sessionId, context.userId));
+    const added = await sql<SessionRow>`select * from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId}`;
+    return mapSession(added[0]!, await setsFor(data.sessionId, context.userId));
+  });
+
+const removeSetSchema = z.object({
+  sessionId: z.number(),
+  setId: z.number(),
+});
+
+export const removeSetFromSession = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => removeSetSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const owned = await sql<{ id: number }>`
+      select id from workout_sessions
+      where id = ${data.sessionId} and user_id = ${context.userId} and completed_at is null`;
+    if (!owned[0]) throw new Error("No active session");
+    const target = await sql<SetRow>`
+      select id, exercise_id, exercise_name, set_index, weight_kg, reps, rpe, completed, is_warmup, is_pr
+      from session_sets
+      where id = ${data.setId} and session_id = ${data.sessionId} and user_id = ${context.userId}
+      limit 1`;
+    const row = target[0];
+    if (!row) throw new Error("Set not found");
+    const siblings = await sql<{ id: number }>`
+      select id from session_sets
+      where session_id = ${data.sessionId} and user_id = ${context.userId}
+        and exercise_name = ${row.exercise_name}`;
+    if (siblings.length <= 1) throw new Error("Keep at least one set");
+    await sql`delete from session_sets where id = ${row.id} and user_id = ${context.userId}`;
+    await reindexExercise(data.sessionId, context.userId, row.exercise_name);
+    const session = await sql<SessionRow>`select * from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId}`;
+    return mapSession(session[0]!, await setsFor(data.sessionId, context.userId));
   });
 
 const logSetSchema = z.object({
