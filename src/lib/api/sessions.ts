@@ -243,12 +243,46 @@ export const addExerciseToSession = createServerFn({ method: "POST" })
       limit 1`;
     if (already[0]) throw new Error("That lift is already in this session");
     const last = await lastWorkingSet(context.userId, data.exerciseName);
+    if (!data.exerciseId) {
+      await sql`
+        insert into user_exercises (user_id, name)
+        select ${context.userId}, ${data.exerciseName}
+        where not exists (
+          select 1 from user_exercises
+          where user_id = ${context.userId} and lower(name) = lower(${data.exerciseName})
+        )`;
+    }
     await sql`
       insert into session_sets (session_id, user_id, exercise_id, exercise_name, set_index, weight_kg, reps, completed)
       values (${data.sessionId}, ${context.userId}, ${data.exerciseId ?? null}, ${data.exerciseName}, 1,
         ${last.weightKg}, ${last.reps ?? 8}, false)`;
     const row = await sql<SessionRow>`select * from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId}`;
     return mapSession(row[0]!, await setsFor(data.sessionId, context.userId));
+  });
+
+export const listMyLifts = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const sql = await getSql();
+    await sql`
+      insert into user_exercises (user_id, name)
+      select ${context.userId}, s.exercise_name
+      from (
+        select distinct on (lower(exercise_name)) exercise_name
+        from session_sets
+        where user_id = ${context.userId} and exercise_id is null
+        order by lower(exercise_name), id desc
+      ) s
+      where not exists (
+        select 1 from user_exercises u
+        where u.user_id = ${context.userId} and lower(u.name) = lower(s.exercise_name)
+      )`;
+    const rows = await sql<{ name: string }>`
+      select name from user_exercises
+      where user_id = ${context.userId}
+      order by created_at desc
+      limit 40`;
+    return rows.map((r) => r.name);
   });
 
 const addSetSchema = z.object({

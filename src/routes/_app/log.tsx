@@ -14,6 +14,7 @@ import {
   completeExercise,
   finishSession,
   getActiveSession,
+  listMyLifts,
   logSet,
   removeSetFromSession,
   startEmptySession,
@@ -39,6 +40,7 @@ function LogPage() {
     queryFn: () => searchExercises({ data: { q, limit: 8 } }),
     enabled: q.trim().length > 1,
   });
+  const mine = useQuery({ queryKey: ["my-lifts"], queryFn: () => listMyLifts() });
 
   const weekday = new Date().getDay();
   const today = plan.data?.days.find((d) => d.weekday === weekday);
@@ -154,6 +156,7 @@ function LogPage() {
       });
       qc.setQueryData(["active-session"], next);
       setQ("");
+      if (!exerciseId) void qc.invalidateQueries({ queryKey: ["my-lifts"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not add that lift");
     } finally {
@@ -162,6 +165,14 @@ function LogPage() {
   }
 
   const session = sessionQ.data;
+  const inSession = new Set((session?.sets ?? []).map((s) => s.exerciseName.toLowerCase()));
+  const needle = q.trim().toLowerCase();
+  const customHits = (mine.data ?? [])
+    .filter((name) => !inSession.has(name.toLowerCase()))
+    .filter((name) => !needle || name.toLowerCase().includes(needle))
+    .slice(0, 8);
+  const exactLibrary = results.data?.items.some((ex) => ex.name.toLowerCase() === needle);
+  const exactCustom = customHits.some((name) => name.toLowerCase() === needle);
 
   return (
     <div>
@@ -222,8 +233,7 @@ function LogPage() {
                 {addingCustom ? "Adding…" : "Add"}
               </Button>
             </form>
-            {q.trim().length > 1 &&
-              !results.data?.items.some((ex) => ex.name.toLowerCase() === q.trim().toLowerCase()) && (
+            {q.trim().length > 1 && !exactLibrary && !exactCustom && (
                 <button
                   type="button"
                   disabled={addingCustom}
@@ -236,6 +246,22 @@ function LogPage() {
                   <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Custom</span>
                 </button>
               )}
+            {customHits.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Your lifts</p>
+                {customHits.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className="flex h-12 w-full items-center justify-between rounded-md bg-card px-3 text-left text-sm shadow-[var(--shadow-border)]"
+                    onClick={() => void addLift(name, null)}
+                  >
+                    <span>{name}</span>
+                    <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Yours</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {results.data?.items.map((ex) => (
               <button
                 key={ex.id}
