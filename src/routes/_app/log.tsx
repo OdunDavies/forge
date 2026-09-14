@@ -33,6 +33,7 @@ function LogPage() {
   const [q, setQ] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [busyName, setBusyName] = useState<string | null>(null);
+  const [addingCustom, setAddingCustom] = useState(false);
   const results = useQuery({
     queryKey: ["ex-search", q],
     queryFn: () => searchExercises({ data: { q, limit: 8 } }),
@@ -139,6 +140,27 @@ function LogPage() {
     }
   }
 
+  async function addLift(name: string, exerciseId: string | null) {
+    if (!sessionQ.data) return;
+    const trimmed = name.trim().replace(/\s+/g, " ");
+    if (trimmed.length < 2) {
+      toast.error("Name the lift");
+      return;
+    }
+    setAddingCustom(true);
+    try {
+      const next = await addExerciseToSession({
+        data: { sessionId: sessionQ.data.id, exerciseId, exerciseName: trimmed, sets: 1 },
+      });
+      qc.setQueryData(["active-session"], next);
+      setQ("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not add that lift");
+    } finally {
+      setAddingCustom(false);
+    }
+  }
+
   const session = sessionQ.data;
 
   return (
@@ -182,23 +204,44 @@ function LogPage() {
           />
 
           <div className="mt-6 space-y-3">
-            <Input
-              placeholder="Add a movement from the library…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const name = q.trim();
+                const hit = results.data?.items.find((ex) => ex.name.toLowerCase() === name.toLowerCase());
+                void addLift(name, hit?.id ?? null);
+              }}
+            >
+              <Input
+                placeholder="Search the library or type your own lift…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <Button type="submit" variant="secondary" disabled={addingCustom || q.trim().length < 2}>
+                {addingCustom ? "Adding…" : "Add"}
+              </Button>
+            </form>
+            {q.trim().length > 1 &&
+              !results.data?.items.some((ex) => ex.name.toLowerCase() === q.trim().toLowerCase()) && (
+                <button
+                  type="button"
+                  disabled={addingCustom}
+                  className="flex h-12 w-full items-center justify-between rounded-md border border-dashed border-border bg-card px-3 text-left text-sm"
+                  onClick={() => void addLift(q, null)}
+                >
+                  <span>
+                    Use <span className="font-medium text-foreground">“{q.trim()}”</span> as your lift
+                  </span>
+                  <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Custom</span>
+                </button>
+              )}
             {results.data?.items.map((ex) => (
               <button
                 key={ex.id}
                 type="button"
                 className="flex h-12 w-full items-center justify-between rounded-md bg-secondary px-3 text-left text-sm"
-                onClick={async () => {
-                  await addExerciseToSession({
-                    data: { sessionId: session.id, exerciseId: ex.id, exerciseName: ex.name, sets: 1 },
-                  });
-                  setQ("");
-                  void qc.invalidateQueries({ queryKey: ["active-session"] });
-                }}
+                onClick={() => void addLift(ex.name, ex.id)}
               >
                 <span>{ex.name}</span>
                 <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{ex.equipment}</span>

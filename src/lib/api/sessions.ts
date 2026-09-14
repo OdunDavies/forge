@@ -224,7 +224,7 @@ export const startEmptySession = createServerFn({ method: "POST" })
 const addExSchema = z.object({
   sessionId: z.number(),
   exerciseId: z.string().nullable().optional(),
-  exerciseName: z.string().min(1),
+  exerciseName: z.string().trim().min(2).max(80),
   sets: z.number().int().min(1).max(8).optional(),
 });
 
