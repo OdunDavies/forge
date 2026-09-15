@@ -379,7 +379,7 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
 Keep 4-6 lifts.`,
       },
     ],
-    { maxTokens: 700, json: true, timeoutMs: 8000, modelLimit: 1 },
+    { maxTokens: 1200, json: true, timeoutMs: 16_000, modelLimit: 3 },
   );
 
   if (ai.ok) {
@@ -433,7 +433,7 @@ Keep 4-6 lifts.`,
   return {
     plan,
     applied: false,
-    message: ai.ok ? "Next session unchanged." : "Coach is offline — next session left as written.",
+    message: ai.ok ? "Next session unchanged." : "Gemini didn’t retune this time — next session left as written.",
     dayTitle: target.title,
   };
 }

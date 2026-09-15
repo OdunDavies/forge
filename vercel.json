@@ -7,6 +7,11 @@
     "VITE_AUTH_ENABLED": "true",
     "BETTER_AUTH_URL": "https://forgexyx.vercel.app"
   },
+  "functions": {
+    "api/**": {
+      "maxDuration": 30
+    }
+  },
   "headers": [
     {
       "source": "/sw.js",

@@ -87,12 +87,12 @@ PRs: ${JSON.stringify(prs)}`;
           content: m.content,
         })),
       ],
-      { maxTokens: 700 },
+      { maxTokens: 800, timeoutMs: 28_000 },
     );
 
     const reply = ai.ok
       ? ai.text
-      : "Forge is offline right now. Log today's sets anyway — I'll read them when I'm back.";
+      : "Gemini didn’t answer just now. Your log is saved — ask again in a minute.";
     await sql`insert into coach_messages (user_id, role, content)
               values (${context.userId}, 'assistant', ${reply})`;
     return { reply };
