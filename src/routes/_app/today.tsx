@@ -4,10 +4,8 @@ import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { getTodaySummary, saveDailyLog } from "@/lib/api/daily";
+import { getTodaySummary } from "@/lib/api/daily";
 import { confirmTweak, getActivePlan, tweakTodayPlan } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
 import { getActiveSession, startTodaysSession } from "@/lib/api/sessions";
@@ -89,14 +87,6 @@ function TodayPage() {
       void qc.invalidateQueries({ queryKey: ["plan"] });
     },
     onError: (e: Error) => toast.error(e.message),
-  });
-  const checkin = useMutation({
-    mutationFn: (payload: { energy?: number; sleepHours?: number; bodyweightKg?: number }) =>
-      saveDailyLog({ data: payload }),
-    onSuccess: () => {
-      toast("Check-in saved");
-      void qc.invalidateQueries({ queryKey: ["today-summary"] });
-    },
   });
 
   const vol = summary.data?.volumeKg ?? 0;
@@ -255,57 +245,6 @@ function TodayPage() {
           </div>
         </div>
       )}
-
-      <Card className="p-5">
-        <h2 className="display text-lg font-semibold">Daily check-in</h2>
-        <form
-          className="mt-4 grid gap-3 sm:grid-cols-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const fd = new FormData(e.currentTarget);
-            const energy = fd.get("energy") ? Number(fd.get("energy")) : undefined;
-            const sleep = fd.get("sleep") ? Number(fd.get("sleep")) : undefined;
-            const bw = fd.get("bw") ? Number(fd.get("bw")) : undefined;
-            checkin.mutate({
-              energy,
-              sleepHours: sleep,
-              bodyweightKg: bw && units === "imperial" ? bw / 2.20462 : bw,
-            });
-          }}
-        >
-          <div className="space-y-2">
-            <Label>Energy 1–5</Label>
-            <Input
-              name="energy"
-              type="number"
-              min={1}
-              max={5}
-              defaultValue={summary.data?.log?.energy ?? ""}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Sleep hours</Label>
-            <Input
-              name="sleep"
-              type="number"
-              step="0.5"
-              defaultValue={summary.data?.log?.sleepHours ?? ""}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Bodyweight ({units === "metric" ? "kg" : "lb"})</Label>
-            <Input
-              name="bw"
-              type="number"
-              step="0.1"
-              defaultValue={summary.data?.log?.bodyweightKg ?? ""}
-            />
-          </div>
-          <Button type="submit" className="sm:col-span-3" disabled={checkin.isPending}>
-            Save check-in
-          </Button>
-        </form>
-      </Card>
     </div>
   );
 }

@@ -2,7 +2,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getSql } from "@/lib/db";
 
-// @ts-expect-error routeTree.gen not yet generated for new route
 export const Route = createFileRoute("/api/webhook/stripe")({
   server: {
     handlers: {

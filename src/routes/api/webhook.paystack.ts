@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHmac } from "node:crypto";
 import { getSql } from "@/lib/db";
 
-// @ts-expect-error routeTree.gen not yet generated for new route
 export const Route = createFileRoute("/api/webhook/paystack")({
   server: {
     handlers: {

@@ -73,6 +73,7 @@ const saveSchema = z.object({
   notes: z.string().max(280).optional(),
 });
 
+// Deprecated: daily check-in removed — profile now holds onboarding vitals editable in /profile
 export const saveDailyLog = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: unknown) => saveSchema.parse(input))
