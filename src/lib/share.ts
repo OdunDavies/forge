@@ -18,13 +18,13 @@ export async function compressImage(file: File): Promise<string> {
   return data;
 }
 
-export function sessionShareText(_input: {
+export function sessionShareText(input: {
   title: string;
   setCount: number;
   volume: string;
   duration: string;
 }) {
-  return "Forge";
+  return `${input.title} on Forge — ${input.setCount} sets, ${input.volume}, ${input.duration}.`;
 }
 
 export function durationParts(sec: number | null | undefined) {
@@ -69,41 +69,15 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: numb
   ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
-export function formatDurationLine(sec: number | null | undefined) {
-  const time = durationParts(sec);
-  return time.secondary ? `${time.primary} ${time.secondary}` : time.primary;
-}
-
-async function ensureFonts() {
-  if (typeof document === "undefined" || !document.fonts?.load) return;
-  await Promise.all([
-    document.fonts.load("700 72px 'Space Grotesk'"),
-    document.fonts.load("600 48px 'Space Grotesk'"),
-    document.fonts.load("500 24px 'IBM Plex Sans'"),
-  ]).catch(() => {});
-}
-
-function fitSize(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number,
-  start: number,
-  min: number,
-  style: string,
-) {
-  let size = start;
-  ctx.font = style.replace("SIZE", String(size));
-  while (size > min && ctx.measureText(text).width > maxWidth) {
-    size -= 2;
-    ctx.font = style.replace("SIZE", String(size));
-  }
-  return size;
-}
-
 export async function renderShareCardPng(stats: ShareCardStats): Promise<Blob> {
-  const W = 1080;
-  const H = 1920;
-  await ensureFonts();
+  const lowMemory =
+    typeof navigator !== "undefined" &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).deviceMemory != null &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).deviceMemory < 4;
+  const W = lowMemory ? 540 : 1080;
+  const H = lowMemory ? 960 : 1920;
   const canvas = document.createElement("canvas");
   try {
     canvas.width = W;
@@ -142,83 +116,44 @@ export async function renderShareCardPng(stats: ShareCardStats): Promise<Blob> {
   }
 
   const overlay = ctx.createLinearGradient(0, 0, 0, H);
-  overlay.addColorStop(0, "rgba(7,7,8,0.18)");
-  overlay.addColorStop(0.36, "rgba(7,7,8,0.78)");
-  overlay.addColorStop(0.64, "rgba(7,7,8,0.78)");
-  overlay.addColorStop(1, "rgba(7,7,8,0.22)");
+  overlay.addColorStop(0, "rgba(7,7,8,0.2)");
+  overlay.addColorStop(0.38, "rgba(7,7,8,0.72)");
+  overlay.addColorStop(0.62, "rgba(7,7,8,0.72)");
+  overlay.addColorStop(1, "rgba(7,7,8,0.28)");
   ctx.fillStyle = overlay;
   ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = "#F2F2F0";
+  ctx.font = "600 42px 'Space Grotesk', 'IBM Plex Sans', sans-serif";
   ctx.textAlign = "right";
-  ctx.font = "600 36px 'Space Grotesk', 'IBM Plex Sans', sans-serif";
-  ctx.fillText("FORGE", W - 72, 110);
+  ctx.fillText("FORGE", W - 72, 120);
   ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
 
-  const pad = 72;
-  const maxW = W - pad * 2;
-  let y = Math.round(H * 0.4);
+  const time = durationParts(stats.durationSec);
+  let y = Math.round(H * 0.42);
+  ctx.font = "700 92px 'Space Grotesk', 'IBM Plex Sans', sans-serif";
+  wrapText(ctx, stats.title, 72, y, W - 144, 96);
+  y += 130;
 
-  ctx.fillStyle = "#F2F2F0";
-  const titleSize = fitSize(
-    ctx,
-    stats.title,
-    maxW,
-    68,
-    40,
-    "700 SIZEpx 'Space Grotesk', 'IBM Plex Sans', sans-serif",
-  );
-  ctx.font = `700 ${titleSize}px 'Space Grotesk', 'IBM Plex Sans', sans-serif`;
-  y = wrapText(ctx, stats.title, pad, y, maxW, titleSize + 10, 2);
-
-  const time = formatDurationLine(stats.durationSec);
-  const cols = [
-    { label: "Volume", value: stats.volume },
-    { label: "Time", value: time },
-    { label: "Sets", value: String(stats.setCount) },
-  ];
-  const colW = maxW / 3;
-  y += 56;
-  cols.forEach((col, i) => {
-    const x = pad + i * colW;
-    ctx.fillStyle = "rgba(242,242,240,0.62)";
-    ctx.font = "500 22px 'IBM Plex Sans', sans-serif";
-    ctx.fillText(col.label, x, y);
-    const size = fitSize(
-      ctx,
-      col.value,
-      colW - 24,
-      52,
-      28,
-      "600 SIZEpx 'Space Grotesk', 'IBM Plex Sans', sans-serif",
-    );
-    ctx.fillStyle = "#F2F2F0";
-    ctx.font = `600 ${size}px 'Space Grotesk', 'IBM Plex Sans', sans-serif`;
-    ctx.fillText(col.value, x, y + 58);
-  });
-
-  if (stats.topLift) {
-    y += 150;
-    ctx.fillStyle = "rgba(242,242,240,0.62)";
-    ctx.font = "500 22px 'IBM Plex Sans', sans-serif";
-    ctx.fillText("Top set", pad, y);
-    const size = fitSize(
-      ctx,
-      stats.topLift,
-      maxW,
-      36,
-      22,
-      "600 SIZEpx 'Space Grotesk', 'IBM Plex Sans', sans-serif",
-    );
-    ctx.fillStyle = "#F2F2F0";
-    ctx.font = `600 ${size}px 'Space Grotesk', 'IBM Plex Sans', sans-serif`;
-    wrapText(ctx, stats.topLift, pad, y + 46, maxW, size + 8, 2);
-  }
+  const col = (W - 144) / 2;
+  drawStat(ctx, "Volume", stats.volume, 72, y);
+  drawStat(ctx, "Time", time.secondary ? `${time.primary} ${time.secondary}` : time.primary, 72 + col, y);
+  y += 150;
+  drawStat(ctx, "Sets", String(stats.setCount), 72, y);
+  if (stats.topLift) drawStat(ctx, "Top set", stats.topLift, 72 + col, y);
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("Could not export card");
   return blob;
+}
+
+function drawStat(ctx: CanvasRenderingContext2D, label: string, value: string, x: number, y: number) {
+  ctx.fillStyle = "rgba(242,242,240,0.62)";
+  ctx.font = "500 28px 'IBM Plex Sans', sans-serif";
+  ctx.fillText(label, x, y);
+  ctx.fillStyle = "#F2F2F0";
+  ctx.font = "600 64px 'Space Grotesk', 'IBM Plex Sans', sans-serif";
+  ctx.fillText(value, x, y + 72);
 }
 
 function wrapText(
@@ -228,44 +163,40 @@ function wrapText(
   y: number,
   maxWidth: number,
   lineHeight: number,
-  maxLines = 3,
 ) {
-  const words = text.split(" ").filter(Boolean);
+  const words = text.split(" ");
   let line = "";
   let yy = y;
-  let lines = 0;
   for (const word of words) {
     const test = line ? `${line} ${word}` : word;
     if (ctx.measureText(test).width > maxWidth && line) {
       ctx.fillText(line, x, yy);
-      lines += 1;
-      if (lines >= maxLines) return yy;
       line = word;
       yy += lineHeight;
     } else {
       line = test;
     }
   }
-  if (line) {
-    let draw = line;
-    if (ctx.measureText(draw).width > maxWidth) {
-      while (draw.length > 1 && ctx.measureText(`${draw}…`).width > maxWidth) draw = draw.slice(0, -1);
-      draw = `${draw}…`;
-    }
-    ctx.fillText(draw, x, yy);
-  }
-  return yy;
+  if (line) ctx.fillText(line, x, yy);
 }
 
 export async function shareOrCopy(payload: {
   title: string;
-  text?: string;
-  url?: string;
+  text: string;
+  url: string;
   file?: File;
 }) {
   if (payload.file && typeof navigator !== "undefined" && navigator.canShare?.({ files: [payload.file] })) {
     try {
-      await navigator.share({ title: payload.title, files: [payload.file] });
+      await navigator.share({ title: payload.title, text: payload.text, files: [payload.file] });
+      return "shared" as const;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return "cancelled" as const;
+    }
+  }
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({ title: payload.title, text: payload.text, url: payload.url });
       return "shared" as const;
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return "cancelled" as const;
@@ -279,13 +210,6 @@ export async function shareOrCopy(payload: {
     URL.revokeObjectURL(a.href);
     return "downloaded" as const;
   }
-  if (typeof navigator !== "undefined" && navigator.share) {
-    try {
-      await navigator.share({ title: payload.title });
-      return "shared" as const;
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return "cancelled" as const;
-    }
-  }
+  await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
   return "copied" as const;
 }

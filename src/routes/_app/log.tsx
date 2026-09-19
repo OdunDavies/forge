@@ -6,17 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SessionHeader, SetLogger } from "@/components/workout/set-logger";
 import { searchExercises } from "@/lib/api/library";
-import { getActivePlan, retuneUpcoming } from "@/lib/api/plan";
+import { getActivePlan } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
 import {
   addExerciseToSession,
-  addSetToSession,
   completeExercise,
   finishSession,
   getActiveSession,
-  listMyLifts,
   logSet,
-  removeSetFromSession,
   startEmptySession,
   startTodaysSession,
 } from "@/lib/api/sessions";
@@ -35,13 +32,19 @@ function LogPage() {
   const [q, setQ] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [busyName, setBusyName] = useState<string | null>(null);
-  const [addingCustom, setAddingCustom] = useState(false);
+  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("public");
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [queueCount, setQueueCount] = useState(0);
+  // duration pause tracking
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausedMs, setPausedMs] = useState(0);
+  const pauseStartRef = useRef<number | null>(null);
+  const [tick, setTick] = useState(() => Date.now());
   const results = useQuery({
     queryKey: ["ex-search", q],
     queryFn: () => searchExercises({ data: { q, limit: 8 } }),
     enabled: q.trim().length > 1,
   });
-  const mine = useQuery({ queryKey: ["my-lifts"], queryFn: () => listMyLifts() });
 
   const weekday = new Date().getDay();
   const today = plan.data?.days.find((d) => d.weekday === weekday);
@@ -154,17 +157,10 @@ function LogPage() {
       return finishSession({ data: { sessionId: s.id, visibility: vis, durationSec: dur } });
     },
     onSuccess: (s) => {
-      toast("Workout logged — rewriting the next session…");
+      track("finishSession", { volume: s.volumeKg, durationSec: s.durationSec });
+      toast("Workout logged");
       void qc.invalidateQueries();
       void navigate({ to: "/session/$id", params: { id: String(s.id) } });
-      void retuneUpcoming({ data: { trigger: "session" } })
-        .then((r) => {
-          if (r.applied) toast(r.message);
-          void qc.invalidateQueries({ queryKey: ["plan"] });
-        })
-        .catch(() => {
-          /* session is saved even if the coach is offline */
-        });
     },
   });
 
@@ -211,74 +207,12 @@ function LogPage() {
       const res = await completeExercise({ data: { sessionId: sessionQ.data.id, exerciseName: name } });
       if (res.isPr) toast("New PR");
       qc.setQueryData(["active-session"], res.session);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not finish the lift");
     } finally {
       setBusyName(null);
-    }
-  }
-
-  async function onAddSet(name: string) {
-    if (!sessionQ.data) return;
-    setBusyName(name);
-    try {
-      const session = await addSetToSession({
-        data: { sessionId: sessionQ.data.id, exerciseName: name },
-      });
-      qc.setQueryData(["active-session"], session);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not add set");
-    } finally {
-      setBusyName(null);
-    }
-  }
-
-  async function onRemoveSet(set: SessionSet) {
-    if (!sessionQ.data) return;
-    setBusyId(set.id);
-    try {
-      const session = await removeSetFromSession({
-        data: { sessionId: sessionQ.data.id, setId: set.id },
-      });
-      qc.setQueryData(["active-session"], session);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not remove set");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function addLift(name: string, exerciseId: string | null) {
-    if (!sessionQ.data) return;
-    const trimmed = name.trim().replace(/\s+/g, " ");
-    if (trimmed.length < 2) {
-      toast.error("Name the lift");
-      return;
-    }
-    setAddingCustom(true);
-    try {
-      const next = await addExerciseToSession({
-        data: { sessionId: sessionQ.data.id, exerciseId, exerciseName: trimmed, sets: 1 },
-      });
-      qc.setQueryData(["active-session"], next);
-      setQ("");
-      if (!exerciseId) void qc.invalidateQueries({ queryKey: ["my-lifts"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not add that lift");
-    } finally {
-      setAddingCustom(false);
     }
   }
 
   const session = sessionQ.data;
-  const inSession = new Set((session?.sets ?? []).map((s) => s.exerciseName.toLowerCase()));
-  const needle = q.trim().toLowerCase();
-  const customHits = (mine.data ?? [])
-    .filter((name) => !inSession.has(name.toLowerCase()))
-    .filter((name) => !needle || name.toLowerCase().includes(needle))
-    .slice(0, 8);
-  const exactLibrary = results.data?.items.some((ex) => ex.name.toLowerCase() === needle);
-  const exactCustom = customHits.some((name) => name.toLowerCase() === needle);
 
   return (
     <div className="pb-20 md:pb-0">
@@ -322,67 +256,40 @@ function LogPage() {
             units={units}
             onLog={onLog}
             onCompleteExercise={onCompleteExercise}
-            onAddSet={onAddSet}
-            onRemoveSet={onRemoveSet}
             busyId={busyId}
             busyName={busyName}
             restSecMap={restSecMap}
           />
 
           <div className="mt-6 space-y-3">
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const name = q.trim();
-                const hit = results.data?.items.find((ex) => ex.name.toLowerCase() === name.toLowerCase());
-                void addLift(name, hit?.id ?? null);
-              }}
-            >
-              <Input
-                placeholder="Search the library or type your own lift…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-              <Button type="submit" variant="secondary" disabled={addingCustom || q.trim().length < 2}>
-                {addingCustom ? "Adding…" : "Add"}
-              </Button>
-            </form>
-            {q.trim().length > 1 && !exactLibrary && !exactCustom && (
-                <button
-                  type="button"
-                  disabled={addingCustom}
-                  className="flex h-12 w-full items-center justify-between rounded-md border border-dashed border-border bg-card px-3 text-left text-sm"
-                  onClick={() => void addLift(q, null)}
-                >
-                  <span>
-                    Use <span className="font-medium text-foreground">“{q.trim()}”</span> as your lift
-                  </span>
-                  <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Custom</span>
-                </button>
-              )}
-            {customHits.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Your lifts</p>
-                {customHits.map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    className="flex h-12 w-full items-center justify-between rounded-md bg-card px-3 text-left text-sm shadow-[var(--shadow-border)]"
-                    onClick={() => void addLift(name, null)}
-                  >
-                    <span>{name}</span>
-                    <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Yours</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <Input
+              placeholder="Add a movement from the library…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
             {results.data?.items.map((ex) => (
               <button
                 key={ex.id}
                 type="button"
                 className="flex h-12 w-full items-center justify-between rounded-md bg-secondary px-3 text-left text-sm"
-                onClick={() => void addLift(ex.name, ex.id)}
+                onClick={async () => {
+                  if (!navigator.onLine) {
+                    enqueue({ type: "addExercise", data: { sessionId: session.id, exerciseId: ex.id, exerciseName: ex.name, sets: 3 } });
+                    toast("Offline - queued");
+                    setQ("");
+                    return;
+                  }
+                  try {
+                    await addExerciseToSession({
+                      data: { sessionId: session.id, exerciseId: ex.id, exerciseName: ex.name, sets: 3 },
+                    });
+                    setQ("");
+                    void qc.invalidateQueries({ queryKey: ["active-session"] });
+                  } catch {
+                    enqueue({ type: "addExercise", data: { sessionId: session.id, exerciseId: ex.id, exerciseName: ex.name, sets: 3 } });
+                    toast("Offline - queued");
+                  }
+                }}
               >
                 <span>{ex.name}</span>
                 <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{ex.equipment}</span>
@@ -405,7 +312,7 @@ function LogPage() {
               </Button>
             </div>
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              Remaining sets are marked done. Forge then rewrites the next session from this log.
+              Remaining sets are marked done with the numbers already filled in.
             </p>
           </div>
           {/* sticky footer for mobile */}
