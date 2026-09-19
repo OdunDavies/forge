@@ -23,7 +23,7 @@ function ExercisePage() {
         sid = s.id;
       }
       await addExerciseToSession({
-        data: { sessionId: sid, exerciseId: ex.data.id, exerciseName: ex.data.name, sets: 3 },
+        data: { sessionId: sid, exerciseId: ex.data.id, exerciseName: ex.data.name, sets: 1 },
       });
       await qc.invalidateQueries({ queryKey: ["active-session"] });
       await navigate({ to: "/log" });

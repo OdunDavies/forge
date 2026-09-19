@@ -17,7 +17,7 @@ export type Profile = {
   availableDays: number[];
   focusMuscles: string[];
   onboardedAt: string | null;
-  plan: "free" | "pro";
+  plan: "free" | "pro" | "pro_max";
 };
 
 export type PlanExercise = {

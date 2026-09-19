@@ -8,9 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getPersonalRecords, listMyHistory } from "@/lib/api/sessions";
 import { getMyProfile, upsertMyProfile } from "@/lib/api/profile";
+import { coachQuota } from "@/lib/api/billing";
 import { FOCUS_MUSCLES } from "@/lib/muscles";
 import { cn, formatKg, formatDuration } from "@/lib/utils";
-import { formatPrice, useBillingRegion } from "@/lib/billing";
+import {
+  formatPrice,
+  membershipLabel,
+  PLANS,
+  useBillingRegion,
+  type PaidMembership,
+} from "@/lib/billing";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({ component: ProfilePage });
@@ -18,6 +25,7 @@ export const Route = createFileRoute("/_app/profile")({ component: ProfilePage }
 function ProfilePage() {
   const qc = useQueryClient();
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMyProfile() });
+  const quota = useQuery({ queryKey: ["coach-quota"], queryFn: () => coachQuota() });
   const history = useQuery({ queryKey: ["history"], queryFn: () => listMyHistory() });
   const prs = useQuery({ queryKey: ["prs"], queryFn: () => getPersonalRecords() });
   const [focusMuscles, setFocusMuscles] = useState<string[]>([]);
@@ -45,7 +53,9 @@ function ProfilePage() {
   const p = me.data;
   const units = p?.units ?? "metric";
   const { region } = useBillingRegion();
-  const localPrice = formatPrice(region, "month");
+  const plan = quota.data?.plan ?? p?.plan ?? "free";
+  const exhausted = Boolean(quota.data?.exhausted);
+  const upgrades = (quota.data?.upgrades ?? []) as PaidMembership[];
 
   return (
     <div className="space-y-8">
@@ -60,21 +70,53 @@ function ProfilePage() {
         <UserButton />
       </header>
 
-      {p?.plan !== "pro" && (
-        <Link
-          to="/pricing"
-          className="flex items-center justify-between rounded-xl bg-card px-5 py-4 shadow-[var(--shadow-border)]"
-        >
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Free · 5 coach asks / week</p>
-            <p className="mt-1 text-sm">
-              Upgrade to Pro — {localPrice}/mo where you are. Nigeria ₦4,900 · elsewhere $8.99.
+      <section className="rounded-xl bg-card px-5 py-4 shadow-[var(--shadow-border)]">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Membership</p>
+        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="display text-2xl font-semibold">{membershipLabel(plan)}</h2>
+          {quota.data?.limit == null ? (
+            <p className="text-sm text-muted-foreground">Unlimited coach</p>
+          ) : (
+            <p className="text-sm tabular text-muted-foreground">
+              {quota.data.used} / {quota.data.limit} coach asks this week
             </p>
-          </div>
-          <span className="text-sm text-steel">See plans</span>
-        </Link>
-      )}
+          )}
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">{PLANS[plan].blurb}</p>
+      </section>
 
+      {exhausted && upgrades.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This week’s {membershipLabel(plan)} quota is used. Next tier:
+          </p>
+          {upgrades.map((tier) => {
+            const spec = PLANS[tier];
+            const price = formatPrice(region, "month", tier);
+            const featured = tier === "pro";
+            return (
+              <Link
+                key={tier}
+                to="/pricing"
+                className={cn(
+                  "flex items-center justify-between rounded-xl px-5 py-4 shadow-[var(--shadow-border)]",
+                  featured ? "bg-card shadow-[var(--shadow-border-hover)]" : "bg-card",
+                )}
+              >
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {featured ? "Best value" : spec.name}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    {spec.name} · {price}/mo · {spec.blurb}
+                  </p>
+                </div>
+                <span className="text-sm text-steel">See {spec.name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
       <form
         className="space-y-3 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]"
         onSubmit={(e) => {

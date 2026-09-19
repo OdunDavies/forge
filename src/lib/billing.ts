@@ -2,31 +2,74 @@ import { useEffect, useState } from "react";
 
 export type BillingRegion = "ng" | "intl";
 export type BillingInterval = "month" | "year";
-export type Membership = "free" | "pro";
+export type Membership = "free" | "pro" | "pro_max";
+export type PaidMembership = "pro" | "pro_max";
+
+export function parseMembership(raw: string | null | undefined): Membership {
+  const v = (raw ?? "free").toLowerCase().replace("-", "_");
+  if (v === "pro_max") return "pro_max";
+  if (v === "pro") return "pro";
+  return "free";
+}
+
+export function membershipLabel(plan: Membership) {
+  if (plan === "pro_max") return "Pro Max";
+  if (plan === "pro") return "Pro";
+  return "Free";
+}
+
+/** Weekly coach-question cap. null = unlimited. */
+export function coachWeekLimit(plan: Membership): number | null {
+  if (plan === "pro_max") return null;
+  if (plan === "pro") return 40;
+  return 5;
+}
+
+/** Plans to offer only after the current quota is used up. */
+export function upgradesWhenExhausted(plan: Membership): PaidMembership[] {
+  if (plan === "free") return ["pro", "pro_max"];
+  if (plan === "pro") return ["pro_max"];
+  return [];
+}
 
 export const PLANS = {
   free: {
-    id: "free",
+    id: "free" as const,
     name: "Free",
-    blurb: "Log iron. Learn the lifts. One starter plan.",
+    blurb: "Log iron. Learn the lifts. One starter week.",
     features: [
       "Prefilled logging from Today",
       "3,700+ movement library",
-      "One AI plan at onboarding",
+      "Starter week from onboarding",
       "5 coach questions / week",
+      "Auto-retune after you finish a session",
       "Recap cards you can share",
     ],
   },
   pro: {
-    id: "pro",
+    id: "pro" as const,
     name: "Pro",
-    blurb: "The coach that actually reads your log.",
+    blurb: "The training loop Forge is built around — without paying Max.",
+    badge: "Best value",
     features: [
-      "Unlimited Gemini coach",
-      "Daily session tweaks from fatigue, PRs, injuries",
-      "Focus-muscle volume bias, rebuilt any time",
-      "Priority on the iron feed",
       "Everything in Free",
+      "40 coach questions / week — a full training block",
+      "Check-in also rewrites today when energy is low",
+      "Rebuild the week from your profile any time",
+      "Daily session tweaks from fatigue, PRs, injuries",
+      "The coach that reads yesterday and writes tomorrow",
+    ],
+  },
+  pro_max: {
+    id: "pro_max" as const,
+    name: "Pro Max",
+    blurb: "Unlimited coach. For people who live in the chat.",
+    features: [
+      "Everything in Pro",
+      "Unlimited Gemini coach",
+      "Longer, more detailed rewrites",
+      "First in line when the model is busy",
+      "No weekly cap — ever",
     ],
   },
 } as const;
@@ -35,30 +78,32 @@ export const PRICES = {
   ng: {
     currency: "NGN",
     symbol: "₦",
-    month: 4900,
-    year: 39000,
-    yearNote: "Save ₦19,800",
     processor: "Paystack",
     processorHint: "Naira cards, bank transfer, USSD",
     place: "Nigeria",
+    pro: { month: 4900, year: 39000, yearNote: "Save ₦19,800" },
+    pro_max: { month: 9900, year: 79000, yearNote: "Save ₦39,800" },
   },
   intl: {
     currency: "USD",
     symbol: "$",
-    month: 8.99,
-    year: 69,
-    yearNote: "Save $38.88",
     processor: "Stripe",
     processorHint: "Cards, Apple Pay, Google Pay",
     place: "Rest of world",
+    pro: { month: 8.99, year: 69, yearNote: "Save $38.88" },
+    pro_max: { month: 16.99, year: 129, yearNote: "Save $74.88" },
   },
 } as const;
 
-export function formatPrice(region: BillingRegion, interval: BillingInterval) {
-  const p = PRICES[region];
+export function formatPrice(
+  region: BillingRegion,
+  interval: BillingInterval,
+  tier: PaidMembership = "pro",
+) {
+  const p = PRICES[region][tier];
   const amount = interval === "year" ? p.year : p.month;
   if (region === "ng") return `₦${amount.toLocaleString("en-NG")}`;
-  return interval === "year" ? `$${amount}` : `$${amount.toFixed(2)}`;
+  return interval === "year" ? `$${amount}` : `$${Number(amount).toFixed(2)}`;
 }
 
 function timezoneLooksNigerian(tz: string) {

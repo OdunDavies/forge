@@ -1,11 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { listCoachMessages, sendCoachMessage } from "@/lib/api/coach";
 import { coachQuota } from "@/lib/api/billing";
-import { confirmTweak, getActivePlan, tweakTodayPlan } from "@/lib/api/plan";
+import { tweakTodayPlan } from "@/lib/api/plan";
+import { formatPrice, membershipLabel, PLANS, useBillingRegion } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CenteredLoading } from "@/components/ui/centered-loading";
@@ -22,25 +23,15 @@ const PROMPTS = [
 function CoachPage() {
   const qc = useQueryClient();
   const [text, setText] = useState("");
+  const { region } = useBillingRegion();
   const messages = useQuery({ queryKey: ["coach"], queryFn: () => listCoachMessages() });
   const quota = useQuery({ queryKey: ["coach-quota"], queryFn: () => coachQuota() });
-  const planQ = useQuery({ queryKey: ["plan"], queryFn: () => getActivePlan() });
-  const [pendingTweak, setPendingTweak] = useState<null | {
-    before: { name: string; sets: number; reps: string }[];
-    after: { name: string; sets: number; reps: string }[];
-    message: string;
-    targetWeekday?: number;
-  }>(null);
-
   const send = useMutation({
     mutationFn: () => sendCoachMessage({ data: { content: text.trim() } }),
     onSuccess: (res: unknown) => {
       setText("");
       void qc.invalidateQueries({ queryKey: ["coach"] });
       void qc.invalidateQueries({ queryKey: ["coach-quota"] });
-      if (res && typeof res === "object" && "retryable" in res && (res as { retryable?: boolean }).retryable) {
-        toast("Coach is offline — you can retry.");
-      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -90,8 +81,8 @@ function CoachPage() {
   });
 
   const thread = [...(messages.data ?? [])].reverse();
-  const lastAssistant = [...thread].reverse().find((m) => m.role === "assistant");
-  const isOfflineFallback = lastAssistant?.content.includes("Forge is offline");
+  const exhausted = Boolean(quota.data?.exhausted);
+  const plan = quota.data?.plan ?? "free";
 
   return (
     <div className="flex min-h-[70dvh] flex-col">
@@ -99,25 +90,35 @@ function CoachPage() {
         <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Coach · Gemini</p>
         <h1 className="display text-3xl font-semibold">Coach</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Ask about load, swaps, or pain. Forge reads your log — it will not diagnose injuries.
+          Ask about load, swaps, or pain. Finishing a workout already rewrites the next session — this chat is extra.
+          Forge will not diagnose injuries.
         </p>
+        {quota.data?.limit == null ? (
+          <p className="mt-2 text-sm text-muted-foreground">{membershipLabel(plan)} · unlimited</p>
+        ) : (
+          <p className="mt-2 text-sm tabular text-muted-foreground">
+            {membershipLabel(plan)} · {quota.data.used} / {quota.data.limit} asks this week
+          </p>
+        )}
       </header>
 
-      {/* Quota bar */}
-      <div className="mb-3 rounded-md bg-secondary px-3 py-2 text-sm">
-        {quota.isPending ? (
-          <span className="text-muted-foreground">Loading quota…</span>
-        ) : quota.data?.plan === "pro" ? (
-          <span>Pro unlimited</span>
-        ) : (
-          <span>
-            Free {quota.data?.used ?? 0}/{quota.data?.limit ?? 5} this week
-            <span className="ml-2 text-muted-foreground">
-              {quota.data?.remaining ?? 0} left
-            </span>
-          </span>
-        )}
-      </div>
+      {exhausted && (quota.data?.upgrades.length ?? 0) > 0 && (
+        <div className="mb-4 space-y-2">
+          {quota.data!.upgrades.map((tier) => (
+            <Link
+              key={tier}
+              to="/pricing"
+              className="flex items-center justify-between rounded-xl bg-card px-5 py-4 text-sm shadow-[var(--shadow-border)]"
+            >
+              <span>
+                {tier === "pro" ? "Best value · " : ""}
+                {PLANS[tier].name} · {formatPrice(region, "month", tier)}/mo
+              </span>
+              <span className="text-steel">See {PLANS[tier].name}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 space-y-3">
         {thread.length === 0 && (
@@ -161,7 +162,7 @@ function CoachPage() {
         className="mt-4 space-y-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (text.trim()) send.mutate();
+          if (text.trim() && !exhausted) send.mutate();
         }}
       >
         <Textarea
@@ -171,8 +172,8 @@ function CoachPage() {
           className="min-h-24"
         />
         <div className="flex gap-2">
-          <Button type="submit" disabled={send.isPending || !text.trim()} className="flex-1">
-            Send
+          <Button type="submit" disabled={send.isPending || !text.trim() || exhausted} className="flex-1">
+            {exhausted ? "Week’s asks used" : send.isPending ? "Reading your log" : "Send"}
           </Button>
           <Button type="button" variant="outline" disabled={tweakPreview.isPending || send.isPending} onClick={() => tweakPreview.mutate()}>
             Apply to plan

@@ -1,6 +1,17 @@
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash"];
+const GEMINI_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
+  "gemini-2.5-flash",
+];
+
+type GeminiPart = { text?: string; thought?: boolean };
+type GeminiBody = {
+  error?: { message?: string };
+  candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
+};
 
 /**
  * Coach LLM. Gemini via GEMINI_API_KEY (Google AI Studio).
@@ -8,7 +19,7 @@ const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash
  */
 export async function grokChat(
   messages: ChatMessage[],
-  opts: { maxTokens?: number; json?: boolean } = {},
+  opts: { maxTokens?: number; json?: boolean; timeoutMs?: number; modelLimit?: number } = {},
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return { ok: false, error: "AI is not available in this environment" };
@@ -35,55 +46,64 @@ export async function grokChat(
     contents.unshift({ role: "user", parts: [{ text: "Ready." }] });
   }
 
-  const payload = {
-    ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
-    contents,
-    generationConfig: {
+  function payload(model: string, thinkingBudget: number) {
+    const generationConfig: Record<string, unknown> = {
       temperature: 0.4,
       maxOutputTokens: opts.maxTokens ?? 1200,
       ...(opts.json ? { responseMimeType: "application/json" } : {}),
-    },
-  };
+    };
+    if (model.startsWith("gemini-3")) {
+      generationConfig.thinkingConfig = { thinkingBudget };
+    }
+    return {
+      ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+      contents,
+      generationConfig,
+    };
+  }
 
   let lastError = "Coach unavailable";
-  for (const model of GEMINI_MODELS) {
-    let res: Response;
-    try {
-      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(22000),
-      });
-    } catch {
-      lastError = "Coach timed out";
-      continue;
-    }
-    if (res.status === 503 || res.status === 429) {
-      lastError = `Coach unavailable (${res.status})`;
-      continue;
-    }
-    if (!res.ok) {
-      lastError = `Coach unavailable (${res.status})`;
-      continue;
-    }
+  const models = GEMINI_MODELS.slice(0, Math.max(1, opts.modelLimit ?? GEMINI_MODELS.length));
+  const timeoutMs = opts.timeoutMs ?? 28_000;
 
-    const body = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const text =
-      body.candidates?.[0]?.content?.parts
-        ?.map((p) => p.text ?? "")
+  for (const model of models) {
+    const budgets = model.startsWith("gemini-3") ? [0, 256] : [0];
+    for (const budget of budgets) {
+      let res: Response;
+      try {
+        res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify(payload(model, budget)),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch {
+        lastError = "Coach timed out";
+        continue;
+      }
+
+      const body = (await res.json().catch(() => ({}))) as GeminiBody;
+      if (res.status === 503 || res.status === 429) {
+        lastError = `Coach unavailable (${res.status})`;
+        break;
+      }
+      if (!res.ok) {
+        lastError = body.error?.message?.slice(0, 180) || `Coach unavailable (${res.status})`;
+        if (res.status === 404) break;
+        continue;
+      }
+
+      const text = (body.candidates?.[0]?.content?.parts ?? [])
+        .filter((p) => !p.thought)
+        .map((p) => p.text ?? "")
         .join("")
-        .trim() ?? "";
-    if (!text) {
+        .trim();
+      if (text) return { ok: true, text };
       lastError = "Coach returned an empty reply";
-      continue;
     }
-    return { ok: true, text };
   }
 
   return { ok: false, error: lastError };

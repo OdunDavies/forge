@@ -74,7 +74,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="lg:pl-56">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 py-2 safe-area-inset-top px-4 lg:hidden">
+        <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-border bg-background/85 px-4 py-2 safe-area-inset-top lg:hidden">
           <Link to="/today">
             <Wordmark />
           </Link>

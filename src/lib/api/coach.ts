@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { grokChat } from "@/lib/ai/grok";
+import { coachWeekLimit, membershipLabel, parseMembership } from "@/lib/billing";
 import { loadProfileByUserId } from "./profile";
 import { loadPlan } from "./plan";
 
@@ -24,14 +25,22 @@ export const sendCoachMessage = createServerFn({ method: "POST" })
     const sql = await getSql();
     const planRows = await sql<{ plan: string }>`
       select plan from profiles where user_id = ${context.userId} limit 1`;
-    const isPro = planRows[0]?.plan === "pro";
-    if (!isPro) {
+    const membership = parseMembership(planRows[0]?.plan);
+    const cap = coachWeekLimit(membership);
+    if (cap != null) {
       const used = await sql<{ c: number }>`
         select count(*)::int as c from coach_messages
         where user_id = ${context.userId} and role = 'user'
           and created_at >= date_trunc('week', now())`;
-      if ((used[0]?.c ?? 0) >= 5) {
-        throw new Error("Free coach is 5 questions a week. Upgrade to Pro for unlimited.");
+      if ((used[0]?.c ?? 0) >= cap) {
+        if (membership === "free") {
+          throw new Error(
+            "Free is 5 coach questions a week. Pro is 40 — that's the one built for a training block.",
+          );
+        }
+        throw new Error(
+          `${membershipLabel(membership)} is ${cap} questions a week. Pro Max is unlimited.`,
+        );
       }
     }
     await sql`insert into coach_messages (user_id, role, content)
@@ -78,17 +87,12 @@ PRs: ${JSON.stringify(prs)}`;
           content: m.content,
         })),
       ],
-      { maxTokens: 700 },
+      { maxTokens: 800, timeoutMs: 28_000 },
     );
 
-    if (!ai.ok) {
-      console.warn("[coach] grokChat failed", { userId: context.userId, error: ai.error, retryable: true });
-      const reply = "Forge is offline right now. Log today's sets anyway — I'll read them when I'm back.";
-      await sql`insert into coach_messages (user_id, role, content)
-                 values (${context.userId}, 'assistant', ${reply})`;
-      return { reply, offline: true as const, retryable: true as const, error: ai.error };
-    }
-    const reply = ai.text;
+    const reply = ai.ok
+      ? ai.text
+      : "Gemini didn’t answer just now. Your log is saved — ask again in a minute.";
     await sql`insert into coach_messages (user_id, role, content)
                values (${context.userId}, 'assistant', ${reply})`;
     return { reply, offline: false as const, retryable: false as const };
