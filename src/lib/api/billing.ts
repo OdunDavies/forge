@@ -64,7 +64,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     const origin = process.env.BETTER_AUTH_URL ?? "https://forgexyx.vercel.app";
     if (data.region === "intl" && hasStripe) {
       // @ts-ignore - optional dep, installed when STRIPE_SECRET_KEY set
-      const Stripe = (await import("stripe").catch(() => null)) as unknown as { default: new (k: string) => { checkout: { sessions: { create: (o: unknown) => Promise<{ url: string | null }> } } } } | null;
+      const Stripe = (await import(/* @vite-ignore */ "stripe").catch(() => null)) as unknown as { default: new (k: string) => { checkout: { sessions: { create: (o: unknown) => Promise<{ url: string | null }> } } } } | null;
       if (Stripe?.default) {
         const stripe = new Stripe.default(process.env.STRIPE_SECRET_KEY!);
         const price = data.interval === "year" ? process.env.STRIPE_PRICE_YEAR : process.env.STRIPE_PRICE_MONTH;

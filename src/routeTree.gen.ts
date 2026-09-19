@@ -26,6 +26,8 @@ import { Route as AppLibraryIdRouteImport } from './routes/_app/library/$id'
 import { Route as AppSessionIdRouteImport } from './routes/_app/session.$id'
 import { Route as AppUHandleRouteImport } from './routes/_app/u.$handle'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiWebhookPaystackRouteImport } from './routes/api/webhook.paystack'
+import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook.stripe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -111,6 +113,16 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhookPaystackRoute = ApiWebhookPaystackRouteImport.update({
+  id: '/api/webhook/paystack',
+  path: '/api/webhook/paystack',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhookStripeRoute = ApiWebhookStripeRouteImport.update({
+  id: '/api/webhook/stripe',
+  path: '/api/webhook/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -128,6 +140,8 @@ export interface FileRoutesByFullPath {
   '/session/$id': typeof AppSessionIdRoute
   '/u/$handle': typeof AppUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhook/paystack': typeof ApiWebhookPaystackRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/library/': typeof AppLibraryIndexRoute
 }
 export interface FileRoutesByTo {
@@ -146,6 +160,8 @@ export interface FileRoutesByTo {
   '/session/$id': typeof AppSessionIdRoute
   '/u/$handle': typeof AppUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhook/paystack': typeof ApiWebhookPaystackRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/library': typeof AppLibraryIndexRoute
 }
 export interface FileRoutesById {
@@ -166,6 +182,8 @@ export interface FileRoutesById {
   '/_app/session/$id': typeof AppSessionIdRoute
   '/_app/u/$handle': typeof AppUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhook/paystack': typeof ApiWebhookPaystackRoute
+  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/_app/library/': typeof AppLibraryIndexRoute
 }
 export interface FileRouteTypes {
@@ -186,6 +204,8 @@ export interface FileRouteTypes {
     | '/session/$id'
     | '/u/$handle'
     | '/api/auth/$'
+    | '/api/webhook/paystack'
+    | '/api/webhook/stripe'
     | '/library/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -204,6 +224,8 @@ export interface FileRouteTypes {
     | '/session/$id'
     | '/u/$handle'
     | '/api/auth/$'
+    | '/api/webhook/paystack'
+    | '/api/webhook/stripe'
     | '/library'
   id:
     | '__root__'
@@ -223,6 +245,8 @@ export interface FileRouteTypes {
     | '/_app/session/$id'
     | '/_app/u/$handle'
     | '/api/auth/$'
+    | '/api/webhook/paystack'
+    | '/api/webhook/stripe'
     | '/_app/library/'
   fileRoutesById: FileRoutesById
 }
@@ -233,6 +257,8 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PricingRoute: typeof PricingRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiWebhookPaystackRoute: typeof ApiWebhookPaystackRoute
+  ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -356,6 +382,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhook/paystack': {
+      id: '/api/webhook/paystack'
+      path: '/api/webhook/paystack'
+      fullPath: '/api/webhook/paystack'
+      preLoaderRoute: typeof ApiWebhookPaystackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhook/stripe': {
+      id: '/api/webhook/stripe'
+      path: '/api/webhook/stripe'
+      fullPath: '/api/webhook/stripe'
+      preLoaderRoute: typeof ApiWebhookStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -396,6 +436,8 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PricingRoute: PricingRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiWebhookPaystackRoute: ApiWebhookPaystackRoute,
+  ApiWebhookStripeRoute: ApiWebhookStripeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

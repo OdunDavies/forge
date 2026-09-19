@@ -2,8 +2,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getSql } from "@/lib/db";
 
-// @ts-ignore - file route path registered on next routeTree.gen
-export const Route = createFileRoute("/api/webhook/stripe" as never)({
+// @ts-expect-error routeTree.gen not yet generated for new route
+export const Route = createFileRoute("/api/webhook/stripe")({
   server: {
     handlers: {
       POST: async ({ request }) => {
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/webhook/stripe" as never)({
         // lazy verify without hard dep if stripe missing
         try {
           // @ts-ignore optional stripe
-          const mod = (await import("stripe").catch(() => null)) as unknown as {
+          const mod = (await import(/* @vite-ignore */ "stripe").catch(() => null)) as unknown as {
             default: new (k: string) => { webhooks: { constructEvent: (b: string, s: string, sec: string) => { type: string; data: { object: { customer_email?: string; metadata?: { userId?: string } } } } } };
           } | null;
           if (!mod?.default) return new Response("stripe dep missing", { status: 200 });
