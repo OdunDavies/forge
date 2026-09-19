@@ -205,13 +205,31 @@ export const addExerciseToSession = createServerFn({ method: "POST" })
     const owned = await sql<{ id: number }>`
       select id from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId} and completed_at is null`;
     if (!owned[0]) throw new Error("No active session");
-    const count = data.sets ?? 3;
+    // inherit sets/reps from plan template if available
+    let count = data.sets ?? 3;
+    let templateReps: number | null = null;
+    try {
+      const plan = await loadPlan(context.userId);
+      if (plan) {
+        for (const d of plan.days) {
+          const ex = d.exercises.find((e) => e.exerciseName.toLowerCase() === data.exerciseName.toLowerCase());
+          if (ex) {
+            count = data.sets ?? ex.sets;
+            templateReps = parseTargetReps(ex.reps);
+            break;
+          }
+        }
+      }
+    } catch {
+      /* ignore template lookup failure */
+    }
     const last = await lastWorkingSet(context.userId, data.exerciseName);
+    const repsFallback = templateReps ?? last.reps ?? 8;
     for (let i = 1; i <= count; i++) {
       await sql`
         insert into session_sets (session_id, user_id, exercise_id, exercise_name, set_index, weight_kg, reps, completed)
         values (${data.sessionId}, ${context.userId}, ${data.exerciseId ?? null}, ${data.exerciseName}, ${i},
-          ${last.weightKg}, ${last.reps ?? 8}, false)`;
+          ${last.weightKg}, ${repsFallback}, false)`;
     }
     const row = await sql<SessionRow>`select * from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId}`;
     return mapSession(row[0]!, await setsFor(data.sessionId, context.userId));
@@ -286,6 +304,7 @@ const finishSchema = z.object({
   energy: z.number().int().min(1).max(5).nullable().optional(),
   soreness: z.number().int().min(1).max(5).nullable().optional(),
   visibility: z.enum(["public", "followers", "private"]).optional(),
+  durationSec: z.number().int().min(0).max(86400).nullable().optional(),
 });
 
 export const finishSession = createServerFn({ method: "POST" })
@@ -312,7 +331,9 @@ export const finishSession = createServerFn({ method: "POST" })
     const working = sets.filter((s) => s.completed && !s.isWarmup);
     const volume = working.reduce((acc, s) => acc + (s.weightKg ?? 0) * (s.reps ?? 0), 0);
     const prs = working.filter((s) => s.isPr).length;
-    const duration = Math.max(60, Math.round((Date.now() - new Date(session.started_at).getTime()) / 1000));
+    const duration = data.durationSec != null
+      ? Math.max(60, data.durationSec)
+      : Math.max(60, Math.round((Date.now() - new Date(session.started_at).getTime()) / 1000));
     await sql`
       update workout_sessions
       set completed_at = now(),
@@ -338,10 +359,12 @@ export const saveSessionPhoto = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: unknown) => photoSchema.parse(input))
   .handler(async ({ context, data }) => {
+    const { storePhoto } = await import("@/lib/storage");
+    const stored = await storePhoto(context.userId, data.sessionId, data.photoUrl);
     const sql = await getSql();
     const rows = await sql<SessionRow>`
       update workout_sessions
-      set photo_url = ${data.photoUrl}
+      set photo_url = ${stored}
       where id = ${data.sessionId} and user_id = ${context.userId}
       returning *`;
     if (!rows[0]) throw new Error("Session not found");
@@ -373,7 +396,11 @@ export const listMyHistory = createServerFn({ method: "GET" })
       select * from workout_sessions
       where user_id = ${context.userId} and completed_at is not null
       order by completed_at desc limit 40`;
-    return rows.map((r) => mapSession(r, []));
+    const out: WorkoutSession[] = [];
+    for (const r of rows) {
+      out.push(mapSession(r, await setsFor(r.id, context.userId)));
+    }
+    return out;
   });
 
 export const getPersonalRecords = createServerFn({ method: "GET" })

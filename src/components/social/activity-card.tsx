@@ -1,10 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Dumbbell, MessageCircle, Trophy, Zap } from "lucide-react";
+import { Dumbbell, MessageCircle, Trash2, Trophy, Zap } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { durationParts } from "@/lib/share";
 import { formatKg, initials, relativeTime } from "@/lib/utils";
 import type { FeedItem } from "@/lib/api/social";
 import { cn } from "@/lib/utils";
+import { deleteComment, listComments } from "@/lib/api/social";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export function ActivityCard({
   item,
@@ -17,6 +22,22 @@ export function ActivityCard({
 }) {
   const time = durationParts(item.durationSec);
   const volume = formatKg(item.volumeKg, units);
+  const me = useCurrentUser();
+  const qc = useQueryClient();
+  const [showComments, setShowComments] = useState(false);
+  const comments = useQuery({
+    queryKey: ["comments", item.id],
+    queryFn: () => listComments({ data: item.id }),
+    enabled: showComments,
+  });
+  const del = useMutation({
+    mutationFn: (id: number) => deleteComment({ data: { id } }),
+    onSuccess: () => {
+      toast("Comment deleted");
+      void qc.invalidateQueries({ queryKey: ["comments", item.id] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete"),
+  });
 
   return (
     <article className="overflow-hidden rounded-xl bg-card shadow-[var(--shadow-border)]">
@@ -93,15 +114,40 @@ export function ActivityCard({
           <Zap className="size-3.5" />
           Kudos {item.kudos}
         </button>
-        <Link
-          to="/session/$id"
-          params={{ id: String(item.id) }}
+        <button
+          type="button"
+          onClick={() => setShowComments((v) => !v)}
           className="inline-flex h-10 items-center gap-1.5 rounded-full bg-secondary px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground"
         >
           <MessageCircle className="size-3.5" />
           {item.comments}
-        </Link>
+        </button>
       </footer>
+      {showComments && (
+        <div className="border-t px-4 py-3">
+          <ul className="space-y-2 text-sm">
+            {(comments.data ?? []).map((c) => (
+              <li key={c.id} className="flex items-start justify-between gap-2 rounded-md bg-secondary px-3 py-2">
+                <div>
+                  <span className="font-medium">{c.display_name}</span>
+                  <p className="text-muted-foreground">{c.body}</p>
+                </div>
+                {me?.id === c.user_id && (
+                  <button
+                    type="button"
+                    onClick={() => del.mutate(c.id)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Delete comment"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
+              </li>
+            ))}
+            {comments.data?.length === 0 && <p className="text-xs text-muted-foreground">No comments yet.</p>}
+          </ul>
+        </div>
+      )}
     </article>
   );
 }

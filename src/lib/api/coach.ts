@@ -81,10 +81,15 @@ PRs: ${JSON.stringify(prs)}`;
       { maxTokens: 700 },
     );
 
-    const reply = ai.ok
-      ? ai.text
-      : "Forge is offline right now. Log today's sets anyway — I'll read them when I'm back.";
+    if (!ai.ok) {
+      console.warn("[coach] grokChat failed", { userId: context.userId, error: ai.error, retryable: true });
+      const reply = "Forge is offline right now. Log today's sets anyway — I'll read them when I'm back.";
+      await sql`insert into coach_messages (user_id, role, content)
+                 values (${context.userId}, 'assistant', ${reply})`;
+      return { reply, offline: true as const, retryable: true as const, error: ai.error };
+    }
+    const reply = ai.text;
     await sql`insert into coach_messages (user_id, role, content)
-              values (${context.userId}, 'assistant', ${reply})`;
-    return { reply };
+               values (${context.userId}, 'assistant', ${reply})`;
+    return { reply, offline: false as const, retryable: false as const };
   });

@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { joinProWaitlist } from "@/lib/api/billing";
+import { createCheckoutSession, joinProWaitlist } from "@/lib/api/billing";
 import {
   PLANS,
   PRICES,
@@ -30,6 +30,17 @@ function PricingPage() {
   const otherDisplay = formatPrice(other, interval);
   const period = interval === "year" ? "/year" : "/month";
 
+  const checkout = useMutation({
+    mutationFn: () =>
+      createCheckoutSession({
+        data: { email: email.trim(), region, interval },
+      }),
+    onSuccess: (res) => {
+      if (res.url) window.location.href = res.url;
+      else toast(`You're on the ${res.processor} list. We'll open checkout in your currency.`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const join = useMutation({
     mutationFn: () =>
       joinProWaitlist({
@@ -147,7 +158,12 @@ function PricingPage() {
                   toast.error("Add the email we’ll send checkout to.");
                   return;
                 }
-                join.mutate();
+                checkout.mutate(undefined, {
+                  onSuccess: (res) => {
+                    if (!res.url) join.mutate();
+                  },
+                  onError: () => join.mutate(),
+                });
               }}
             >
               <Input
@@ -157,9 +173,9 @@ function PricingPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-              <Button className="w-full" type="submit" disabled={join.isPending}>
-                {join.isPending
-                  ? "Saving…"
+              <Button className="w-full" type="submit" disabled={checkout.isPending || join.isPending}>
+                {checkout.isPending
+                  ? "Opening checkout…"
                   : region === "ng"
                     ? `Continue with Paystack · ${display}`
                     : `Continue with Stripe · ${display}`}

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { generateFirstPlan, getActivePlan } from "@/lib/api/plan";
+import { track } from "@/lib/analytics";
 import { cn, weekdayName } from "@/lib/utils";
 import { CenteredLoading } from "@/components/ui/centered-loading";
 
@@ -14,6 +15,7 @@ function PlanPage() {
   const rebuild = useMutation({
     mutationFn: () => generateFirstPlan(),
     onSuccess: () => {
+      track("generateFirstPlan", { source: "plan" });
       toast("Week rewritten from your profile");
       void qc.invalidateQueries({ queryKey: ["plan"] });
     },

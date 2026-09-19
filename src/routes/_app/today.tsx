@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { getTodaySummary, saveDailyLog } from "@/lib/api/daily";
-import { getActivePlan, tweakTodayPlan } from "@/lib/api/plan";
+import { confirmTweak, getActivePlan, tweakTodayPlan } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
 import { getActiveSession, startTodaysSession } from "@/lib/api/sessions";
 import type { PlanDay } from "@/lib/api/types";
 import { cn, formatKg, weekdayName } from "@/lib/utils";
+import { track } from "@/lib/analytics";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_app/today")({ component: TodayPage });
 
@@ -39,6 +41,13 @@ function TodayPage() {
   const next = today?.isRest ? nextTrainingDay(days, weekday) : undefined;
   const focus = today && !today.isRest ? today : next;
 
+  const [pendingTweak, setPendingTweak] = useState<null | {
+    before: { name: string; sets: number; reps: string }[];
+    after: { name: string; sets: number; reps: string }[];
+    message: string;
+    targetWeekday?: number;
+  }>(null);
+
   const start = useMutation({
     mutationFn: () => startTodaysSession(),
     onSuccess: () => {
@@ -47,9 +56,36 @@ function TodayPage() {
     },
   });
   const tweak = useMutation({
-    mutationFn: () => tweakTodayPlan({ data: {} }),
+    mutationFn: () => tweakTodayPlan({ data: { preview: true } }),
     onSuccess: (res) => {
+      if ("retryable" in res && (res as { retryable?: boolean }).retryable) {
+        console.warn("[today] tweak failed", res);
+        toast.error((res as { message: string }).message);
+        return;
+      }
+      if ("preview" in res && (res as { preview?: unknown }).preview) {
+        const r = res as { preview: { name: string; sets: number; reps: string }[]; message: string };
+        const before = (focus?.exercises ?? []).map((e) => ({ name: e.exerciseName, sets: e.sets, reps: e.reps }));
+        setPendingTweak({ before, after: r.preview, message: r.message, targetWeekday: focus?.weekday });
+      } else {
+        toast((res as { message: string }).message);
+        void qc.invalidateQueries({ queryKey: ["plan"] });
+      }
+    },
+    onError: (e: Error) => {
+      console.warn("[today] tweak error", { error: e.message, retryable: true });
+      toast.error(e.message);
+    },
+  });
+  const confirm = useMutation({
+    mutationFn: () => {
+      if (!pendingTweak) throw new Error("No pending tweak");
+      return confirmTweak({ data: { exercises: pendingTweak.after, message: pendingTweak.message, targetWeekday: pendingTweak.targetWeekday } });
+    },
+    onSuccess: (res) => {
+      track("tweakTodayPlan", { source: "today" });
       toast(res.message);
+      setPendingTweak(null);
       void qc.invalidateQueries({ queryKey: ["plan"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -192,6 +228,33 @@ function TodayPage() {
           </Button>
         </div>
       </Card>
+
+      {pendingTweak && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl bg-card p-6 shadow-lg">
+            <h3 className="text-lg font-semibold">Before vs After</h3>
+            <p className="mt-2 text-sm text-muted-foreground">{pendingTweak.message}</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-sm font-medium">Before</p>
+                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                  {pendingTweak.before.length ? pendingTweak.before.map((e, i) => <li key={i}>{e.name} — {e.sets} × {e.reps}</li>) : <li>Rest</li>}
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-medium">After</p>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {pendingTweak.after.map((e, i) => <li key={i}>{e.name} — {e.sets} × {e.reps}</li>)}
+                </ul>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <Button onClick={() => confirm.mutate()} disabled={confirm.isPending}>Apply</Button>
+              <Button variant="outline" onClick={() => setPendingTweak(null)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card className="p-5">
         <h2 className="display text-lg font-semibold">Daily check-in</h2>

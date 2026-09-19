@@ -1,12 +1,13 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { generateFirstPlan } from "@/lib/api/plan";
+import { track } from "@/lib/analytics";
 import { getMyProfile, upsertMyProfile } from "@/lib/api/profile";
 import { useCurrentUser, useCurrentUserState } from "@/lib/auth/use-current-user";
 import { RedirectToSignIn } from "@/lib/auth/gates";
@@ -55,6 +56,37 @@ function Onboarding() {
   const [injuries, setInjuries] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // restore draft
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("forge-onboarding-draft");
+      if (!raw) return;
+      const d = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof d.displayName === "string") setDisplayName(d.displayName);
+      if (typeof d.goal === "string") setGoal(d.goal);
+      if (Array.isArray(d.focusMuscles)) setFocusMuscles(d.focusMuscles as string[]);
+      if (typeof d.experience === "string") setExperience(d.experience);
+      if (Array.isArray(d.equipment)) setEquipment(d.equipment as string[]);
+      if (Array.isArray(d.availableDays)) setAvailableDays(d.availableDays as number[]);
+      if (typeof d.sessionMinutes === "number") setSessionMinutes(d.sessionMinutes);
+      if (d.units === "metric" || d.units === "imperial") setUnits(d.units);
+      if (typeof d.weight === "string") setWeight(d.weight);
+      if (typeof d.height === "string") setHeight(d.height);
+      if (typeof d.injuries === "string") setInjuries(d.injuries);
+      if (typeof d.step === "number") setStep(Math.min(7, Math.max(0, d.step)));
+    } catch { /* ignore */ }
+  }, []);
+
+  // autosave draft
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "forge-onboarding-draft",
+        JSON.stringify({ displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, step }),
+      );
+    } catch { /* ignore */ }
+  }, [displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, step]);
+
   const save = useMutation({
     mutationFn: async () => {
       const measure = units === "imperial" ? "imperial" : "metric";
@@ -85,6 +117,8 @@ function Onboarding() {
       return generateFirstPlan();
     },
     onSuccess: async () => {
+      track("generateFirstPlan", { source: "onboarding" });
+      try { localStorage.removeItem("forge-onboarding-draft"); } catch { /* ignore */ }
       await navigate({ to: "/today" });
     },
     onError: (e: Error) => {
@@ -327,6 +361,17 @@ function Onboarding() {
           className="h-full bg-primary transition-[width] duration-300"
           style={{ width: `${((step + 1) / steps.length) * 100}%` }}
         />
+      </div>
+      <div className="mt-3 flex justify-center gap-1.5">
+        {steps.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            aria-label={`Go to step ${i + 1}`}
+            onClick={() => setStep(i)}
+            className={cn("size-2 rounded-full transition-colors", i === step ? "bg-primary" : i < step ? "bg-primary/60" : "bg-secondary")}
+          />
+        ))}
       </div>
       <h1 className="display mt-8 text-3xl font-semibold">{steps[step].title}</h1>
       <div className="mt-6 flex-1">{steps[step].body}</div>

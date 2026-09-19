@@ -48,9 +48,11 @@ function SessionPage() {
   const s = session.data;
   if (!s) return <p className="text-sm text-muted-foreground">{session.isPending ? "Loading…" : "Not found."}</p>;
   const isOwner = Boolean(me && s.userId === me.id);
+  const photoUrl = s.photoUrl ?? undefined;
 
   return (
     <article className="space-y-5">
+      {photoUrl && <meta property="og:image" content={photoUrl} />}
       <Link to="/feed" className="text-sm text-muted-foreground">
         ← Feed
       </Link>

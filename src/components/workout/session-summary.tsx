@@ -96,15 +96,20 @@ export function SessionSummary({
             onClick={async () => {
               setSharing(true);
               try {
-                const blob = await renderShareCardPng({
-                  title: session.title,
-                  volume,
-                  durationSec: session.durationSec,
-                  setCount: session.setCount,
-                  photoUrl: session.photoUrl,
-                  topLift: topLift ? `${topLift[0]} ${topLift[1].top}` : null,
-                });
-                const file = new File([blob], `${session.title}-forge.png`, { type: "image/png" });
+                let file: File | undefined;
+                try {
+                  const blob = await renderShareCardPng({
+                    title: session.title,
+                    volume,
+                    durationSec: session.durationSec,
+                    setCount: session.setCount,
+                    photoUrl: session.photoUrl,
+                    topLift: topLift ? `${topLift[0]} ${topLift[1].top}` : null,
+                  });
+                  file = new File([blob], `${session.title}-forge.png`, { type: "image/png" });
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Card render failed — sharing text instead");
+                }
                 const result = await shareOrCopy({
                   title: `${session.title} · Forge`,
                   text,
@@ -113,6 +118,7 @@ export function SessionSummary({
                 });
                 if (result === "copied") toast("Share text copied");
                 if (result === "downloaded") toast("Card saved — attach it in your post");
+                if (result === "shared") toast("Shared");
               } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Could not share");
               } finally {

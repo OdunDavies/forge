@@ -90,15 +90,26 @@ async function hydrate(rows: FeedRow[]): Promise<FeedItem[]> {
   }));
 }
 
+const feedInputSchema = z.object({
+  scope: z.enum(["following", "global"]).default("following"),
+  offset: z.number().int().min(0).max(100000).optional().default(0),
+});
 export const getFeed = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((scope: "following" | "global" = "following") => scope)
-  .handler(async ({ context, data: scope }) => {
+  .validator((input: unknown) => {
+    if (typeof input === "string") return feedInputSchema.parse({ scope: input, offset: 0 });
+    if (input == null) return feedInputSchema.parse({ scope: "following", offset: 0 });
+    return feedInputSchema.parse(input);
+  })
+  .handler(async ({ context, data }) => {
+    const { scope, offset } = data as { scope: "following" | "global"; offset: number };
     const sql = await getSql();
     const filter =
       scope === "global"
         ? `s.visibility = 'public'`
         : `(s.user_id = $1 or s.user_id in (select following_id from follows where follower_id = $1))`;
+    const limit = 20;
+    const safeOffset = Math.max(0, Math.floor(offset));
     const rows = await sql.query<FeedRow>(
       `select s.id, s.user_id, p.handle, p.display_name, s.title, s.completed_at, s.duration_sec,
               s.volume_kg, s.set_count, s.pr_count, s.notes, s.photo_url,
@@ -109,7 +120,7 @@ export const getFeed = createServerFn({ method: "GET" })
        join profiles p on p.user_id = s.user_id
        where s.completed_at is not null and ${filter}
        order by s.completed_at desc
-       limit 40`,
+       limit ${limit} offset ${safeOffset}`,
       [context.userId],
     );
     return hydrate(rows);
@@ -194,6 +205,44 @@ export const followState = createServerFn({ method: "GET" })
       followingCount: follows[0]?.c ?? 0,
       isSelf: context.userId === target,
     };
+  });
+
+export const deleteComment = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => z.object({ id: z.number() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const existing = await sql<{ user_id: string }>`
+      select user_id from activity_comments where id = ${data.id}`;
+    if (!existing[0]) throw new Error("Comment not found");
+    if (existing[0].user_id !== context.userId) throw new Error("Not authorized");
+    await sql`delete from activity_comments where id = ${data.id}`;
+    return { ok: true };
+  });
+
+export const searchUsers = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => z.object({ q: z.string().max(60) }).parse(input))
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const q = `%${data.q}%`;
+    return sql<{ handle: string; display_name: string }>`
+      select handle, display_name from profiles where handle ilike ${q} limit 10`;
+  });
+
+export const countNewKudos = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const sql = await getSql();
+    const kudos = await sql<{ c: number }>`
+      select count(*)::int as c from activity_kudos k
+      join workout_sessions s on s.id = k.activity_id
+      where s.user_id = ${context.userId} and k.user_id != ${context.userId}`;
+    const comments = await sql<{ c: number }>`
+      select count(*)::int as c from activity_comments c
+      join workout_sessions s on s.id = c.activity_id
+      where s.user_id = ${context.userId} and c.user_id != ${context.userId}`;
+    return { count: (kudos[0]?.c ?? 0) + (comments[0]?.c ?? 0) };
   });
 
 export const listUserActivities = createServerFn({ method: "GET" })

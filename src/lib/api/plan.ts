@@ -5,7 +5,7 @@ import { getSql } from "@/lib/db";
 import { num } from "@/lib/db-map";
 import { extractJson, grokChat } from "@/lib/ai/grok";
 import { findExerciseByName } from "@/lib/exercises/seed";
-import { buildFallbackPlan } from "@/lib/plan/fallback";
+import { buildFallbackPlan, volumeBreakdown } from "@/lib/plan/fallback";
 import { loadProfileByUserId } from "./profile";
 import type { ActivePlan, PlanDay, PlanExercise } from "./types";
 
@@ -251,6 +251,25 @@ Rules:
         const titles = parsed.days.filter((d) => !d.isRest).map((d) => d.title.toLowerCase()).join(" ");
         const named = focus.filter((m) => titles.includes(m));
         if (focus.length && named.length === 0) throw new Error("plan ignored focus");
+        // 40/60 volume validation – proxy: count exercise-name substring matches as focus volume
+        if (focus.length) {
+          const allEx = parsed.days.flatMap((d) => d.exercises ?? []);
+          let focusSets = 0;
+          let totalSets = 0;
+          for (const ex of allEx) {
+            const n = ex.name.toLowerCase();
+            const isFocus = focus.some((f) => n.includes(f));
+            totalSets += ex.sets;
+            if (isFocus) focusSets += ex.sets;
+          }
+          // attempt structured volumeBreakdown if we can resolve muscle via BANK lookup (unused here, keep import for future)
+          void volumeBreakdown;
+          const ratio = totalSets ? focusSets / totalSets : 0;
+          if (ratio < 0.3 || ratio > 0.5) {
+            console.warn(`[plan] 40/60 proxy failed: focus ratio ${ratio.toFixed(2)} outside 0.30-0.50, falling back`);
+            throw new Error(`focus ratio ${ratio.toFixed(2)} outside 0.30-0.50`);
+          }
+        }
         const plan = await persistGenerated(context.userId, parsed);
         return { plan, source: "ai" as const };
       } catch {
@@ -263,6 +282,22 @@ Rules:
 
 const tweakSchema = z.object({
   reason: z.string().max(400).optional(),
+  preview: z.boolean().optional(),
+});
+
+const confirmTweakSchema = z.object({
+  exercises: z.array(
+    z.object({
+      name: z.string(),
+      sets: z.number().int().min(1).max(8),
+      reps: z.string(),
+      restSec: z.number().int().min(0).max(400).optional(),
+      rpe: z.number().min(5).max(10).optional(),
+      notes: z.string().optional(),
+    }),
+  ),
+  message: z.string().optional(),
+  targetWeekday: z.number().int().min(0).max(6).optional(),
 });
 
 export const tweakTodayPlan = createServerFn({ method: "POST" })
@@ -317,7 +352,10 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
       { maxTokens: 900, json: true },
     );
 
-    if (!ai.ok) return { plan, message: ai.error };
+    if (!ai.ok) {
+      console.warn("[plan] grokChat tweak failed", { userId: context.userId, error: ai.error, retryable: true });
+      return { plan, message: ai.error, retryable: true as const, offline: true as const };
+    }
     try {
       const parsed = z
         .object({
@@ -335,6 +373,17 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
         })
         .parse(extractJson(ai.text));
 
+      if (data.preview) {
+        return {
+          plan,
+          message: parsed.message,
+          preview: parsed.exercises.slice(0, 8),
+          targetDayId: target.id,
+          targetTitle: target.title,
+          retryable: false as const,
+        };
+      }
+
       await sql`delete from plan_exercises where plan_day_id = ${target.id} and user_id = ${context.userId}`;
       let sort = 0;
       for (const ex of parsed.exercises.slice(0, 8)) {
@@ -349,8 +398,49 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
         sort += 1;
       }
       await sql`update plan_days set coach_notes = ${parsed.message.slice(0, 500)} where id = ${target.id} and user_id = ${context.userId}`;
-      return { plan: await loadPlan(context.userId), message: parsed.message };
-    } catch {
-      return { plan, message: "Coach could not apply a structured tweak. Try again." };
+      return { plan: await loadPlan(context.userId), message: parsed.message, retryable: false as const };
+    } catch (e) {
+      console.warn("[plan] tweak parse failed", { error: String(e), retryable: true });
+      return { plan, message: "Coach could not apply a structured tweak. Try again.", retryable: true as const };
     }
+  });
+
+export const confirmTweak = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => confirmTweakSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const plan = await loadPlan(context.userId);
+    if (!plan) throw new Error("No active plan");
+    let target: typeof plan.days[number] | undefined;
+    if (data.targetWeekday !== undefined) {
+      target = plan.days.find((d) => d.weekday === data.targetWeekday);
+    } else {
+      const weekday = new Date().getDay();
+      target = plan.days.find((d) => d.weekday === weekday && !d.isRest);
+      if (!target) {
+        for (let i = 1; i <= 7; i++) {
+          const day = plan.days.find((d) => d.weekday === (weekday + i) % 7 && !d.isRest);
+          if (day) { target = day; break; }
+        }
+      }
+    }
+    if (!target) throw new Error("No training day to retune.");
+    const sql = await getSql();
+    await sql`delete from plan_exercises where plan_day_id = ${target.id} and user_id = ${context.userId}`;
+    let sort = 0;
+    for (const ex of data.exercises.slice(0, 8)) {
+      const match = await findExerciseByName(ex.name);
+      await sql`
+        insert into plan_exercises (
+          plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
+        ) values (
+          ${target.id}, ${context.userId}, ${match?.id ?? null}, ${match?.name ?? ex.name},
+          ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
+        )`;
+      sort += 1;
+    }
+    if (data.message) {
+      await sql`update plan_days set coach_notes = ${data.message.slice(0, 500)} where id = ${target.id} and user_id = ${context.userId}`;
+    }
+    return { plan: await loadPlan(context.userId), message: data.message ?? "Plan updated." };
   });

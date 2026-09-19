@@ -45,11 +45,21 @@ export function weekdayName(day: number) {
   return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day] ?? "";
 }
 
-export function todayIso(date = new Date()) {
+export function todayIso(date = new Date(), timeZone?: string) {
+  if (timeZone) {
+    const fmt = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
+    return fmt.format(date);
+  }
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+export function getUserWeekday(date = new Date(), timeZone = "Africa/Lagos"): number {
+  const dayName = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(date);
+  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return map[dayName] ?? date.getDay();
 }
 
 export function formatDuration(sec: number | null | undefined) {

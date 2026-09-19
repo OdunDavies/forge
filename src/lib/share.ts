@@ -70,11 +70,23 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: numb
 }
 
 export async function renderShareCardPng(stats: ShareCardStats): Promise<Blob> {
-  const W = 1080;
-  const H = 1920;
+  const lowMemory =
+    typeof navigator !== "undefined" &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).deviceMemory != null &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).deviceMemory < 4;
+  const W = lowMemory ? 540 : 1080;
+  const H = lowMemory ? 960 : 1920;
   const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
+  try {
+    canvas.width = W;
+    canvas.height = H;
+  } catch {
+    // fallback downscale if allocation fails
+    canvas.width = 540;
+    canvas.height = 960;
+  }
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not draw share card");
 

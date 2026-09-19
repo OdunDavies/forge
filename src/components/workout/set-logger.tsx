@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +15,18 @@ export function SetLogger({
   onCompleteExercise,
   busyId,
   busyName,
+  restSecMap,
 }: {
   session: WorkoutSession;
   units: "metric" | "imperial";
-  onLog: (set: SessionSet, patch: { weightKg: number | null; reps: number | null; completed: boolean }) => void;
+  onLog: (
+    set: SessionSet,
+    patch: { weightKg: number | null; reps: number | null; completed: boolean; rpe?: number | null },
+  ) => void;
   onCompleteExercise: (name: string) => void;
   busyId?: number | null;
   busyName?: string | null;
+  restSecMap?: Record<string, number>;
 }) {
   const groups = useMemo(() => {
     const map = new Map<string, Group>();
@@ -33,19 +38,86 @@ export function SetLogger({
     return [...map.values()];
   }, [session.sets]);
 
-  const [draft, setDraft] = useState<Record<number, { w: string; r: string }>>({});
+  const [draft, setDraft] = useState<Record<number, { w: string; r: string; rpe: string }>>({});
+  const [restUntil, setRestUntil] = useState<number | null>(null);
+  const [restLabel, setRestLabel] = useState<string>("");
+  const [now, setNow] = useState(() => Date.now());
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  useEffect(() => {
+    if (restUntil == null) return;
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [restUntil]);
+
+  const remaining = restUntil != null ? Math.max(0, Math.ceil((restUntil - now) / 1000)) : 0;
+  const resting = restUntil != null && remaining > 0;
+
+  useEffect(() => {
+    if (restUntil != null && remaining <= 0) setRestUntil(null);
+  }, [remaining, restUntil]);
+
+  function startRest(exerciseName: string) {
+    const sec = restSecMap?.[exerciseName] ?? 90;
+    setRestUntil(Date.now() + sec * 1000);
+    setRestLabel(exerciseName);
+    setNow(Date.now());
+    // keep screen awake during rest
+    try {
+      const nav = navigator as unknown as { wakeLock?: { request: (t: string) => Promise<WakeLockSentinel> } };
+      nav.wakeLock?.request("screen").then((s) => {
+        wakeLockRef.current = s;
+      }).catch(() => {});
+    } catch {}
+  }
+
+  function skipRest() {
+    setRestUntil(null);
+    try { wakeLockRef.current?.release(); } catch {}
+    wakeLockRef.current = null;
+  }
 
   function val(set: SessionSet) {
     return (
       draft[set.id] ?? {
         w: set.weightKg != null ? String(displayWeight(set.weightKg, units)) : "",
         r: set.reps != null ? String(set.reps) : "",
+        rpe: set.rpe != null ? String(set.rpe) : "",
       }
     );
   }
 
+  function ghostText(group: Group): string | null {
+    const last = [...group.sets].reverse().find((s) => s.completed && s.weightKg != null);
+    if (!last) return null;
+    const w = formatKg(last.weightKg, units);
+    const r = last.reps != null ? ` x${last.reps}` : "";
+    return `last: ${w}${r}`;
+  }
+
+  function stepWeight(current: string, dir: 1 | -1) {
+    const cur = current === "" ? 0 : Number(current);
+    if (Number.isNaN(cur)) return current;
+    const step = units === "metric" ? 2.5 : 5;
+    const next = Math.max(0, Math.round((cur + dir * step) * 10) / 10);
+    return String(next);
+  }
+
+  function stepReps(current: string, dir: 1 | -1) {
+    const cur = current === "" ? 0 : Number(current);
+    if (Number.isNaN(cur)) return current;
+    const next = Math.max(0, Math.round(cur + dir));
+    return String(next);
+  }
+
   return (
     <div className="space-y-4">
+      {resting && (
+        <div className="flex items-center justify-between rounded-xl bg-accent px-4 py-3 text-sm">
+          <span>Rest {remaining}s{restLabel ? ` · ${restLabel}` : ""}</span>
+          <Button size="sm" variant="ghost" onClick={skipRest}>Skip</Button>
+        </div>
+      )}
       {groups.map((g) => {
         const allDone = g.sets.every((s) => s.completed);
         return (
@@ -77,50 +149,90 @@ export function SetLogger({
                 </Button>
               </div>
             </div>
-            <div className="mt-3 space-y-2">
-              {g.sets.map((set) => {
+            <div className="mt-3 space-y-3">
+              {(() => {
+                const ghost = ghostText(g);
+                return g.sets.map((set) => {
                 const d = val(set);
+                const isEmpty = d.w === "" && d.r === "" && d.rpe === "";
+                const ghostPlaceholder = isEmpty && ghost ? ghost : undefined;
                 return (
-                  <div key={set.id} className="grid grid-cols-[2rem_1fr_1fr_2.75rem] items-center gap-2">
-                    <span className="text-xs tabular text-muted-foreground">{set.setIndex}</span>
-                    <Input
-                      inputMode="decimal"
-                      placeholder={units === "metric" ? "kg" : "lb"}
-                      value={d.w}
-                      onChange={(e) =>
-                        setDraft((p) => ({ ...p, [set.id]: { ...d, w: e.target.value } }))
-                      }
-                      className="h-11"
-                    />
-                    <Input
-                      inputMode="numeric"
-                      placeholder="reps"
-                      value={d.r}
-                      onChange={(e) =>
-                        setDraft((p) => ({ ...p, [set.id]: { ...d, r: e.target.value } }))
-                      }
-                      className="h-11"
-                    />
-                    <button
-                      type="button"
-                      disabled={busyId === set.id}
-                      onClick={() => {
-                        const w = d.w ? Number(d.w) : null;
-                        const r = d.r ? Number(d.r) : null;
-                        const weightKg = w == null ? null : units === "imperial" ? w / 2.20462 : w;
-                        onLog(set, { weightKg, reps: r, completed: !set.completed });
-                      }}
-                      className={cn(
-                        "grid size-11 place-items-center rounded-md transition-colors",
-                        set.completed ? "bg-go text-background" : "bg-secondary text-muted-foreground",
-                      )}
-                      aria-label={set.completed ? "Completed" : "Complete set"}
-                    >
-                      <Check className="size-4" />
-                    </button>
+                  <div key={set.id} className="space-y-2">
+                    <div className="grid grid-cols-[2rem_1fr_1fr_2.75rem] items-center gap-2">
+                      <span className="text-xs tabular text-muted-foreground">{set.setIndex}</span>
+                      <div className="flex items-center gap-1">
+                        <button type="button" aria-label="decrease weight" className="grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-xs font-medium min-h-[44px] min-w-[28px]" onClick={() => setDraft((p) => ({ ...p, [set.id]: { ...d, w: stepWeight(d.w, -1) } }))}>−</button>
+                        <Input
+                          inputMode="decimal"
+                          placeholder={ghostPlaceholder ?? (units === "metric" ? "kg" : "lb")}
+                          value={d.w}
+                          onChange={(e) =>
+                            setDraft((p) => ({ ...p, [set.id]: { ...d, w: e.target.value } }))
+                          }
+                          className={cn("h-11 flex-1", isEmpty && ghostPlaceholder ? "placeholder:text-muted-foreground/40" : "")}
+                        />
+                        <button type="button" aria-label="increase weight" className="grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-xs font-medium min-h-[44px] min-w-[28px]" onClick={() => setDraft((p) => ({ ...p, [set.id]: { ...d, w: stepWeight(d.w, 1) } }))}>+</button>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button type="button" aria-label="decrease reps" className="grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-xs font-medium min-h-[44px] min-w-[28px]" onClick={() => setDraft((p) => ({ ...p, [set.id]: { ...d, r: stepReps(d.r, -1) } }))}>−</button>
+                        <Input
+                          inputMode="numeric"
+                          placeholder={isEmpty && ghostPlaceholder ? ghostPlaceholder : "reps"}
+                          value={d.r}
+                          onChange={(e) =>
+                            setDraft((p) => ({ ...p, [set.id]: { ...d, r: e.target.value } }))
+                          }
+                          className="h-11 flex-1"
+                        />
+                        <button type="button" aria-label="increase reps" className="grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-xs font-medium min-h-[44px] min-w-[28px]" onClick={() => setDraft((p) => ({ ...p, [set.id]: { ...d, r: stepReps(d.r, 1) } }))}>+</button>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={busyId === set.id}
+                        onClick={() => {
+                          const w = d.w ? Number(d.w) : null;
+                          const r = d.r ? Number(d.r) : null;
+                          const weightKg = w == null ? null : units === "imperial" ? w / 2.20462 : w;
+                          const rpeVal = d.rpe ? Number(d.rpe) : null;
+                          const nextCompleted = !set.completed;
+                          onLog(set, { weightKg, reps: r, completed: nextCompleted, rpe: rpeVal });
+                          if (nextCompleted) {
+                            startRest(g.name);
+                            try { navigator.vibrate?.(20); } catch {}
+                          }
+                        }}
+                        className={cn(
+                          "grid size-11 place-items-center rounded-md transition-colors min-h-[44px] min-w-[44px]",
+                          set.completed ? "bg-go text-background" : "bg-secondary text-muted-foreground",
+                        )}
+                        aria-label={set.completed ? "Completed" : "Complete set"}
+                      >
+                        <Check className="size-4" />
+                      </button>
+                    </div>
+                    <div className="ml-8 flex flex-wrap gap-1.5">
+                      {[6,7,8,9,10].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => {
+                            const next = String(n);
+                            setDraft((p) => ({ ...p, [set.id]: { ...d, rpe: d.rpe === next ? "" : next } }));
+                          }}
+                          className={cn(
+                            "h-7 min-h-[28px] min-w-[32px] rounded-full px-2 text-xs font-medium transition-colors",
+                            d.rpe === String(n) ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground",
+                          )}
+                        >
+                          RPE {n}
+                        </button>
+                      ))}
+                      {d.rpe && <span className="self-center text-[10px] text-muted-foreground">tap to clear</span>}
+                    </div>
                   </div>
                 );
-              })}
+                });
+              })()}
             </div>
             {g.sets.some((s) => s.isPr) && (
               <p className="mt-2 text-xs uppercase tracking-[0.14em] text-signal">Personal record locked</p>

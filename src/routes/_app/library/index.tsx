@@ -19,10 +19,12 @@ function LibraryPage() {
   const stats = useQuery({ queryKey: ["catalog-stats"], queryFn: () => catalogStats() });
   const list = useQuery({
     queryKey: ["library", q, muscle, equipment],
-    queryFn: () => searchExercises({ data: { q, muscle, equipment, limit: 36 } }),
+    queryFn: () => searchExercises({ data: { q, muscle, equipment, limit: 100 } }),
   });
 
   const items = list.data?.items ?? [];
+  const [visibleCount, setVisibleCount] = useState(36);
+  const visibleItems = items.slice(0, visibleCount);
 
   return (
     <div>
@@ -95,7 +97,7 @@ function LibraryPage() {
       )}
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        {items.map((ex) => (
+        {visibleItems.map((ex) => (
           <Link
             key={ex.id}
             to="/library/$id"
@@ -108,15 +110,21 @@ function LibraryPage() {
                   src={ex.imageUrl}
                   alt=""
                   className="size-full object-cover"
+                  loading="lazy"
                   onError={(e) => {
-                    e.currentTarget.style.display = "none";
+                    const t = e.currentTarget as HTMLImageElement;
+                    t.style.display = "none";
+                    const placeholder = t.nextElementSibling as HTMLElement | null;
+                    if (placeholder) placeholder.style.display = "grid";
                   }}
                 />
-              ) : (
-                <div className="grid size-full place-items-center text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  {ex.primaryMuscles[0] ?? "lift"}
-                </div>
-              )}
+              ) : null}
+              <div
+                className="grid size-full place-items-center text-[10px] uppercase tracking-[0.14em] text-muted-foreground"
+                style={{ display: ex.imageUrl ? "none" : "grid" }}
+              >
+                {ex.primaryMuscles[0] ?? "lift"}
+              </div>
             </div>
             <div className="min-w-0">
               <h2 className="truncate text-sm font-medium">{ex.name}</h2>
@@ -132,6 +140,15 @@ function LibraryPage() {
           </Link>
         ))}
       </div>
+      {visibleCount < items.length && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((c) => c + 36)}
+          className="mt-4 w-full rounded-md bg-secondary py-3 text-sm font-medium"
+        >
+          Load more ({items.length - visibleCount} left)
+        </button>
+      )}
     </div>
   );
 }
