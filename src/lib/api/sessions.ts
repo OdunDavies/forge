@@ -7,6 +7,7 @@ import { epley1rm } from "@/lib/utils";
 import { parseTargetReps } from "@/lib/muscles";
 import { loadPlan } from "./plan";
 import type { SessionSet, WorkoutSession } from "./types";
+export type { WorkoutSession } from "./types";
 
 type SessionRow = {
   id: number;

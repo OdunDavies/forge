@@ -5,6 +5,7 @@ import { getSql } from "@/lib/db";
 import { asNumberArray, asStringArray, num } from "@/lib/db-map";
 import { parseMembership } from "@/lib/billing";
 import type { Profile } from "./types";
+export type { Profile } from "./types";
 import { slugifyHandle, toPgArray } from "@/lib/utils";
 
 type ProfileRow = {
@@ -27,6 +28,15 @@ type ProfileRow = {
   focus_muscles: unknown;
   onboarded_at: string | null;
   plan: string | null;
+  baseline_lifts: unknown;
+  personal_records: unknown;
+  session_history: unknown;
+  trained_days_per_week: unknown;
+  focus_week_history: unknown;
+  tweaks_applied: unknown;
+  shared_sessions: unknown;
+  xp: number;
+  xp_this_week: number;
 };
 
 function mapProfile(row: ProfileRow): Profile {
@@ -50,6 +60,21 @@ function mapProfile(row: ProfileRow): Profile {
     focusMuscles: asStringArray(row.focus_muscles),
     onboardedAt: row.onboarded_at,
     plan: parseMembership(row.plan),
+    baseline_lifts: row.baseline_lifts as Record<string, number>,
+    personalRecords: row.personal_records as Record<string, { weightKg: number; reps: number; estimated1RM: number }>,
+    sessionHistory: row.session_history as Array<{
+      id: string;
+      volumeKg: number;
+      setCount: number;
+      durationSec: number;
+      startedAt: string;
+    }>,
+    trainedDaysPerWeek: row.trained_days_per_week as number[],
+    focusWeekHistory: row.focus_week_history as number[],
+    tweaksApplied: row.tweaks_applied as string[],
+    sharedSessions: row.shared_sessions as string[],
+    xp: row.xp ?? 0,
+    xpThisWeek: row.xp_this_week ?? 0,
   };
 }
 
@@ -128,9 +153,9 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
       `insert into profiles (
         user_id, handle, display_name, bio, sex, birth_year, height_cm, weight_kg, units,
         experience, goal, days_per_week, session_minutes, equipment, injuries, available_days,
-        focus_muscles, onboarded_at, updated_at
+        focus_muscles, baseline_lifts, onboarded_at, updated_at
       ) values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::text[],$15,$16::int[],$17::text[],$18, now()
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::text[],$15,$16::int[],$17::text[],$18::jsonb,$19, now()
       )
       on conflict (user_id) do update set
         handle = excluded.handle,
@@ -149,6 +174,7 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
         injuries = excluded.injuries,
         available_days = excluded.available_days,
         focus_muscles = excluded.focus_muscles,
+        baseline_lifts = excluded.baseline_lifts,
         onboarded_at = coalesce(profiles.onboarded_at, excluded.onboarded_at),
         updated_at = now()`,
       [

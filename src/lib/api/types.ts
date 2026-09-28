@@ -18,6 +18,21 @@ export type Profile = {
   focusMuscles: string[];
   onboardedAt: string | null;
   plan: "free" | "pro" | "pro_max";
+  baseline_lifts: Record<string, number>;
+  personalRecords: Record<string, { weightKg: number; reps: number; estimated1RM: number }>;
+  sessionHistory: Array<{
+    id: string;
+    volumeKg: number;
+    setCount: number;
+    durationSec: number;
+    startedAt: string;
+  }>;
+  trainedDaysPerWeek: number[];
+  focusWeekHistory: number[];
+  tweaksApplied: string[];
+  sharedSessions: string[];
+  xp: number;
+  xpThisWeek: number;
 };
 
 export type PlanExercise = {

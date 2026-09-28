@@ -14,7 +14,6 @@ import { RedirectToSignIn } from "@/lib/auth/gates";
 import { FOCUS_MUSCLES } from "@/lib/muscles";
 import { determineSplit } from "@/lib/plan/fallback";
 import { cn, kgFromInput } from "@/lib/utils";
-import { CenteredLoading } from "@/components/ui/centered-loading";
 
 export const Route = createFileRoute("/onboarding")({ component: Onboarding });
 
@@ -54,12 +53,18 @@ function Onboarding() {
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [injuries, setInjuries] = useState("");
+  const [sex, setSex] = useState<string | null>(null);
+  const [birthYear, setBirthYear] = useState<number | null>(null);
+  const [squat, setSquat] = useState("");
+  const [bench, setBench] = useState("");
+  const [deadlift, setDeadlift] = useState("");
+  const [overheadPress, setOverheadPress] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // restore draft
+  // restore draft v2
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("forge-onboarding-draft");
+      const raw = localStorage.getItem("forge-onboarding-draft-v2");
       if (!raw) return;
       const d = JSON.parse(raw) as Record<string, unknown>;
       if (typeof d.displayName === "string") setDisplayName(d.displayName);
@@ -73,19 +78,26 @@ function Onboarding() {
       if (typeof d.weight === "string") setWeight(d.weight);
       if (typeof d.height === "string") setHeight(d.height);
       if (typeof d.injuries === "string") setInjuries(d.injuries);
-      if (typeof d.step === "number") setStep(Math.min(7, Math.max(0, d.step)));
+      if (typeof d.sex === "string") setSex(d.sex === "prefer-not-to-say" ? null : d.sex);
+      if (typeof d.birthYear === "number") setBirthYear(d.birthYear);
+      if (typeof d.squat === "string") setSquat(d.squat);
+      if (typeof d.bench === "string") setBench(d.bench);
+      if (typeof d.deadlift === "string") setDeadlift(d.deadlift);
+      if (typeof d.overheadPress === "string") setOverheadPress(d.overheadPress);
+      // clamp step to valid range [0, steps.length-1]
+      if (typeof d.step === "number") setStep(Math.min(8, Math.max(0, d.step)));
     } catch { /* ignore */ }
   }, []);
 
-  // autosave draft
+  // autosave draft v2
   useEffect(() => {
     try {
       localStorage.setItem(
-        "forge-onboarding-draft",
-        JSON.stringify({ displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, step }),
+        "forge-onboarding-draft-v2",
+        JSON.stringify({ displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, sex, birthYear, squat, bench, deadlift, overheadPress, step }),
       );
     } catch { /* ignore */ }
-  }, [displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, step]);
+  }, [displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, sex, birthYear, squat, bench, deadlift, overheadPress, step]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -110,15 +122,30 @@ function Onboarding() {
           weightKg,
           heightCm,
           injuries,
-          focusMuscles,
-          markOnboarded: true,
+          sex:
+            sex === "prefer-not-to-say" ? null : sex,
+          birthYear:
+            birthYear ?? null,
+          baseline_lifts: {
+            squat: squat ? Number(squat) : null,
+            bench: bench ? Number(bench) : null,
+            deadlift: deadlift ? Number(deadlift) : null,
+            overheadPress: overheadPress ? Number(overheadPress) : null,
+          },
         },
       });
       return generateFirstPlan();
     },
     onSuccess: async () => {
-      track("generateFirstPlan", { source: "onboarding" });
-      try { localStorage.removeItem("forge-onboarding-draft"); } catch { /* ignore */ }
+      track("onboarding_plan_built", {
+        source: "onboarding",
+        displayName: displayName.trim() || "Athlete",
+        goal,
+        hasBaselineLifts: !!(
+          squat || bench || deadlift || overheadPress
+        ),
+      });
+      try { localStorage.removeItem("forge-onboarding-draft-v2"); } catch { /* ignore */ }
       await navigate({ to: "/today" });
     },
     onError: (e: Error) => {
@@ -133,15 +160,102 @@ function Onboarding() {
 
   if (isPending || profileQ.isPending) return <div className="min-h-dvh bg-background" />;
   if (!user) return <RedirectToSignIn />;
-  if (profileQ.data?.onboardedAt) return <Navigate to="/today" />;
+  if (profileQ.data?.onboardedAt) return <Navigate to="/today" />
+
+  // step readiness based on completed steps
+  const stepReady =
+    step === 0
+      ? true
+      : step === 1
+      ? Boolean(goal)
+      : step === 2
+      ? focusMuscles.length > 0
+      : step === 3
+      ? Boolean(experience)
+      : step === 4
+      ? equipment.length > 0
+      : step === 5
+      ? availableDays.length >= 2
+      : step === 6
+      ? units.length > 0
+      : step === 7
+      ? true
+      : true;
+
+  // track step viewed events
+  useEffect(() => {
+    track("onboarding_baseline_skipped", {
+      source: "onboarding",
+      step: step + 1,
+    });
+  }, [step]);
 
   const steps = [
     {
-      title: "What should we call you?",
+      title: "Welcome back",
       body: (
-        <div className="space-y-2">
-          <Label htmlFor="dn">Name</Label>
-          <Input id="dn" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="First name" />
+        <div className="space-y-4">
+          <p className="text-muted-foreground">
+            {me?.displayName && (
+              <>
+                Hey {me.displayName}, let's continue setting up your profile.
+              </>
+            )}
+            {!(me?.displayName) && (
+              <>Let's get you set up with a profile.</>
+            )}
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="dn">Name</Label>
+              <Input
+                id="dn"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="First name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sex">Sex</Label>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setSex("male")}
+                  className={cn(
+                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
+                    sex === "male" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                  )}
+                >
+                  Male
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSex("female")}
+                  className={cn(
+                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
+                    sex === "female" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                  )}
+                >
+                  Female
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSex("prefer-not-to-say")}
+                  className={cn(
+                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
+                    sex === "prefer-not-to-say" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                  )}
+                >
+                  Prefer not to say
+                </button>
+              </div>
+            </div>
+          </div>
+          {sex && sex !== "prefer-not-to-say" && (
+            <p className="text-xs text-muted-foreground">
+              {`Birth year: ${birthYear ?? "not specified"}`}
+            </p>
+          )}
         </div>
       ),
     },
@@ -166,10 +280,12 @@ function Onboarding() {
       ),
     },
     {
-      title: "What do you want to build most?",
+      title: "Which muscles to focus?",
       body: (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">Pick up to four. The week will bias volume here.</p>
+          <p className="text-sm text-muted-foreground">
+            Pick up to four. The week will bias volume here.
+          </p>
           <div className="flex flex-wrap gap-2">
             {FOCUS_MUSCLES.map((m) => {
               const on = focusMuscles.includes(m.id);
@@ -251,7 +367,7 @@ function Onboarding() {
               const on = availableDays.includes(i);
               return (
                 <button
-                  key={`${d}-${i}`}
+                  key={`${d}`}
                   type="button"
                   onClick={() =>
                     setAvailableDays((prev) =>
@@ -293,65 +409,150 @@ function Onboarding() {
       title: "Optional vitals",
       body: (
         <div className="space-y-4">
-          <div className="flex gap-2">
-            {(["metric", "imperial"] as const).map((u) => (
-              <button
-                key={u}
-                type="button"
-                onClick={() => setUnits(u)}
-                className={cn(
-                  "h-10 flex-1 rounded-md text-sm capitalize",
-                  units === u ? "bg-primary text-primary-foreground" : "bg-secondary",
-                )}
-              >
-                {u}
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Bodyweight ({units === "imperial" ? "lb" : "kg"})</Label>
+              <Input
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <Label>Height ({units === "imperial" ? "in" : "cm"})</Label>
+              <Input
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                inputMode="decimal"
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Bodyweight ({units === "imperial" ? "lb" : "kg"})</Label>
-              <Input value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" />
+            <div>
+              <Label>Sex</Label>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setSex("male")}
+                  className={cn(
+                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
+                    sex === "male" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                  )}
+                >
+                  Male
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSex("female")}
+                  className={cn(
+                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
+                    sex === "female" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                  )}
+                >
+                  Female
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSex("prefer-not-to-say")}
+                  className={cn(
+                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
+                    sex === "prefer-not-to-say" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                  )}
+                >
+                  Prefer not to say
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Height ({units === "imperial" ? "in" : "cm"})</Label>
-              <Input value={height} onChange={(e) => setHeight(e.target.value)} inputMode="decimal" />
+            <div>
+              <Label>Birth year</Label>
+              <Input
+                type="number"
+                min={1940}
+                max={2015}
+                value={birthYear !== null ? String(birthYear) : ""}
+                onChange={(e) =>
+                  setBirthYear(
+                    e.target.value !== "" ? Number(e.target.value) : null
+                  )
+                }
+              />
             </div>
           </div>
+          {sex && sex !== "prefer-not-to-say" && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {`Birth year: ${birthYear ?? "not specified"}`}
+            </p>
+          )}
         </div>
       ),
     },
     {
-      title: "Anything we should protect?",
+      title: "Current best lifts",
       body: (
-        <div className="space-y-2">
-          <Label htmlFor="inj">Injuries or limitations</Label>
-          <Textarea
-            id="inj"
-            placeholder="Left shoulder pinch on overhead work, cranky knees on deep squats…"
-            value={injuries}
-            onChange={(e) => setInjuries(e.target.value)}
-          />
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Your current estimated 1RMs will help us start you at the right weight.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
+              <Label>Squat (kg)</Label>
+              <Input
+                value={squat}
+                onChange={(e) => setSquat(e.target.value)}
+                inputMode="decimal"
+                placeholder="e.g. 100"
+              />
+              <p className="text-xs text-muted-foreground">
+                Your current estimated 1RM for squat
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Label>Bench (kg)</Label>
+              <Input
+                value={bench}
+                onChange={(e) => setBench(e.target.value)}
+                inputMode="decimal"
+                placeholder="e.g. 60"
+              />
+              <p className="text-xs text-muted-foreground">
+                Your current estimated 1RM for bench
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
+              <Label>Deadlift (kg)</Label>
+              <Input
+                value={deadlift}
+                onChange={(e) => setDeadlift(e.target.value)}
+                inputMode="decimal"
+                placeholder="e.g. 120"
+              />
+              <p className="text-xs text-muted-foreground">
+                Your current estimated 1RM for deadlift
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Label>Overhead press (kg)</Label>
+              <Input
+                value={overheadPress}
+                onChange={(e) => setOverheadPress(e.target.value)}
+                inputMode="decimal"
+                placeholder="e.g. 40"
+              />
+              <p className="text-xs text-muted-foreground">
+                Your current estimated 1RM for overhead press
+              </p>
+            </div>
+          </div>
         </div>
       ),
     },
   ];
 
+  // derive max valid step from steps.length (8 steps = indices 0-7)
+  const maxValidStep = steps.length - 1;
   const last = step === steps.length - 1;
-  const stepReady =
-    step === 0
-      ? true
-      : step === 1
-        ? Boolean(goal)
-        : step === 2
-          ? focusMuscles.length > 0
-          : step === 3
-            ? Boolean(experience)
-            : step === 4
-              ? equipment.length > 0
-              : step === 5
-                ? availableDays.length >= 2
-                : true;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-5 py-8">
@@ -363,28 +564,40 @@ function Onboarding() {
         />
       </div>
       <div className="mt-3 flex justify-center gap-1.5">
-        {steps.map((_, i) => (
-          <button
-            key={i}
-            type="button"
-            aria-label={`Go to step ${i + 1}`}
-            onClick={() => setStep(i)}
-            className={cn("size-2 rounded-full transition-colors", i === step ? "bg-primary" : i < step ? "bg-primary/60" : "bg-secondary")}
-          />
-        ))}
+        {steps.map((_, i) => {
+          // only allow stepping back to visited steps (index <= step)
+          const isVisited = i <= step;
+          return (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Go to step ${i + 1}`}
+              onClick={() => setStep(i)}
+              className={cn(
+                "size-2 rounded-full transition-colors",
+                isVisited ? "bg-primary" : "bg-secondary",
+                i === step ? "ring-2 ring-primary" : "",
+              )}
+            />
+          );
+        })}
       </div>
-      <h1 className="display mt-8 text-3xl font-semibold">{steps[step].title}</h1>
+      <h1 className="display mt-8 text-3xl font-semibold">
+        {steps[step].title}
+      </h1>
       <div className="mt-6 flex-1">{steps[step].body}</div>
       {availableDays.length >= 2 && experience ? (
         <p className="mt-2 text-sm text-muted-foreground">
-          Split: <span className="font-medium text-foreground">{determineSplit(availableDays.length, experience, focusMuscles, goal)}</span>
+          Split: <span className="font-medium text-foreground">
+            {determineSplit(availableDays.length, experience, focusMuscles, goal)}
+          </span>
           {focusMuscles.length ? ` · 40% of sets on ${focusMuscles.join(" + ")}` : ""}
         </p>
       ) : null}
       {error && <p className="mb-3 text-sm text-signal">{error}</p>}
       <div className="flex gap-3">
         {step > 0 && (
-          <Button variant="outline" className="flex-1" onClick={() => setStep((s) => s - 1)}>
+          <Button variant="outline" className="flex-1" onClick={() => setStep((s) => Math.max(0, s - 1))}>
             Back
           </Button>
         )}
@@ -392,14 +605,13 @@ function Onboarding() {
           className="flex-1"
           disabled={save.isPending || !stepReady}
           onClick={() => {
-            if (!last) setStep((s) => s + 1);
+            if (!last) setStep((s) => Math.min(maxValidStep, s + 1));
             else save.mutate();
           }}
         >
           {last ? "Build my plan" : "Continue"}
         </Button>
       </div>
-      {save.isPending && <CenteredLoading overlay={false} />}
     </main>
   );
 }
