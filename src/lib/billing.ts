@@ -2,33 +2,24 @@ import { useEffect, useState } from "react";
 
 export type BillingRegion = "ng" | "intl";
 export type BillingInterval = "month" | "year";
-export type Membership = "free" | "pro" | "pro_max";
-export type PaidMembership = "pro" | "pro_max";
+export type Membership = "free";
+export type PaidMembership = "free";
 
 export function parseMembership(raw: string | null | undefined): Membership {
-  const v = (raw ?? "free").toLowerCase().replace("-", "_");
-  if (v === "pro_max") return "pro_max";
-  if (v === "pro") return "pro";
-  return "free";
+  return raw && raw.toLowerCase() === "pro" ? "free" : "free";
 }
 
 export function membershipLabel(plan: Membership) {
-  if (plan === "pro_max") return "Pro Max";
-  if (plan === "pro") return "Pro";
   return "Free";
 }
 
 /** Weekly coach-question cap. null = unlimited. */
 export function coachWeekLimit(plan: Membership): number | null {
-  if (plan === "pro_max") return null;
-  if (plan === "pro") return 40;
-  return 5;
+  return null;
 }
 
 /** Plans to offer only after the current quota is used up. */
 export function upgradesWhenExhausted(plan: Membership): PaidMembership[] {
-  if (plan === "free") return ["pro", "pro_max"];
-  if (plan === "pro") return ["pro_max"];
   return [];
 }
 
@@ -41,35 +32,9 @@ export const PLANS = {
       "Prefilled logging from Today",
       "3,700+ movement library",
       "Starter week from onboarding",
-      "5 coach questions / week",
-      "Auto-retune after you finish a session",
+      "Unlimited coach questions",
+      "Retune session after you finish",
       "Recap cards you can share",
-    ],
-  },
-  pro: {
-    id: "pro" as const,
-    name: "Pro",
-    blurb: "The training loop Forge is built around — without paying Max.",
-    badge: "Best value",
-    features: [
-      "Everything in Free",
-      "40 coach questions / week — a full training block",
-      "Check-in also rewrites today when energy is low",
-      "Rebuild the week from your profile any time",
-      "Daily session tweaks from fatigue, PRs, injuries",
-      "The coach that reads yesterday and writes tomorrow",
-    ],
-  },
-  pro_max: {
-    id: "pro_max" as const,
-    name: "Pro Max",
-    blurb: "Unlimited coach. For people who live in the chat.",
-    features: [
-      "Everything in Pro",
-      "Unlimited Gemini coach",
-      "Longer, more detailed rewrites",
-      "First in line when the model is busy",
-      "No weekly cap — ever",
     ],
   },
 } as const;
@@ -81,8 +46,7 @@ export const PRICES = {
     processor: "Paystack",
     processorHint: "Naira cards, bank transfer, USSD",
     place: "Nigeria",
-    pro: { month: 4900, year: 39000, yearNote: "Save ₦19,800" },
-    pro_max: { month: 9900, year: 79000, yearNote: "Save ₦39,800" },
+    free: { month: 0, year: 0, yearNote: "Free forever" },
   },
   intl: {
     currency: "USD",
@@ -90,15 +54,14 @@ export const PRICES = {
     processor: "Stripe",
     processorHint: "Cards, Apple Pay, Google Pay",
     place: "Rest of world",
-    pro: { month: 8.99, year: 69, yearNote: "Save $38.88" },
-    pro_max: { month: 16.99, year: 129, yearNote: "Save $74.88" },
+    free: { month: 0, year: 0, yearNote: "Free forever" },
   },
 } as const;
 
 export function formatPrice(
   region: BillingRegion,
   interval: BillingInterval,
-  tier: PaidMembership = "pro",
+  tier: Membership = "free",
 ) {
   const p = PRICES[region][tier];
   const amount = interval === "year" ? p.year : p.month;

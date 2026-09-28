@@ -105,23 +105,14 @@ function LibraryPage() {
             className="flex gap-3 rounded-xl bg-card p-3 shadow-[var(--shadow-border)]"
           >
             <div className="size-16 shrink-0 overflow-hidden rounded-md bg-secondary">
-              {ex.imageUrl ? (
-                <img
-                  src={ex.imageUrl}
-                  alt=""
-                  className="size-full object-cover"
-                  loading="lazy"
-                  onError={(e) => {
-                    const t = e.currentTarget as HTMLImageElement;
-                    t.style.display = "none";
-                    const placeholder = t.nextElementSibling as HTMLElement | null;
-                    if (placeholder) placeholder.style.display = "grid";
-                  }}
-                />
-              ) : null}
+              <img
+                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M12 15l-3-3a5 5 0 0 1 7.072-7.072L12 7.928l5.05-5.05a5 5 0 0 1 7.072 7.072L12 15Zm0-10L3 5v6h6v4H3v12h6v-4h3v4h6v-6h3v-12h6V5h-6Z'/%3E%3C/svg%3E"
+                alt="Exercise illustration"
+                className="size-full object-cover"
+                loading="lazy"
+              />
               <div
                 className="grid size-full place-items-center text-[10px] uppercase tracking-[0.14em] text-muted-foreground"
-                style={{ display: ex.imageUrl ? "none" : "grid" }}
               >
                 {ex.primaryMuscles[0] ?? "lift"}
               </div>

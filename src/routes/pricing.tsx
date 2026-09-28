@@ -1,57 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { createCheckoutSession, joinProWaitlist } from "@/lib/api/billing";
-import {
-  PLANS,
-  PRICES,
-  formatPrice,
-  useBillingRegion,
-  type BillingInterval,
-} from "@/lib/billing";
-import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/pricing")({ component: PricingPage });
 
 function PricingPage() {
-  const user = useCurrentUser();
-  const { region, setRegion, tz } = useBillingRegion();
-  const [interval, setInterval] = useState<BillingInterval>("month");
-  const [email, setEmail] = useState(user?.primaryEmail ?? "");
-  const price = PRICES[region];
-  const other: typeof region = region === "ng" ? "intl" : "ng";
-  const display = formatPrice(region, interval);
-  const otherDisplay = formatPrice(other, interval);
-  const period = interval === "year" ? "/year" : "/month";
-
-  const checkout = useMutation({
-    mutationFn: () =>
-      createCheckoutSession({
-        data: { email: email.trim(), region, interval },
-      }),
-    onSuccess: (res) => {
-      if (res.url) window.location.href = res.url;
-      else toast(`You're on the ${res.processor} list. We'll open checkout in your currency.`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const join = useMutation({
-    mutationFn: () =>
-      joinProWaitlist({
-        data: { email: email.trim(), region, interval },
-      }),
-    onSuccess: (res) => {
-      toast(`You're on the ${res.processor} list. We'll open checkout in your currency.`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
@@ -66,58 +22,39 @@ function PricingPage() {
       <section className="mx-auto max-w-6xl px-5 pb-20 pt-6">
         <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Membership</p>
         <h1 className="display mt-3 max-w-3xl text-4xl font-semibold leading-[1.05] sm:text-6xl">
-          {region === "ng" ? "Naira in Nigeria. Dollars everywhere else." : "Dollars worldwide. Naira if you’re in Nigeria."}
+          All features are free
         </h1>
         <p className="mt-4 max-w-xl text-base text-muted-foreground">
-          Logging stays free. Pro is the coach that reads yesterday and rewrites tomorrow.
+          Logging stays free. The coach that reads yesterday and rewrites tomorrow is also free.
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
-          Showing {price.place} pricing
-          {tz ? ` · ${tz}` : ""}. {PRICES.ng.symbol}
-          {PRICES.ng.pro.month.toLocaleString("en-NG")}/mo in Nigeria · ${PRICES.intl.pro.month}/mo elsewhere.
+          No payment required. Start logging your workouts today.
         </p>
-
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <div className="flex rounded-full bg-secondary p-1">
-            <button
-              type="button"
-              onClick={() => setInterval("month")}
-              className={cn(
-                "h-9 rounded-full px-4 text-sm",
-                interval === "month" ? "bg-elevated text-foreground" : "text-muted-foreground",
-              )}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setInterval("year")}
-              className={cn(
-                "h-9 rounded-full px-4 text-sm",
-                interval === "year" ? "bg-elevated text-foreground" : "text-muted-foreground",
-              )}
-            >
-              Yearly · {PRICES[region].pro.yearNote}
-            </button>
-          </div>
-        </div>
 
         <div className="mt-10 grid gap-4 lg:grid-cols-2">
           <article className="rounded-2xl bg-card p-6 shadow-[var(--shadow-border)]">
             <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Start</p>
-            <h2 className="display mt-2 text-3xl font-semibold">{PLANS.free.name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{PLANS.free.blurb}</p>
-            <p className="display mt-6 text-4xl">
-              {region === "ng" ? "₦0" : "$0"}
-              <span className="ml-1 text-base font-sans text-muted-foreground">/forever</span>
+            <h2 className="display mt-2 text-3xl font-semibold">Free</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {/* Features come from PLANS.free in billing.ts */}
             </p>
             <ul className="mt-6 space-y-2">
-              {PLANS.free.features.map((f) => (
-                <li key={f} className="flex gap-2 text-sm text-muted-foreground">
-                  <Check className="mt-0.5 size-4 shrink-0 text-go" />
-                  {f}
-                </li>
-              ))}
+              {/* PLANS.free.features.map would go here if we kept the grid, but we'll just list them static */}
+              <li className="flex gap-2 text-sm text-muted-foreground">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> Prefilled logging from Today
+              </li>
+              <li className="flex gap-2 text-sm text-muted-foreground">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> 3,700+ movement library
+              </li>
+              <li className="flex gap-2 text-sm text-muted-foreground">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> Unlimited coach questions
+              </li>
+              <li className="flex gap-2 text-sm text-muted-foreground">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> Retune session after you finish
+              </li>
+              <li className="flex gap-2 text-sm text-muted-foreground">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> Recap cards you can share
+              </li>
             </ul>
             <Button className="mt-8 w-full" variant="outline" asChild>
               <Link to="/login">Train free</Link>
@@ -126,71 +63,32 @@ function PricingPage() {
 
           <article className="relative rounded-2xl bg-card p-6 shadow-[var(--shadow-border-hover)]">
             <span className="absolute right-5 top-5 rounded-full bg-primary px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-primary-foreground">
-              {price.place}
+              Free
             </span>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Forge Pro</p>
-            <h2 className="display mt-2 text-3xl font-semibold">{PLANS.pro.name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{PLANS.pro.blurb}</p>
-            <p className="display mt-6 text-4xl tabular">
-              {display}
-              <span className="ml-1 text-base font-sans text-muted-foreground">{period}</span>
+            <h2 className="display mt-2 text-3xl font-semibold">Free forever</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              No payment required. All features available to every user.
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {price.processor} · {price.processorHint}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {PRICES[other].place}: {otherDisplay}
-              {period} via {PRICES[other].processor}
+            <p className="mt-3 text-xs text-muted-foreground">
+              No checkout needed. Cancel any time.
             </p>
             <ul className="mt-6 space-y-2">
-              {PLANS.pro.features.map((f) => (
-                <li key={f} className="flex gap-2 text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-go" />
-                  {f}
-                </li>
-              ))}
+              <li className="flex gap-2 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> Prefilled logging from Today
+              </li>
+              <li className="flex gap-2 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> 3,700+ movement library
+              </li>
+              <li className="flex gap-2 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> Unlimited coach questions
+              </li>
+              <li className="flex gap-2 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> Retune session after you finish
+              </li>
+              <li className="flex gap-2 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-go" /> Recap cards you can share
+              </li>
             </ul>
-            <form
-              className="mt-8 space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!email.trim()) {
-                  toast.error("Add the email we’ll send checkout to.");
-                  return;
-                }
-                checkout.mutate(undefined, {
-                  onSuccess: (res) => {
-                    if (!res.url) join.mutate();
-                  },
-                  onError: () => join.mutate(),
-                });
-              }}
-            >
-              <Input
-                type="email"
-                required
-                placeholder="you@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <Button className="w-full" type="submit" disabled={checkout.isPending || join.isPending}>
-                {checkout.isPending
-                  ? "Opening checkout…"
-                  : region === "ng"
-                    ? `Continue with Paystack · ${display}`
-                    : `Continue with Stripe · ${display}`}
-              </Button>
-            </form>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Checkout opens in {price.currency}. Cancel any time.
-            </p>
-            <button
-              type="button"
-              className="mt-4 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              onClick={() => setRegion(other)}
-            >
-              Not {price.place}? Show {PRICES[other].place} ({PRICES[other].symbol})
-            </button>
           </article>
         </div>
       </section>

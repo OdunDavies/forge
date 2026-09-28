@@ -107,8 +107,6 @@ function CoachPage() {
       <div className="mb-3 rounded-md bg-secondary px-3 py-2 text-sm">
         {quota.isPending ? (
           <span className="text-muted-foreground">Loading quota…</span>
-        ) : quota.data?.plan === "pro" ? (
-          <span>Pro unlimited</span>
         ) : (
           <span>
             Free {quota.data?.used ?? 0}/{quota.data?.limit ?? 5} this week

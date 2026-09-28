@@ -138,7 +138,7 @@ function ProfilePage() {
       <section className="rounded-xl bg-card px-5 py-4 shadow-[var(--shadow-border)]">
         <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Membership</p>
         <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="display text-2xl font-semibold">{membershipLabel(plan)}</h2>
+          <h2 className="display text-2xl font-semibold">{membershipLabel(plan as "free")}</h2>
           {quota.data?.limit == null ? (
             <p className="text-sm text-muted-foreground">Unlimited coach</p>
           ) : (
@@ -147,30 +147,29 @@ function ProfilePage() {
             </p>
           )}
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">{PLANS[plan].blurb}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{PLANS.free.blurb}</p>
       </section>
 
       {exhausted && upgrades.length > 0 && (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            This week’s {membershipLabel(plan)} quota is used. Next tier:
-          </p>
+<p className="text-sm text-muted-foreground">
+              This week’s {membershipLabel(plan as "free")} quota is used. Next tier:
+            </p>
           {upgrades.map((tier) => {
             const spec = PLANS[tier];
             const price = formatPrice(region, "month", tier);
-            const featured = tier === "pro";
             return (
               <Link
                 key={tier}
                 to="/pricing"
                 className={cn(
                   "flex items-center justify-between rounded-xl px-5 py-4 shadow-[var(--shadow-border)]",
-                  featured ? "bg-card shadow-[var(--shadow-border-hover)]" : "bg-card",
+                  "bg-card",
                 )}
               >
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                    {featured ? "Best value" : spec.name}
+                    {spec.name}
                   </p>
                   <p className="mt-1 text-sm">
                     {spec.name} · {price}/mo · {spec.blurb}
