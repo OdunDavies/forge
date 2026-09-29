@@ -4,9 +4,11 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { num } from "@/lib/db-map";
 import { extractJson, grokChat } from "@/lib/ai/grok";
-import { findExerciseByName } from "@/lib/exercises/seed";
 import { buildFallbackPlan, volumeBreakdown } from "@/lib/plan/fallback";
 import { loadProfileByUserId } from "./profile";
+import { searchExercises, getExercise, type Exercise } from "@/lib/api/library";
+import { matchExercise, exerciseFocusMuscles, type { Exercise as CatalogExercise } from "@/lib/exercises/catalog";
+import { suggestExercise } from "@/lib/exercises/match";
 import type { ActivePlan, PlanDay, PlanExercise } from "./types";
 
 type PlanRow = {
@@ -39,6 +41,26 @@ type ExRow = {
   notes: string;
   sort_order: number;
 };
+
+/** Resolve an exercise name to a catalog entry using the matcher.
+ * Returns { id, name } or { id: null, name: original } if no match.
+ * In lenient mode (for AI plans), relax some rules; in strict mode (for history),
+ * never auto-link. */
+function resolveExerciseName(
+  name: string,
+  lenient = false
+): { id: string | null; name: string; method: "exact" | "fuzzy" | "null" } {
+  const result = matchExercise(name, new Map());
+  if (result) return result;
+  // No strict match; if lenient, try suggest()
+  if (lenient) {
+    const suggest = suggestExercise(name, new Map());
+    if (suggest) {
+      return { id: suggest.id, name: suggest.name, method: "relaxed" };
+    }
+  }
+  return { id: null, name, method: "null" };
+}
 
 export async function loadPlan(userId: string): Promise<ActivePlan | null> {
   const sql = await getSql();
@@ -116,7 +138,7 @@ const generatedSchema = z.object({
             name: z.string(),
             sets: z.number().int().min(1).max(8),
             reps: z.string(),
-            restSec: z.number().int().min(0).max(400).optional(),
+            restSec: z.number().int.min(0).max(400).optional(),
             rpe: z.number().min(5).max(10).optional(),
             notes: z.string().optional(),
           }),
@@ -164,12 +186,13 @@ async function persistGenerated(
     if (isRest) continue;
     let sort = 0;
     for (const ex of d.exercises ?? []) {
-      const match = await findExerciseByName(ex.name);
+      // Resolve exercise name using the matcher (strict by default; lenient for AI hints)
+      const match = resolveExerciseName(ex.name, /* lenient */ true);
       await sql`
         insert into plan_exercises (
           plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
         ) values (
-          ${dayId}, ${userId}, ${match?.id ?? null}, ${match?.name ?? ex.name},
+          ${dayId}, ${userId}, ${match.id ?? null}, ${match.name},
           ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
         )`;
       sort += 1;
@@ -207,6 +230,7 @@ export const generateFirstPlan = createServerFn({ method: "POST" })
     };
     const starter = await persistGenerated(context.userId, starterPayload);
 
+    // Build a catalog hint from the fallback: popular/canonical names for the focus muscles
     const catalogHint = fallback.days
       .flatMap((d) => d.exercises.map((e) => e.name))
       .slice(0, 40)
@@ -251,19 +275,31 @@ Rules:
         const titles = parsed.days.filter((d) => !d.isRest).map((d) => d.title.toLowerCase()).join(" ");
         const named = focus.filter((m) => titles.includes(m));
         if (focus.length && named.length === 0) throw new Error("plan ignored focus");
-        // 40/60 volume validation – proxy: count exercise-name substring matches as focus volume
+        // 40/60 volume validation – now using catalog muscle resolution instead of name substrings
         if (focus.length) {
           const allEx = parsed.days.flatMap((d) => d.exercises ?? []);
           let focusSets = 0;
           let totalSets = 0;
+          // Resolve each exercise's focus muscles via the catalog and tally
           for (const ex of allEx) {
-            const n = ex.name.toLowerCase();
-            const isFocus = focus.some((f) => n.includes(f));
-            totalSets += ex.sets;
-            if (isFocus) focusSets += ex.sets;
+            // Find the catalog entry for this exercise name
+            const catEntry = await getExercise(ex.name); // will search by name
+            if (catEntry) {
+              const { primary, secondary } = exerciseFocusMuscles(catEntry.id, new Map());
+              totalSets += ex.sets;
+              // Count primary focus muscles
+              const isFocus = focus.some((f) => primary.includes(f) || secondary.includes(f));
+              if (isFocus) focusSets += ex.sets;
+            } else {
+              // Fallback: name substring if catalog lookup fails (degraded mode)
+              for (const ex2 of allEx) {
+                const n = ex2.name.toLowerCase();
+                const isFocus = focus.some((f) => n.includes(f));
+                totalSets += ex2.sets;
+                if (isFocus) focusSets += ex2.sets;
+              }
+            }
           }
-          // attempt structured volumeBreakdown if we can resolve muscle via BANK lookup (unused here, keep import for future)
-          void volumeBreakdown;
           const ratio = totalSets ? focusSets / totalSets : 0;
           if (ratio < 0.3 || ratio > 0.5) {
             console.warn(`[plan] 40/60 proxy failed: focus ratio ${ratio.toFixed(2)} outside 0.30-0.50, falling back`);
@@ -291,7 +327,7 @@ const confirmTweakSchema = z.object({
       name: z.string(),
       sets: z.number().int().min(1).max(8),
       reps: z.string(),
-      restSec: z.number().int().min(0).max(400).optional(),
+      restSec: z.number().int.min(0).max(400).optional(),
       rpe: z.number().min(5).max(10).optional(),
       notes: z.string().optional(),
     }),
@@ -382,12 +418,12 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
       await sql`delete from plan_exercises where plan_day_id = ${target.id} and user_id = ${context.userId}`;
       let sort = 0;
       for (const ex of parsed.exercises.slice(0, 8)) {
-        const match = await findExerciseByName(ex.name);
+        const match = resolveExerciseName(ex.name, /* lenient */ true);
         await sql`
           insert into plan_exercises (
             plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
           ) values (
-            ${target.id}, ${context.userId}, ${match?.id ?? null}, ${match?.name ?? ex.name},
+            ${target.id}, ${context.userId}, ${match.id ?? null}, ${match.name},
             ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
           )`;
         sort += 1;
@@ -424,12 +460,12 @@ export const confirmTweak = createServerFn({ method: "POST" })
     await sql`delete from plan_exercises where plan_day_id = ${target.id} and user_id = ${context.userId}`;
     let sort = 0;
     for (const ex of data.exercises.slice(0, 8)) {
-      const match = await findExerciseByName(ex.name);
+      const match = resolveExerciseName(ex.name, /* lenient */ true);
       await sql`
         insert into plan_exercises (
           plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
         ) values (
-          ${target.id}, ${context.userId}, ${match?.id ?? null}, ${match?.name ?? ex.name},
+          ${target.id}, ${context.userId}, ${match.id ?? null}, ${match.name},
           ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
         )`;
       sort += 1;

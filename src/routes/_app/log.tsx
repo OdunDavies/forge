@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SessionHeader, SetLogger } from "@/components/workout/set-logger";
-import { searchExercises } from "@/lib/api/library";
+import { searchExercises, getExercise, type Exercise } from "@/lib/api/library";
+import { matchExercise, suggestExercise } from "@/lib/exercises/match";
 import { getActivePlan } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
 import {
@@ -94,7 +95,10 @@ function LogPage() {
     if (!sessionQ.data) return;
     setBusyName(name);
     try {
-      const res = await completeExercise({ data: { sessionId: sessionQ.data.id, exerciseName: name } });
+      // Resolve exercise name via matcher for correct catalog id
+      const resolved = matchExercise(name, new Map());
+      const exerciseName = resolved ? resolved.name : name;
+      const res = await completeExercise({ data: { sessionId: sessionQ.data.id, exerciseName } });
       if (res.isPr) toast("New PR");
       qc.setQueryData(["active-session"], res.session);
     } catch (err) {
@@ -108,8 +112,11 @@ function LogPage() {
     if (!sessionQ.data) return;
     setBusyName(name);
     try {
+      // Resolve exercise name via matcher for correct catalog id
+      const resolved = matchExercise(name, new Map());
+      const exerciseName = resolved ? resolved.name : name;
       const session = await addSetToSession({
-        data: { sessionId: sessionQ.data.id, exerciseName: name },
+        data: { sessionId: sessionQ.data.id, exerciseName },
       });
       qc.setQueryData(["active-session"], session);
     } catch (err) {
@@ -143,8 +150,16 @@ function LogPage() {
     }
     setAddingCustom(true);
     try {
+      // If we have a catalog id, use it; otherwise add as custom
+      let cid: string | null = null;
+      if (exerciseId) cid = exerciseId;
+      else {
+        // Try to resolve via matcher for suggestions
+        const resolved = matchExercise(trimmed, new Map());
+        if (resolved && resolved.id) cid = resolved.id;
+      }
       const next = await addExerciseToSession({
-        data: { sessionId: sessionQ.data.id, exerciseId, exerciseName: trimmed, sets: 1 },
+        data: { sessionId: sessionQ.data.id, exerciseId: cid, exerciseName: trimmed, sets: 1 },
       });
       qc.setQueryData(["active-session"], next);
       setQ("");
@@ -172,7 +187,7 @@ function LogPage() {
         <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Logger</p>
         <h1 className="display text-3xl font-semibold">Mark it done</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Today’s lifts are already loaded. Adjust a number if you want — or tap Mark done.
+          Today's lifts are already loaded. Adjust a number if you want — or tap Mark done.
         </p>
       </header>
 
@@ -180,12 +195,12 @@ function LogPage() {
         <div className="space-y-3 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
           <p className="text-sm text-muted-foreground">
             {shouldAutostart || start.isPending
-              ? "Loading today’s work…"
-              : "No session running. Start from today’s plan or go freestyle."}
+              ? "Loading today's work…"
+              : "No session running. Start from today's plan or go freestyle."}
           </p>
           {!shouldAutostart && (
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => start.mutate()}>Start today’s workout</Button>
+              <Button onClick={() => start.mutate()}>Start today's workout</Button>
               <Button variant="outline" onClick={() => startEmpty.mutate()}>
                 Empty session
               </Button>
@@ -212,8 +227,9 @@ function LogPage() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const name = q.trim();
-                const hit = results.data?.items.find((ex) => ex.name.toLowerCase() === name.toLowerCase());
-                void addLift(name, hit?.id ?? null);
+                // Use matcher to find the best match
+                const resolved = matchExercise(name, new Map());
+                void addLift(name, resolved?.id ?? null);
               }}
             >
               <Input
@@ -226,18 +242,18 @@ function LogPage() {
               </Button>
             </form>
             {q.trim().length > 1 && !exactLibrary && !exactCustom && (
-                <button
-                  type="button"
-                  disabled={addingCustom}
-                  className="flex h-12 w-full items-center justify-between rounded-md border border-dashed border-border bg-card px-3 text-left text-sm"
-                  onClick={() => void addLift(q, null)}
-                >
-                  <span>
-                    Use <span className="font-medium text-foreground">“{q.trim()}”</span> as your lift
-                  </span>
-                  <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Custom</span>
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={addingCustom}
+                className="flex h-12 w-full items-center justify-between rounded-md border border-dashed border-border bg-card px-3 text-left text-sm"
+                onClick={() => void addLift(q, null)}
+              >
+                <span>
+                  Use <span className="font-medium text-foreground">"${q.trim()}"</span> as your lift
+                </span>
+                <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Custom</span>
+              </button>
+            )}
             {customHits.length > 0 && (
               <div className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Your lifts</p>
@@ -254,17 +270,21 @@ function LogPage() {
                 ))}
               </div>
             )}
-            {results.data?.items.map((ex) => (
-              <button
-                key={ex.id}
-                type="button"
-                className="flex h-12 w-full items-center justify-between rounded-md bg-secondary px-3 text-left text-sm"
-                onClick={() => void addLift(ex.name, ex.id)}
-              >
-                <span>{ex.name}</span>
-                <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{ex.equipment}</span>
-              </button>
-            ))}
+            {results.data?.items.map((ex) => {
+              // Use matcher-resolved id for exact library entries
+              const resolved = matchExercise(ex.name, new Map());
+              return (
+                <button
+                  key={ex.id}
+                  type="button"
+                  className="flex h-12 w-full items-center justify-between rounded-md bg-secondary px-3 text-left text-sm"
+                  onClick={() => void addLift(ex.name, resolved?.id ?? ex.id)}
+                >
+                  <span>{ex.name}</span>
+                  <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{ex.equipment}</span>
+                </button>
+              );
+            })}
             <Button variant="ghost" size="sm" asChild>
               <Link to="/library">Browse movement library</Link>
             </Button>
