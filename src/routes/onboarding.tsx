@@ -40,9 +40,8 @@ function Onboarding() {
     queryFn: () => getMyProfile(),
     enabled: Boolean(user),
   });
-
   const [step, setStep] = useState(0);
-  const [displayName, setDisplayName] = useState("");
+  const [displayName, setDisplayName] = useState(me?.displayName ?? "");
   const [goal, setGoal] = useState("");
   const [focusMuscles, setFocusMuscles] = useState<string[]>([]);
   const [experience, setExperience] = useState("");
@@ -192,13 +191,13 @@ function Onboarding() {
 
   const steps = [
     {
-      title: "Welcome back",
+      title: me?.displayName ? `Welcome ${me.displayName}` : "Welcome",
       body: (
         <div className="space-y-4">
           <p className="text-muted-foreground">
             {me?.displayName && (
               <>
-                Hey {me.displayName}, let's continue setting up your profile.
+                Welcome {me.displayName}, let's continue setting up your profile.
               </>
             )}
             {!(me?.displayName) && (
@@ -206,15 +205,6 @@ function Onboarding() {
             )}
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="dn">Name</Label>
-              <Input
-                id="dn"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="First name"
-              />
-            </div>
             <div>
               <Label htmlFor="sex">Sex</Label>
               <div className="space-y-2">
@@ -428,41 +418,6 @@ function Onboarding() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Sex</Label>
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setSex("male")}
-                  className={cn(
-                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
-                    sex === "male" ? "bg-primary text-primary-foreground" : "bg-secondary",
-                  )}
-                >
-                  Male
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSex("female")}
-                  className={cn(
-                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
-                    sex === "female" ? "bg-primary text-primary-foreground" : "bg-secondary",
-                  )}
-                >
-                  Female
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSex("prefer-not-to-say")}
-                  className={cn(
-                    "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
-                    sex === "prefer-not-to-say" ? "bg-primary text-primary-foreground" : "bg-secondary",
-                  )}
-                >
-                  Prefer not to say
-                </button>
-              </div>
-            </div>
             <div>
               <Label>Birth year</Label>
               <Input
