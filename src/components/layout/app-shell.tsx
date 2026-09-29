@@ -30,11 +30,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground">Skip to content</a>
       <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r border-border bg-background px-4 py-5 lg:flex">
         <Link to="/today" className="mb-8 px-1">
           <Wordmark />
         </Link>
-        <nav className="flex flex-1 flex-col gap-1">
+        <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-1">
           {[...NAV, ...DESKTOP_EXTRA].map((item) => {
             const active = pathname === item.to || pathname.startsWith(item.to + "/");
             return (
@@ -78,14 +79,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link to="/today">
             <Wordmark />
           </Link>
-          <Link to="/profile" className="grid size-11 place-items-center text-muted-foreground">
+          <Link to="/profile" aria-label="Your profile" className="grid size-11 place-items-center text-muted-foreground">
             <UserRound className="size-5" />
           </Link>
         </header>
-        <main className="mx-auto w-full max-w-5xl px-4 py-6 pb-28 lg:px-8 lg:pb-10">{children}</main>
+        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-5xl px-4 py-6 pb-28 lg:px-8 lg:pb-10">{children}</main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
+      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
         {NAV.map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           return (

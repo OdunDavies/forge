@@ -1,13 +1,14 @@
-import { createServerFn } from "@tanstack/react-start";
+import { consumeAiBudget } from "@/lib/ai/rate-limit.server";
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql } from "@/lib/db";
+import { getSql } from "@/lib/db.server";
 import { num } from "@/lib/db-map";
 import { extractJson, grokChat } from "@/lib/ai/grok";
-import { buildFallbackPlan, volumeBreakdown } from "@/lib/plan/fallback";
+import { buildFallbackPlan } from "@/lib/plan/fallback";
 import { loadProfileByUserId } from "./profile";
-import { searchExercises, getExercise, type Exercise } from "@/lib/api/library";
-import { matchExercise, exerciseFocusMuscles, type { Exercise as CatalogExercise } from "@/lib/exercises/catalog";
+
+import { matchExercise, exerciseFocusMuscles } from "@/lib/exercises/catalog";
 import { suggestExercise } from "@/lib/exercises/match";
 import type { ActivePlan, PlanDay, PlanExercise } from "./types";
 
@@ -49,12 +50,12 @@ type ExRow = {
 function resolveExerciseName(
   name: string,
   lenient = false
-): { id: string | null; name: string; method: "exact" | "fuzzy" | "null" } {
-  const result = matchExercise(name, new Map());
+): { id: string | null; name: string; method: "exact" | "relaxed" | "null" } {
+  const result = matchExercise(name);
   if (result) return result;
   // No strict match; if lenient, try suggest()
   if (lenient) {
-    const suggest = suggestExercise(name, new Map());
+    const suggest = suggestExercise(name);
     if (suggest) {
       return { id: suggest.id, name: suggest.name, method: "relaxed" };
     }
@@ -62,7 +63,7 @@ function resolveExerciseName(
   return { id: null, name, method: "null" };
 }
 
-export async function loadPlan(userId: string): Promise<ActivePlan | null> {
+export const loadPlan = createServerOnlyFn(async (userId: string): Promise<ActivePlan | null> => {
   const sql = await getSql();
   const plans = await sql<PlanRow>`
     select id, title, split, days_per_week, focus, notes, ai_rationale
@@ -115,7 +116,7 @@ export async function loadPlan(userId: string): Promise<ActivePlan | null> {
       }),
     ),
   };
-}
+});
 
 export const getActivePlan = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -138,7 +139,7 @@ const generatedSchema = z.object({
             name: z.string(),
             sets: z.number().int().min(1).max(8),
             reps: z.string(),
-            restSec: z.number().int.min(0).max(400).optional(),
+            restSec: z.number().int().min(0).max(400).optional(),
             rpe: z.number().min(5).max(10).optional(),
             notes: z.string().optional(),
           }),
@@ -207,6 +208,7 @@ export const generateFirstPlan = createServerFn({ method: "POST" })
     const profile = await loadProfileByUserId(context.userId);
     if (!profile) throw new Error("Complete your profile first");
 
+    await consumeAiBudget(context.userId);
     const fallback = buildFallbackPlan(profile);
     const starterPayload = {
       title: fallback.title,
@@ -283,21 +285,15 @@ Rules:
           // Resolve each exercise's focus muscles via the catalog and tally
           for (const ex of allEx) {
             // Find the catalog entry for this exercise name
-            const catEntry = await getExercise(ex.name); // will search by name
+            const catEntry = matchExercise(ex.name); // will search by name
             if (catEntry) {
-              const { primary, secondary } = exerciseFocusMuscles(catEntry.id, new Map());
+              const { primary, secondary } = exerciseFocusMuscles(catEntry.id);
               totalSets += ex.sets;
               // Count primary focus muscles
               const isFocus = focus.some((f) => primary.includes(f) || secondary.includes(f));
               if (isFocus) focusSets += ex.sets;
             } else {
-              // Fallback: name substring if catalog lookup fails (degraded mode)
-              for (const ex2 of allEx) {
-                const n = ex2.name.toLowerCase();
-                const isFocus = focus.some((f) => n.includes(f));
-                totalSets += ex2.sets;
-                if (isFocus) focusSets += ex2.sets;
-              }
+              totalSets += ex.sets;
             }
           }
           const ratio = totalSets ? focusSets / totalSets : 0;
@@ -327,7 +323,7 @@ const confirmTweakSchema = z.object({
       name: z.string(),
       sets: z.number().int().min(1).max(8),
       reps: z.string(),
-      restSec: z.number().int.min(0).max(400).optional(),
+      restSec: z.number().int().min(0).max(400).optional(),
       rpe: z.number().min(5).max(10).optional(),
       notes: z.string().optional(),
     }),
@@ -363,6 +359,7 @@ export const tweakTodayPlan = createServerFn({ method: "POST" })
       where user_id = ${context.userId} and completed_at is not null
       order by completed_at desc limit 5`;
 
+    await consumeAiBudget(context.userId);
     const ai = await grokChat(
       [
         {

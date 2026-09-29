@@ -16,6 +16,10 @@ const databaseUrl =
  * the app has a working database even with nothing configured — the live preview
  * included. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
  */
+if (process.env.NODE_ENV === "production" && !databaseUrl && process.env.ALLOW_EPHEMERAL_DATABASE !== "true") {
+  throw new Error("DATABASE_URL is required in production. In-memory storage is only allowed for an explicitly configured local preview.");
+}
+
 export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
 
 /**
@@ -93,7 +97,7 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
-    const pool = new Pool({ connectionString: databaseUrl });
+    const pool = new Pool({ connectionString: databaseUrl, max: 5, connectionTimeoutMillis: 10_000, idleTimeoutMillis: 30_000 });
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];

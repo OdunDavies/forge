@@ -24,7 +24,7 @@ create index if not exists exercises_slug_idx on exercises (slug);
 create index if not exists exercises_canonical_id_idx on exercises (canonical_id);
 create index if not exists exercises_kind_idx on exercises (kind);
 create index if not exists exercises_body_part_idx on exercises (body_part);
-create index if not exists exercises_equipment_group_idx on exercises using gist (equipment_group gist_text_ops);
+create index if not exists exercises_equipment_group_idx on exercises using gin (equipment_group);
 
 -- Alias table: `equivalent` aliases (validated at index build:
 --   unknown / non-canonical / non-strength ids throw,

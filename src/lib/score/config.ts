@@ -106,7 +106,6 @@ export const RANKS = [
 
 // Minimum XP gap to next rank
 export const NEXT_RANK_GAP = (currentXp: number, ranks: typeof RANKS) => {
-  const currentRank = ranks.find((r) => currentXp >= r.xpFloor) || ranks[0]
   const nextRank = ranks.find((r) => currentXp < r.xpFloor) || ranks[ranks.length - 1]
-  return nextRank.xpFloor - currentXp
+  return Math.max(0, nextRank.xpFloor - currentXp)
 }

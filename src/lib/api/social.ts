@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql } from "@/lib/db";
+import { getSql } from "@/lib/db.server";
 import { num0 } from "@/lib/db-map";
 
 export type FeedItem = {
@@ -56,7 +56,7 @@ async function hydrate(rows: FeedRow[]): Promise<FeedItem[]> {
     reps: number | null;
     is_pr: boolean;
   }>`select session_id, exercise_name, weight_kg, reps, is_pr from session_sets
-     where completed = true and is_warmup = false`;
+     where completed = true and is_warmup = false and session_id = any(${ids}::int[]) order by id`;
   const bySession = new Map<number, FeedItem["topSets"]>();
   for (const s of sets) {
     if (!ids.includes(s.session_id)) continue;
@@ -107,7 +107,7 @@ export const getFeed = createServerFn({ method: "GET" })
     const filter =
       scope === "global"
         ? `s.visibility = 'public'`
-        : `(s.user_id = $1 or s.user_id in (select following_id from follows where follower_id = $1))`;
+        : `(s.user_id = $1 or (s.visibility in ('public', 'followers') and s.user_id in (select following_id from follows where follower_id = $1)))`;
     const limit = 20;
     const safeOffset = Math.max(0, Math.floor(offset));
     const rows = await sql.query<FeedRow>(
@@ -126,10 +126,20 @@ export const getFeed = createServerFn({ method: "GET" })
     return hydrate(rows);
   });
 
+async function assertActivityVisible(activityId: number, userId: string) {
+  const sql = await getSql();
+  const rows = await sql<{id:number}>`select s.id from workout_sessions s
+    where s.id = ${activityId} and s.completed_at is not null and
+    (s.user_id = ${userId} or s.visibility = 'public' or (s.visibility = 'followers' and
+      exists(select 1 from follows f where f.follower_id = ${userId} and f.following_id = s.user_id)))`;
+  if (!rows.length) throw new Error("Activity not found");
+}
+
 export const toggleKudos = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((activityId: number) => activityId)
   .handler(async ({ context, data: activityId }) => {
+    await assertActivityVisible(activityId, context.userId);
     const sql = await getSql();
     const existing = await sql<{ user_id: string }>`
       select user_id from activity_kudos where activity_id = ${activityId} and user_id = ${context.userId}`;
@@ -148,6 +158,7 @@ export const addComment = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const sql = await getSql();
+    await assertActivityVisible(data.activityId, context.userId);
     await sql`insert into activity_comments (activity_id, user_id, body)
               values (${data.activityId}, ${context.userId}, ${data.body})`;
     return { ok: true };
@@ -156,7 +167,8 @@ export const addComment = createServerFn({ method: "POST" })
 export const listComments = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator((activityId: number) => activityId)
-  .handler(async ({ data: activityId }) => {
+  .handler(async ({ context, data: activityId }) => {
+    await assertActivityVisible(activityId, context.userId);
     const sql = await getSql();
     return sql<{
       id: number;

@@ -1,7 +1,7 @@
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql } from "@/lib/db";
+import { getSql } from "@/lib/db.server";
 import { num, num0 } from "@/lib/db-map";
 import { epley1rm } from "@/lib/utils";
 import { parseTargetReps } from "@/lib/muscles";
@@ -371,6 +371,8 @@ export const logSet = createServerFn({ method: "POST" })
       select * from session_sets where id = ${data.setId} and user_id = ${context.userId} limit 1`;
     const row = current[0];
     if (!row) throw new Error("Set not found");
+    const active = await sql<{id:number}>`select id from workout_sessions where id = ${row.session_id} and user_id = ${context.userId} and completed_at is null`;
+    if (!active.length) throw new Error("This session is already complete");
 
     const isPr = data.completed
       ? await maybeRecordPr(context.userId, row, data.weightKg, data.reps)
@@ -434,6 +436,7 @@ export const finishSession = createServerFn({ method: "POST" })
       select * from workout_sessions where id = ${data.sessionId} and user_id = ${context.userId}`;
     const session = rows[0];
     if (!session) throw new Error("Session not found");
+    if (session.completed_at) return mapSession(session, await setsFor(session.id, context.userId));
 
     const pending = await sql<SetRow & { session_id: number }>`
       select * from session_sets
@@ -493,6 +496,7 @@ export const getSessionById = createServerFn({ method: "GET" })
     const rows = await sql<SessionRow>`select * from workout_sessions where id = ${id}`;
     const row = rows[0];
     if (!row) return null;
+    if (!row.completed_at && row.user_id !== context.userId) return null;
     if (row.user_id !== context.userId && row.visibility === "private") return null;
     if (row.user_id !== context.userId && row.visibility === "followers") {
       const follow = await sql<{ follower_id: string }>`
@@ -537,3 +541,14 @@ export const getPersonalRecords = createServerFn({ method: "GET" })
       achievedAt: r.achieved_at,
     }));
   });
+
+/** Server-side, owner-scoped history used by scoring and progression. */
+export const loadCompletedSessions = createServerOnlyFn(async (userId: string, limit = 500): Promise<WorkoutSession[]> => {
+  const sql = await getSql();
+  const rows = await sql<SessionRow>`select * from workout_sessions where user_id = ${userId} and completed_at is not null order by completed_at desc limit ${limit}`;
+  if (!rows.length) return [];
+  const sets = await sql<SetRow & { session_id: number }>`select * from session_sets where user_id = ${userId} and session_id = any(${rows.map(r => r.id)}::int[]) order by id`;
+  const bySession = new Map<number, SessionSet[]>();
+  for (const set of sets) { const list = bySession.get(set.session_id) ?? []; list.push(mapSet(set)); bySession.set(set.session_id, list); }
+  return rows.map(row => mapSession(row, bySession.get(row.id) ?? []));
+});

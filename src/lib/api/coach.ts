@@ -1,7 +1,8 @@
+import { consumeAiBudget } from "@/lib/ai/rate-limit.server";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql } from "@/lib/db";
+import { getSql } from "@/lib/db.server";
 import { grokChat } from "@/lib/ai/grok";
 import { loadProfileByUserId } from "./profile";
 import { loadPlan } from "./plan";
@@ -22,6 +23,7 @@ export const sendCoachMessage = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ content: z.string().min(1).max(800) }).parse(input))
   .handler(async ({ context, data }) => {
     const sql = await getSql();
+    await consumeAiBudget(context.userId);
     await sql`insert into coach_messages (user_id, role, content)
               values (${context.userId}, 'user', ${data.content})`;
 

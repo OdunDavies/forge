@@ -1,3 +1,5 @@
+import { FOCUS_MUSCLES } from "../muscles.ts";
+export { FOCUS_MUSCLES };
 /**
  * Exercise dataset taxonomy: maps dataset fields to Forge schema.
  * Pure, dependency-free. Uses only relative imports with .ts extensions.
@@ -42,7 +44,7 @@ export function resolveFocusPrimary(
   muscleGroup: readonly string[],
   secondaryMuscles: readonly string[]
 ): { primary: string[]; secondary: string[] } {
-  const primary: string[] = TARGET_TO_FOCUS_PRIMARY[target] ?? [];
+  const primary: string[] = [...(TARGET_TO_FOCUS_PRIMARY[target] ?? [])];
   const secondary: string[] = [];
 
   // Add secondary from muscle_group
@@ -106,7 +108,7 @@ export function pickCanonical(ids: string[]): [string, ...string[]] {
 }
 
 // Exercise name lookup by id - provided by catalog builder
-export let exerciseNameFromId: (id: string) => string | undefined;
+export const exerciseNameFromId = (id: string): string => id.replaceAll("_", " ");
 
 /** Normalise an exercise name for matching: lowercase, strip demo noise, collapse compounds, etc. */
 export function normalizeName(raw: string): string {
@@ -115,7 +117,7 @@ export function normalizeName(raw: string): string {
 
   // Strip demo noise: (male), (female), (back pov), (side pov), " v. 2/3"
   s = s.replace(/\((male|female|back pov|side pov)\)/i, "").trim();
-  s = s.replace(/ v\. \d[\/\d]*$/, "").trim();
+  s = s.replace(/ v\. \d[/\d]*$/, "").trim();
 
   // Hyphens/punctuation to spaces
   s = s.replace(/[-_]/g, " ");
@@ -153,16 +155,16 @@ export function normalizeName(raw: string): string {
   const COMPOUNDS: Record<string, string> = {
     pushups: "push-up",
     pushup: "push-up",
-    push-ups: "push-up",
+    "push-ups": "push-up",
     pullups: "pull-up",
     pullup: "pull-up",
-    pull-ups: "pull-up",
+    "pull-ups": "pull-up",
     chinups: "chin-up",
     chinup: "chin-up",
-    chin-ups: "chin-up",
+    "chin-ups": "chin-up",
     situps: "sit-up",
     situp: "sit-up",
-    sit-ups: "sit-up",
+    "sit-ups": "sit-up",
     pulldowns: "pulldown",
     pulldown: "pulldown",
     pushdowns: "pushdown",
@@ -171,17 +173,17 @@ export function normalizeName(raw: string): string {
     skullcrushers: "skullcrusher",
     skullcrusher: "skullcrusher",
     bodyweight: "body weight",
-    air squat: "bodyweight squat",
+    "air squat": "bodyweight squat",
     "squat (bodyweight)": "bodyweight squat",
-    single leg squat: "single leg squat (pistol) male", // keep as-is, handled by demo strip
+    "single leg squat": "single leg squat (pistol) male", // keep as-is, handled by demo strip
     "single leg squat (pistol) male": "single leg squat (pistol)",
-    step-up: "step up",
+    "step-up": "step up",
     stepup: "step up",
-    Romanian Deadlift: "RDL",
+    "Romanian Deadlift": "RDL",
     RDL: "RDL",
     "overhead press": "overhead press",
     OHP: "overhead press",
-    military press: "overhead press",
+    "military press": "overhead press",
     "dumbbell curl": "dumbbell curl",
     "bicep curl": "dumbbell curl",
     "tricep extension": "tricep extension",

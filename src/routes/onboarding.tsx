@@ -1,11 +1,10 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { generateFirstPlan } from "@/lib/api/plan";
 import { track } from "@/lib/analytics";
 import { getMyProfile, upsertMyProfile } from "@/lib/api/profile";
@@ -35,6 +34,9 @@ function Onboarding() {
   const { user, isPending } = useCurrentUserState();
   const me = useCurrentUser();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [draftReady, setDraftReady] = useState(false);
+  const draftKey = `forge-onboarding-draft-v2:${user?.id ?? "pending"}`;
   const profileQ = useQuery({
     queryKey: ["me"],
     queryFn: () => getMyProfile(),
@@ -62,8 +64,9 @@ function Onboarding() {
 
   // restore draft v2
   useEffect(() => {
+    if (!user) return;
     try {
-      const raw = localStorage.getItem("forge-onboarding-draft-v2");
+      const raw = sessionStorage.getItem(draftKey);
       if (!raw) return;
       const d = JSON.parse(raw) as Record<string, unknown>;
       if (typeof d.displayName === "string") setDisplayName(d.displayName);
@@ -85,18 +88,19 @@ function Onboarding() {
       if (typeof d.overheadPress === "string") setOverheadPress(d.overheadPress);
       // clamp step to valid range [0, steps.length-1]
       if (typeof d.step === "number") setStep(Math.min(8, Math.max(0, d.step)));
-    } catch { /* ignore */ }
-  }, []);
+    } catch { /* ignore */ } finally { setDraftReady(true); }
+  }, [user, draftKey]);
 
-  // autosave draft v2
+  // Keep health-related draft data scoped to this account and browser tab.
   useEffect(() => {
+    if (!draftReady || !user) return;
     try {
-      localStorage.setItem(
-        "forge-onboarding-draft-v2",
+      sessionStorage.setItem(
+        draftKey,
         JSON.stringify({ displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, sex, birthYear, squat, bench, deadlift, overheadPress, step }),
       );
     } catch { /* ignore */ }
-  }, [displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, sex, birthYear, squat, bench, deadlift, overheadPress, step]);
+  }, [draftReady, user, draftKey, displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, sex, birthYear, squat, bench, deadlift, overheadPress, step]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -121,19 +125,24 @@ function Onboarding() {
           weightKg,
           heightCm,
           injuries,
+          focusMuscles,
           sex:
             sex === "prefer-not-to-say" ? null : sex,
           birthYear:
             birthYear ?? null,
           baseline_lifts: {
-            squat: squat ? Number(squat) : null,
-            bench: bench ? Number(bench) : null,
-            deadlift: deadlift ? Number(deadlift) : null,
-            overheadPress: overheadPress ? Number(overheadPress) : null,
+            squat: squat ? kgFromInput(Number(squat), measure) : null,
+            bench: bench ? kgFromInput(Number(bench), measure) : null,
+            deadlift: deadlift ? kgFromInput(Number(deadlift), measure) : null,
+            overheadPress: overheadPress ? kgFromInput(Number(overheadPress), measure) : null,
           },
         },
       });
-      return generateFirstPlan();
+      const result = await generateFirstPlan();
+      await upsertMyProfile({ data: { displayName: displayName.trim() || me?.displayName || "Athlete", markOnboarded: true } });
+      await queryClient.invalidateQueries({queryKey:["me"]});
+      await queryClient.invalidateQueries({queryKey:["plan"]});
+      return result;
     },
     onSuccess: async () => {
       track("onboarding_plan_built", {
@@ -144,7 +153,7 @@ function Onboarding() {
           squat || bench || deadlift || overheadPress
         ),
       });
-      try { localStorage.removeItem("forge-onboarding-draft-v2"); } catch { /* ignore */ }
+      try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
       await navigate({ to: "/today" });
     },
     onError: (e: Error) => {
@@ -156,6 +165,14 @@ function Onboarding() {
       setError(msg);
     },
   });
+
+  // track step viewed events
+  useEffect(() => {
+    track("onboarding_step_viewed", {
+      source: "onboarding",
+      step: step + 1,
+    });
+  }, [step]);
 
   if (isPending || profileQ.isPending) return <div className="min-h-dvh bg-background" />;
   if (!user) return <RedirectToSignIn />;
@@ -180,14 +197,6 @@ function Onboarding() {
       : step === 7
       ? true
       : true;
-
-  // track step viewed events
-  useEffect(() => {
-    track("onboarding_baseline_skipped", {
-      source: "onboarding",
-      step: step + 1,
-    });
-  }, [step]);
 
   const steps = [
     {

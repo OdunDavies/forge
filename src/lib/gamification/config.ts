@@ -22,13 +22,12 @@ export const RANKS = [
 
 // Minimum XP gap to next rank
 export function nextRankGap(currentXp: number): number {
-  const currentRank = RANKS.find((r) => currentXp >= r.xpFloor) || RANKS[0]
-  const nextRank = RANKS.find((r) => currentXp < r.xpFloor) || RANKS[RANKS.length - 1]
-  return nextRank.xpFloor - currentXp
+  const nextRank = RANKS.find((r) => currentXp < r.xpFloor);
+  return nextRank ? Math.max(0, nextRank.xpFloor - currentXp) : 0;
 }
 
 // Experience needed for each rank up
-export const RANK_REQUIREMENTS = RANKS.map((rank, i) => ({
+export const RANK_REQUIREMENTS = RANKS.map((rank) => ({
   rank: rank.name,
   xpNeeded: rank.xpFloor,
   color: rank.color,
@@ -39,28 +38,17 @@ export function calculateStreak(
   trainedDaysPerWeek: number[],
   plannedDaysPerWeek: number,
 ): { streak: number; bestStreak: number } {
-  const minDaysForStreak = Math.max(1, Math.ceil(0.6 * plannedDaysPerWeek))
-
-  let streak = 0
-  let bestStreak = 0
-  let currentStreak = 0
-
-  // We check consecutive weeks going back from current week
-  // For simplicity, we use a fixed window of 52 weeks (1 year)
-  const weeksInYear = 52
-
-  for (let i = 0; i < weeksInYear; i++) {
-    const weekTrainedDays = trainedDaysPerWeek[i % trainedDaysPerWeek.length] || 0
-    if (weekTrainedDays >= minDaysForStreak) {
-      currentStreak++
-      streak = Math.max(streak, currentStreak)
-      bestStreak = Math.max(bestStreak, streak)
-    } else {
-      currentStreak = 0
-    }
+  const minDays = Math.max(1, Math.ceil(0.6 * plannedDaysPerWeek));
+  let streak = 0, bestStreak = 0, run = 0;
+  let current = true;
+  for (const days of trainedDaysPerWeek) {
+    if (days >= minDays) {
+      run++;
+      if (current) streak++;
+      bestStreak = Math.max(bestStreak, run);
+    } else { run = 0; current = false; }
   }
-
-  return { streak, bestStreak }
+  return { streak, bestStreak };
 }
 
 // Badge definitions

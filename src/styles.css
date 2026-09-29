@@ -62,7 +62,7 @@
     inset: 0;
     overflow-x: hidden;
     overflow-y: auto;
-    touch-action: pan-y;
+    touch-action: pan-y pinch-zoom;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     background-image:
@@ -140,3 +140,8 @@
 .safe-area-inset-top {
   padding-top: env(safe-area-inset-top);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 3px; }

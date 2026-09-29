@@ -33,9 +33,9 @@ import { betterAuth } from "better-auth";
 import { bearer, genericOAuth } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
-import { ensureDbReady, getPglite } from "../db";
+import { ensureDbReady, getPglite } from "../db.server";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
 import { GROK_PROVIDERS } from "./providers";
@@ -64,10 +64,11 @@ function previewAuthSecret(): string {
   return globalAuthRef.__grokAuthPreviewSecret__;
 }
 
-/** Stable across Vercel isolates when BETTER_AUTH_SECRET is missing. */
+/** A configured database must use an independently generated signing secret. */
 function stableAuthSecret(): string {
-  const db = env("DATABASE_URL");
-  if (db) return createHash("sha256").update(`forge-auth:${db}`).digest("hex");
+  if (env("DATABASE_URL") || process.env.NODE_ENV === "production") {
+    throw new Error("BETTER_AUTH_SECRET is required outside local development");
+  }
   return previewAuthSecret();
 }
 
@@ -126,7 +127,6 @@ const LOCAL_DEV_ORIGINS: string[] = [
 ];
 const PRODUCTION_ORIGINS: string[] = [
   "https://forgexyx.vercel.app",
-  "https://*.vercel.app",
 ];
 const baseURL = explicitBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
@@ -141,7 +141,7 @@ const baseURL = explicitBaseURL ?? {
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
 const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...PRODUCTION_ORIGINS, ...LOCAL_DEV_ORIGINS]
+  ? [explicitBaseURL, ...(process.env.NODE_ENV === "development" ? LOCAL_DEV_ORIGINS : [])]
   : [
       // Host wildcards (matched against Origin's host)
       ...previewAllowedHosts,
@@ -228,7 +228,7 @@ export const auth = betterAuth({
       ],
       // X's synthetic email is never "verified", so don't gate linking on the
       // local user's email-verified state.
-      requireLocalEmailVerified: false,
+      requireLocalEmailVerified: true,
     },
   },
 
