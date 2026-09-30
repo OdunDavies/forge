@@ -47,8 +47,11 @@ import {
   PREVIEW_CLIENT_SECRET,
 } from "./preview";
 
-// Kick (and share) PGLite bootstrap as soon as the auth server module loads.
-void ensureDbReady();
+// Local preview eagerly prepares PGLite. In production, missing database
+// configuration must not prevent public pages from rendering.
+if (process.env.NODE_ENV !== "production" || process.env.ALLOW_EPHEMERAL_DATABASE === "true") {
+  void ensureDbReady();
+}
 
 /**
  * Preview secret must outlive module reloads: PGLite (and its session rows) is
@@ -66,9 +69,6 @@ function previewAuthSecret(): string {
 
 /** A configured database must use an independently generated signing secret. */
 function stableAuthSecret(): string {
-  if (env("DATABASE_URL") || process.env.NODE_ENV === "production") {
-    throw new Error("BETTER_AUTH_SECRET is required outside local development");
-  }
   return previewAuthSecret();
 }
 
@@ -105,7 +105,9 @@ const googleSocial =
 
 /** True when federated sign-in is active (real auth is enforced). */
 export const authConfigured =
-  !authDisabled && Boolean(grokClientId && grokClientSecret);
+  !authDisabled &&
+  Boolean(grokClientId && grokClientSecret) &&
+  (process.env.NODE_ENV !== "production" || Boolean(env("BETTER_AUTH_SECRET")));
 
 // This app's own Better Auth origin. When deployed the deployer injects the
 // public URL. In the sandbox live preview there's no fixed URL (each preview gets

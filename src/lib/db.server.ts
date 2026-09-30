@@ -16,9 +16,10 @@ const databaseUrl =
  * the app has a working database even with nothing configured — the live preview
  * included. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
  */
-if (process.env.NODE_ENV === "production" && !databaseUrl && process.env.ALLOW_EPHEMERAL_DATABASE !== "true") {
-  throw new Error("DATABASE_URL is required in production. In-memory storage is only allowed for an explicitly configured local preview.");
-}
+export const databaseConfigured = Boolean(databaseUrl);
+const ephemeralDatabaseAllowed =
+  process.env.NODE_ENV !== "production" ||
+  process.env.ALLOW_EPHEMERAL_DATABASE === "true";
 
 export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
 
@@ -180,6 +181,11 @@ async function createSql(): Promise<Sql> {
         "or a server route loader, never from client code.",
     );
   }
+  if (!databaseConfigured && !ephemeralDatabaseAllowed) {
+    throw new Error(
+      "DATABASE_URL is required for data-backed features in production.",
+    );
+  }
   return dbSource === "neon" ? createNeonSql() : createPgliteSql();
 }
 
@@ -233,7 +239,11 @@ export function ensureDbReady(): Promise<void> {
 const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
 };
-if (typeof window === "undefined" && dbSource === "pglite") {
+if (
+  typeof window === "undefined" &&
+  dbSource === "pglite" &&
+  ephemeralDatabaseAllowed
+) {
   globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] PGLite bootstrap failed:", err);

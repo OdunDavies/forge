@@ -2,20 +2,15 @@ import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { ArrowRight, Brain, Dumbbell, Radio, Timer } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import { catalogStats } from "@/lib/api/library";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/")({ component: Home });
 
 function Home() {
   const { user, isPending } = useCurrentUserState();
-  const stats = useQuery({ queryKey: ["catalog-stats"], queryFn: () => catalogStats() });
-
-
   if (!isPending && user) return <Navigate to="/today" />;
 
-  const count = stats.data?.count ?? 1500;
+  const count = 1500;
 
   return (
     <div className="min-h-dvh">
