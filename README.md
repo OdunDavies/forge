@@ -12,7 +12,7 @@ AI training OS for lifting. Log sessions in a few taps, follow a plan biased to 
 ## Local
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -26,18 +26,30 @@ Build is already set for Vercel (`nitro` vercel preset). Set these environment v
 |---|---|---|
 | `DATABASE_URL` | yes | Postgres connection string (Neon, Supabase, or any Postgres) |
 | `BETTER_AUTH_SECRET` | yes | Session signing secret |
-| `BETTER_AUTH_URL` | yes | Public site URL, e.g. `https://forgexyx.vercel.app` |
+| `BETTER_AUTH_URL` | yes | Canonical public site URL, e.g. `https://forge.example.com` |
 | `GEMINI_API_KEY` | for AI coach | Google Gemini (AI Studio) |
+| `GEMINI_MODEL` | optional | Gemini model override; defaults to `gemini-3.8-flash` |
 | `GOOGLE_CLIENT_ID` | for Google login | Google Cloud OAuth web client |
 | `GOOGLE_CLIENT_SECRET` | for Google login | Google Cloud OAuth web client |
 | `VITE_AUTH_ENABLED` | recommended | Set to `true` |
 
 Google login on Vercel is **native Google OAuth** (not the Grok broker). Create a Web client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
 
-- Authorized JavaScript origins: `https://forgexyx.vercel.app`
-- Authorized redirect URIs: `https://forgexyx.vercel.app/api/auth/callback/google`
+- Authorized JavaScript origins: your exact `BETTER_AUTH_URL`
+- Authorized redirect URI: `<BETTER_AUTH_URL>/api/auth/callback/google`
 
 Email/password works without Google keys. The Grok broker (`GROK_AUTH_*`) is only for the sandbox live preview.
 
 
 Migrations in `migrations/` apply automatically during `npm run build` when `DATABASE_URL` is set.
+
+## Release checks
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+Production fails closed when `DATABASE_URL` or `BETTER_AUTH_SECRET` is missing. Generate the auth secret independently; do not derive it from the database URL. Forge currently ships as a free product, so payment webhooks return `410 Gone` and no checkout configuration is required.
