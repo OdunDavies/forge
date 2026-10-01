@@ -89,6 +89,30 @@ function TodayPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const pagePending = profile.isPending || plan.isPending || summary.isPending || session.isPending;
+  const pageError = profile.isError || plan.isError || summary.isError || session.isError;
+  if (pagePending) {
+    return (
+      <div role="status" aria-busy="true" className="space-y-5">
+        <div className="h-9 w-48 animate-pulse rounded bg-secondary" />
+        <div className="grid grid-cols-3 gap-3">
+          {[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-xl bg-card" />)}
+        </div>
+        <div className="h-72 animate-pulse rounded-2xl bg-card" />
+        <span className="sr-only">Loading today&apos;s training</span>
+      </div>
+    );
+  }
+  if (pageError) {
+    return (
+      <div role="alert" className="rounded-2xl border bg-card p-6 text-center">
+        <h1 className="display text-2xl font-semibold">Today&apos;s training couldn&apos;t load</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Check your connection, then try again.</p>
+        <Button className="mt-5" onClick={() => void Promise.all([profile.refetch(), plan.refetch(), summary.refetch(), session.refetch()])}>Try again</Button>
+      </div>
+    );
+  }
+
   const vol = summary.data?.volumeKg ?? 0;
   const week = summary.data?.weekVolumeKg ?? 0;
   const firstName = profile.data?.displayName?.split(" ")[0] ?? "Today";

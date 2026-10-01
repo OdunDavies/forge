@@ -1,0 +1,77 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - img "Forge" [ref=e5]
+        - generic [ref=e11]: Forge
+      - generic [ref=e12]:
+        - link "Pricing" [ref=e13] [cursor=pointer]:
+          - /url: /pricing
+        - link "Sign in" [ref=e14] [cursor=pointer]:
+          - /url: /login
+        - link "Join Forge" [ref=e15] [cursor=pointer]:
+          - /url: /login
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - paragraph [ref=e18]: Strength social · AI coach · Mission log
+        - heading "The training OS for people who lift." [level=1] [ref=e19]
+        - paragraph [ref=e20]: Log sets in seconds. Let Forge rewrite tomorrow from yesterday’s data, injuries, and PRs.
+        - generic [ref=e21]:
+          - link "Start your first block" [ref=e22] [cursor=pointer]:
+            - /url: /login
+          - link "Explore free membership" [ref=e23] [cursor=pointer]:
+            - /url: /pricing
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - term [ref=e26]: Movements
+            - definition [ref=e27]: 1,500+
+          - generic [ref=e28]:
+            - term [ref=e29]: Coach
+            - definition [ref=e30]: Forge
+          - generic [ref=e31]:
+            - term [ref=e32]: Social
+            - definition [ref=e33]: Kudos
+      - complementary [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e37]:
+            - paragraph [ref=e38]: Mission board
+            - paragraph [ref=e39]: Upper A · live
+          - generic [ref=e40]: Ready
+        - generic [ref=e41]:
+          - generic [ref=e42]: S
+          - generic [ref=e43]: M
+          - generic [ref=e44]: T
+          - generic [ref=e45]: W
+          - generic [ref=e46]: T
+          - generic [ref=e47]: F
+          - generic [ref=e48]: S
+        - list [ref=e49]:
+          - listitem [ref=e50]:
+            - generic [ref=e51]: Barbell Bench Press
+            - generic [ref=e52]: 4 × 6
+          - listitem [ref=e53]:
+            - generic [ref=e54]: Bent Over Row
+            - generic [ref=e55]: 4 × 8
+          - listitem [ref=e56]:
+            - generic [ref=e57]: Seated Military Press
+            - generic [ref=e58]: 3 × 8
+          - listitem [ref=e59]:
+            - generic [ref=e60]: Lat Pulldown
+            - generic [ref=e61]: 3 × 10
+        - paragraph [ref=e62]: Forge reads last session, injuries, and energy — then retunes the next lift, not the whole month.
+    - generic [ref=e64]:
+      - article [ref=e65]:
+        - heading "Log in seconds" [level=2] [ref=e69]
+        - paragraph [ref=e70]: Today’s work is already loaded. Tap weight, tap reps, lock the set.
+      - article [ref=e71]:
+        - heading "Forge coaches you" [level=2] [ref=e82]
+        - paragraph [ref=e83]: The model reads your log, injuries, and energy, then retunes the next session.
+      - article [ref=e84]:
+        - heading "Full movement library" [level=2] [ref=e91]
+        - paragraph [ref=e92]: Browse movements, setup instructions, and exercise cues in one place.
+      - article [ref=e93]:
+        - heading "Iron feed" [level=2] [ref=e100]
+        - paragraph [ref=e101]: Publish a session. Give kudos. Follow lifters the way runners follow miles.
+    - contentinfo [ref=e102]:
+      - generic [ref=e103]: Forge · train like a mission
+  - region "Notifications alt+T"

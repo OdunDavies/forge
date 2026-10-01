@@ -15,13 +15,13 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/today", label: "Today", icon: LayoutGrid },
+  { to: "/plan", label: "Plan", icon: CalendarDays },
   { to: "/log", label: "Log", icon: Dumbbell },
-  { to: "/library", label: "Library", icon: BookOpen },
   { to: "/feed", label: "Feed", icon: Radio },
   { to: "/coach", label: "Coach", icon: Sparkles },
 ] as const;
 
-const DESKTOP_EXTRA = [{ to: "/plan", label: "Plan", icon: CalendarDays }] as const;
+const DESKTOP_EXTRA = [{ to: "/library", label: "Library", icon: BookOpen }] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -36,12 +36,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Wordmark />
         </Link>
         <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-1">
-          {[...NAV, ...DESKTOP_EXTRA].map((item) => {
+          {[NAV[0], NAV[1], NAV[2], ...DESKTOP_EXTRA, NAV[3], NAV[4]].map((item) => {
             const active = pathname === item.to || pathname.startsWith(item.to + "/");
             return (
               <Link
                 key={item.to}
                 to={item.to}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150",
                   active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground",
@@ -53,7 +54,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
           <Link
-            to="/profile"
+              to="/profile"
+              aria-current={pathname === "/profile" ? "page" : undefined}
             className={cn(
               "flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150",
               pathname === "/profile"
@@ -93,12 +95,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.to}
               to={item.to}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium tracking-wide",
-                active ? "text-foreground" : "text-muted-foreground",
+                "relative flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium tracking-wide transition-colors active:bg-secondary/60",
+                active ? "text-primary" : "text-muted-foreground",
+                item.to === "/log" && "-mt-3",
               )}
             >
-              <item.icon className="size-5" />
+              <span className={cn("grid size-8 place-items-center rounded-xl", item.to === "/log" && "size-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20")}>
+                <item.icon className="size-5" aria-hidden="true" />
+              </span>
               {item.label}
             </Link>
           );

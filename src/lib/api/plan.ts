@@ -122,29 +122,27 @@ export const getActivePlan = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => loadPlan(context.userId));
 
+const generatedExerciseSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  sets: z.number().int().min(1).max(8),
+  reps: z.string().trim().min(1).max(24),
+  restSec: z.number().int().min(0).max(400).optional(),
+  rpe: z.number().min(5).max(10).optional(),
+  notes: z.string().max(240).optional(),
+});
+
 const generatedSchema = z.object({
-  title: z.string(),
-  split: z.string().optional(),
-  focus: z.string().optional(),
-  rationale: z.string().optional(),
+  title: z.string().trim().min(2).max(80),
+  split: z.string().max(40).optional(),
+  focus: z.string().max(120).optional(),
+  rationale: z.string().max(800).optional(),
   days: z.array(
     z.object({
       weekday: z.number().int().min(0).max(6),
-      title: z.string(),
+      title: z.string().trim().min(2).max(48),
       isRest: z.boolean().optional(),
-      notes: z.string().optional(),
-      exercises: z
-        .array(
-          z.object({
-            name: z.string(),
-            sets: z.number().int().min(1).max(8),
-            reps: z.string(),
-            restSec: z.number().int().min(0).max(400).optional(),
-            rpe: z.number().min(5).max(10).optional(),
-            notes: z.string().optional(),
-          }),
-        )
-        .optional(),
+      notes: z.string().max(500).optional(),
+      exercises: z.array(generatedExerciseSchema).max(8).optional(),
     }),
   ),
 });
@@ -154,7 +152,6 @@ async function persistGenerated(
   generated: z.infer<typeof generatedSchema>,
 ) {
   const sql = await getSql();
-  await sql`update workout_plans set is_active = false where user_id = ${userId} and is_active = true`;
   const inserted = await sql<{ id: number }>`
     insert into workout_plans (user_id, title, split, days_per_week, focus, notes, ai_rationale, is_active)
     values (
@@ -165,7 +162,7 @@ async function persistGenerated(
       ${generated.focus ?? ""},
       ${""},
       ${generated.rationale ?? ""},
-      true
+      false
     ) returning id`;
   const planId = inserted[0]!.id;
 
@@ -199,6 +196,10 @@ async function persistGenerated(
       sort += 1;
     }
   }
+  // Keep the previous plan active until the replacement is fully written. If
+  // generation or persistence fails halfway through, users retain a usable plan.
+  await sql`update workout_plans set is_active = false where user_id = ${userId} and is_active = true`;
+  await sql`update workout_plans set is_active = true where id = ${planId} and user_id = ${userId}`;
   return loadPlan(userId);
 }
 
@@ -274,9 +275,18 @@ Rules:
       try {
         const parsed = generatedSchema.parse(extractJson(ai.text));
         const focus = (profile.focusMuscles ?? []).map((m) => m.toLowerCase());
-        const titles = parsed.days.filter((d) => !d.isRest).map((d) => d.title.toLowerCase()).join(" ");
-        const named = focus.filter((m) => titles.includes(m));
-        if (focus.length && named.length === 0) throw new Error("plan ignored focus");
+        if (parsed.split && parsed.split !== fallback.split) throw new Error("plan changed the prescribed split");
+        const weekdays = parsed.days.map((d) => d.weekday);
+        if (new Set(weekdays).size !== weekdays.length) throw new Error("plan repeated a weekday");
+        const expectedTrainingDays = fallback.days.filter((d) => !d.isRest).map((d) => d.weekday).sort();
+        const actualTrainingDays = parsed.days.filter((d) => !d.isRest && (d.exercises?.length ?? 0) > 0).map((d) => d.weekday).sort();
+        if (JSON.stringify(actualTrainingDays) !== JSON.stringify(expectedTrainingDays)) throw new Error("plan ignored the athlete's available days");
+        for (const day of parsed.days.filter((d) => !d.isRest)) {
+          if ((day.exercises?.length ?? 0) < 4 || (day.exercises?.length ?? 0) > 6) throw new Error("training days must contain 4-6 exercises");
+          for (const exercise of day.exercises ?? []) {
+            if (!resolveExerciseName(exercise.name, true).id) throw new Error(`unknown exercise: ${exercise.name}`);
+          }
+        }
         // 40/60 volume validation – now using catalog muscle resolution instead of name substrings
         if (focus.length) {
           const allEx = parsed.days.flatMap((d) => d.exercises ?? []);
@@ -285,9 +295,9 @@ Rules:
           // Resolve each exercise's focus muscles via the catalog and tally
           for (const ex of allEx) {
             // Find the catalog entry for this exercise name
-            const catEntry = matchExercise(ex.name); // will search by name
-            if (catEntry) {
-              const { primary, secondary } = exerciseFocusMuscles(catEntry.id);
+            const resolved = resolveExerciseName(ex.name, true);
+            if (resolved.id) {
+              const { primary, secondary } = exerciseFocusMuscles(resolved.id);
               totalSets += ex.sets;
               // Count primary focus muscles
               const isFocus = focus.some((f) => primary.includes(f) || secondary.includes(f));
@@ -304,8 +314,11 @@ Rules:
         }
         const plan = await persistGenerated(context.userId, parsed);
         return { plan, source: "ai" as const };
-      } catch {
-        /* keep starter */
+      } catch (error) {
+        console.warn("[plan] rejected AI-generated plan; keeping validated starter", {
+          userId: context.userId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -318,17 +331,8 @@ const tweakSchema = z.object({
 });
 
 const confirmTweakSchema = z.object({
-  exercises: z.array(
-    z.object({
-      name: z.string(),
-      sets: z.number().int().min(1).max(8),
-      reps: z.string(),
-      restSec: z.number().int().min(0).max(400).optional(),
-      rpe: z.number().min(5).max(10).optional(),
-      notes: z.string().optional(),
-    }),
-  ),
-  message: z.string().optional(),
+  exercises: z.array(generatedExerciseSchema).min(1).max(8),
+  message: z.string().max(500).optional(),
   targetWeekday: z.number().int().min(0).max(6).optional(),
 });
 
@@ -370,10 +374,14 @@ export const tweakTodayPlan = createServerFn({ method: "POST" })
           role: "user",
           content: `Adjust this upcoming session only (${target.title}).
 Injuries: ${profile.injuries || "none"}
+Goal and focus: ${profile.goal || "general"}; ${(profile.focusMuscles ?? []).join(", ") || "balanced"}
+Experience: ${profile.experience || "intermediate"}
+Available equipment: ${(profile.equipment ?? []).join(", ") || "body only"}
 Energy/soreness notes: ${data.reason ?? "none"}
 Recent sessions: ${JSON.stringify(recent)}
 Session: ${JSON.stringify(target)}
 Return {"message":"one paragraph to the athlete","exercises":[{"name":"...","sets":3,"reps":"8","restSec":90,"rpe":7,"notes":""}]}
+Use only the available equipment and catalog-style exercise names. Preserve the session's movement balance unless pain or equipment requires a swap.
 If they are beat up, cut volume. If they crushed last time, add a small load cue in notes, not extra junk volume.`,
         },
       ],
@@ -387,19 +395,17 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
     try {
       const parsed = z
         .object({
-          message: z.string(),
-          exercises: z.array(
-            z.object({
-              name: z.string(),
-              sets: z.number(),
-              reps: z.string(),
-              restSec: z.number().optional(),
-              rpe: z.number().optional(),
-              notes: z.string().optional(),
-            }),
-          ),
+          message: z.string().trim().min(1).max(500),
+          exercises: z.array(generatedExerciseSchema).min(1).max(8),
         })
         .parse(extractJson(ai.text));
+
+      const currentNames = new Set(target.exercises.map((exercise) => exercise.exerciseName.trim().toLowerCase()));
+      for (const exercise of parsed.exercises) {
+        if (!resolveExerciseName(exercise.name, true).id && !currentNames.has(exercise.name.trim().toLowerCase())) {
+          throw new Error(`unknown exercise: ${exercise.name}`);
+        }
+      }
 
       if (data.preview) {
         return {
@@ -452,7 +458,7 @@ export const confirmTweak = createServerFn({ method: "POST" })
         }
       }
     }
-    if (!target) throw new Error("No training day to retune.");
+    if (!target || target.isRest) throw new Error("Choose an active training day to retune.");
     const sql = await getSql();
     await sql`delete from plan_exercises where plan_day_id = ${target.id} and user_id = ${context.userId}`;
     let sort = 0;
