@@ -26,7 +26,7 @@ const searchSchema = z.object({
   muscle: z.string().optional(),
   equipment: z.string().optional(),
   category: z.string().optional(),
-  limit: z.number().int().min(1).max(60).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
   offset: z.number().int().min(0).optional(),
 });
 
