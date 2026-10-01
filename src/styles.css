@@ -1,6 +1,18 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+.onboarding-screen {
+  background:
+    radial-gradient(circle at 50% -10%, color-mix(in oklab, var(--primary) 17%, transparent), transparent 38rem),
+    var(--background);
+}
+
+.forge-range {
+  height: 2rem;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
 @theme {
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", "IBM Plex Sans", ui-sans-serif, sans-serif;
