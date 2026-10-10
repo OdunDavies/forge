@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { ScanLine } from "lucide-react";
 import { UserButton } from "@/lib/auth/gates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,6 +150,11 @@ function ProfilePage() {
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{PLANS.free.blurb}</p>
       </section>
+
+      <Link to="/goal-scan" className="flex items-center gap-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><ScanLine className="size-5" /></span>
+        <span><strong className="block text-sm">Scan a goal physique</strong><span className="mt-1 block text-xs text-muted-foreground">Turn a reference photo into training priorities and update your plan.</span></span>
+      </Link>
 
       {exhausted && upgrades.length > 0 && (
         <div className="space-y-3">
