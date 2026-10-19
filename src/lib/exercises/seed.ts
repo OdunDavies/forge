@@ -1,153 +1,134 @@
-import { getSql } from "@/lib/db";
-import { toPgArray } from "@/lib/utils";
-import type { Exercise } from "./catalog";
-import { CATALOG_VERSION, isCatalogValid, DATASET_COMMIT } from "./catalog-config";
+import type { Sql } from "../db.ts";
+import { EXERCISE_CATALOG } from "./catalog.ts";
+import { CATALOG_VERSION } from "./catalog-config.ts";
+import { EQUIVALENT_ALIASES, CLOSEST_ALIASES, matchExercise, validateAliases } from "./match.ts";
+import { normalizeName } from "./taxonomy.ts";
 
 let seeded = false;
 let seeding: Promise<void> | null = null;
 
-/** Version-checked, batch-upsert sync for the exercise catalog.
- * Idempotent and safe under concurrent cold starts.
- * Does NOT sync on every request; a cheap version check only.
- * On version mismatch, takes an advisory lock (PGLite: skips), upserts in batches,
- * runs the legacy remap, then sets the version.
- * Called once per request or on first use; subsequent calls are no-ops. */
-
-export async function syncExerciseCatalog(force = false) {
-  // Cheap version check: if the DB already has the right version, return early
-  const sql = await getSql();
-  const metaRow = await sql<{ v: string }>`select value as v from catalog_meta where key = 'catalog_version'`;
-  const dbVersion = metaRow[0]?.v ?? "0";
-  if (!force && dbVersion === CATALOG_VERSION) {
-    seeded = true;
-    return; // already up to date
-  }
-
-  // Version mismatch: acquire advisory lock (PGLite no-op), upsert, remap, set version
-  // PGLite does not support pg_advisory_lock, so we skip the lock and rely on the
-  // version check + idempotent upsert being safe enough for cold starts.
-  // (In production with Neon Postgres, wrap in BEGIN ADVISORY LOCK.)
-
-  // 1. Upsert the catalog in batches by id
-  const catalog = (await import("@/data/exercises.json")).default as Exercise[];
-  const batchSize = 100;
-
-  for (let i = 0; i < catalog.length; i += batchSize) {
-    const batch = catalog.slice(i, i + batchSize);
+/** Run on a transaction-scoped client. Never rewrite saved workouts or IDs. */
+export async function seedCatalog(sql: Sql, force = false): Promise<void> {
+  const meta = await sql<{
+    v: string;
+  }>`select value as v from catalog_meta where key = 'catalog_version' for update`;
+  if (!force && meta[0]?.v === CATALOG_VERSION) return;
+  validateAliases();
+  const columns = [
+    "id",
+    "name",
+    "force",
+    "level",
+    "mechanic",
+    "equipment",
+    "primary_muscles",
+    "secondary_muscles",
+    "instructions",
+    "category",
+    "image_url",
+    "source",
+    "search_text",
+    "slug",
+    "source_name",
+    "canonical_id",
+    "kind",
+    "advanced",
+    "body_part",
+    "equipment_group",
+    "focus_primary",
+    "focus_secondary",
+    "image_path",
+    "catalog_version",
+  ];
+  const entries = [...EXERCISE_CATALOG.values()];
+  for (let i = 0; i < entries.length; i += 100) {
     const values: unknown[] = [];
-    const placeholders: string[] = [];
-    let p = 1;
-    for (const ex of batch) {
-      placeholders.push(
-        `($${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}::text[], $${p++}::text[], $${p++}::text[], $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++})`,
-      );
-      values.push(
+    const rows = entries.slice(i, i + 100).map((ex) => {
+      const row = [
         ex.id,
         ex.name,
         ex.force,
         ex.level,
         ex.mechanic,
         ex.equipment,
-        toPgArray(ex.primaryMuscles ?? []),
-        toPgArray(ex.secondaryMuscles ?? []),
-        toPgArray((ex.instructions ?? []).slice(0, 8)),
+        ex.primaryMuscles,
+        ex.secondaryMuscles,
+        ex.instructions,
         ex.category,
-        ex.image,
+        ex.imageUrl,
         ex.source,
-        ex.searchText, // will be computed by the matcher
-      );
-    }
+        ex.searchText,
+        normalizeName(ex.name).replaceAll(" ", "-"),
+        ex.sourceName,
+        ex.canonicalId,
+        ex.kind,
+        ex.advanced,
+        ex.bodyPart,
+        ex.equipmentGroup,
+        ex.focusPrimary,
+        ex.focusSecondary,
+        ex.imageUrl,
+        CATALOG_VERSION,
+      ];
+      const placeholders = row.map((_, index) => `$${values.length + index + 1}`);
+      values.push(...row);
+      return `(${placeholders.join(",")})`;
+    });
     await sql.query(
-      `insert into exercises (
-        id, name, force, level, mechanic, equipment,
-        primary_muscles, secondary_muscles, instructions,
-        category, image_url, source, search_text
-      ) values ${placeholders.join(",")}
-      on conflict (id) do update set
-        name = excluded.name,
-        force = excluded.force,
-        level = excluded.level,
-        mechanic = excluded.mechanic,
-        equipment = excluded.equipment,
-        primary_muscles = excluded.primary_muscles,
-        secondary_muscles = excluded.secondary_muscles,
-        instructions = excluded.instructions,
-        category = excluded.category,
-        image_url = excluded.image_url,
-        source = excluded.source,
-        search_text = excluded.search_text`,
+      `insert into exercises (${columns.join(",")}) values ${rows.join(",")}
+      on conflict (id) do update set ${columns
+        .slice(1)
+        .map((c) => `${c} = excluded.${c}`)
+        .join(",")}`,
       values,
     );
   }
-
-  // 2. Legacy remap: for every distinct (exercise_id, exercise_name) in
-  //    plan_exercises, session_sets and personal_records, resolve with STRICT mode.
-  //    Resolved -> set the new exercise_id AND canonical exercise_name in all three tables together.
-  //    Unresolved -> keep the user's name, set exercise_id NULL, report it.
-  //    Never use `closest` aliases here.
-  await legacyRemap();
-
-  // 3. Set the catalog version
-  await sql`insert into catalog_meta (key, value) values ('catalog_version', ${CATALOG_VERSION}) on conflict (key) do update set value = excluded.value`;
-
-  seeded = true;
+  for (const [table, aliases] of [
+    ["exercise_aliases", EQUIVALENT_ALIASES],
+    ["exercise_closest_aliases", CLOSEST_ALIASES],
+  ] as const) {
+    for (const [key, id] of Object.entries(aliases)) {
+      await sql.query(
+        `insert into ${table} (alias_key, exercise_id, kind) values ($1, $2, 'strength')
+        on conflict (alias_key) do update set exercise_id = excluded.exercise_id, kind = excluded.kind`,
+        [normalizeName(key), id],
+      );
+    }
+  }
+  await sql`insert into catalog_meta (key, value) values ('catalog_version', ${CATALOG_VERSION})
+    on conflict (key) do update set value = excluded.value`;
 }
 
-/** Legacy remap (dry-run mode available). */
-async function legacyRemap() {
-  const sql = await getSql();
-
-  // Collect distinct (exercise_id, exercise_name) from the three tables
-  const planExercises = await sql<{ exercise_id: string; exercise_name: string }[]>`
-    select distinct exercise_id, exercise_name from plan_exercises`;
-  const sessionSets = await sql<{ exercise_id: string; exercise_name: string }[]>`
-    select distinct exercise_id, exercise_name from session_sets`;
-  const personalRecords = await sql<{ exercise_id: string; exercise_name: string }[]>`
-    select distinct exercise_id, exercise_name from personal_records`;
-
-  const allEntries = [...planExercises, ...sessionSets, ...personalRecords];
-  const uniqueEntries = [...new Set(allEntries.map((e) => `${e.exercise_id}|${e.exercise_name}`))].map(
-    (s) => s.split("|").map((part) => part.trim()),
-  );
-
-  // STRICT mode: resolve each (exercise_id, exercise_name) against the new catalog
-  // using the matcher; if resolved, update exercise_id and exercise_name consistently.
-  // If two old names collapse onto one exercise, merge personal_records keeping the max estimated_1rm
-  // and earliest/latest sensible dates without violating uniqueness.
-  // Unresolved -> keep the user's name, set exercise_id NULL, and report.
-
-  for (const [exerciseId, exerciseName] of uniqueEntries) {
-    // Use the matcher to find the catalog entry
-    // (placeholder: in production, import and use matchExercise from ./match)
-    // For now, keep the user's data as-is and log
-    console.log(`[legacy-remap] ${exerciseId}: "${exerciseName}" - keeping user data (resolver not yet wired)`);
+export async function syncExerciseCatalog(force = false): Promise<void> {
+  if (seeding) {
+    await seeding;
+    if (!force) return;
+  }
+  if (seeded && !force) return;
+  seeding = (async () => {
+    const { withTransaction } = await import("../db.ts");
+    await withTransaction((sql: Sql) => seedCatalog(sql, force));
+    seeded = true;
+  })();
+  try {
+    await seeding;
+  } finally {
+    seeding = null;
   }
 }
 
-/** Alias for the old ensureExerciseCatalog name. */
-export async function ensureExerciseCatalog() {
+export async function ensureExerciseCatalog(): Promise<void> {
   await syncExerciseCatalog();
 }
 
-// Keep the old findExerciseByName functional but now it queries the DB directly.
-// It will work as long as the old rows exist; after the sync they should be remapped.
 export async function findExerciseByName(name: string) {
+  const matched = matchExercise(name);
+  if (!matched) return null;
   await ensureExerciseCatalog();
+  const { getSql } = await import("../db.ts");
   const sql = await getSql();
-  const rows = await sql<{ id: string; name: string; force: string | null; level: string | null; mechanic: string | null; equipment: string | null; primary_muscles: string[]; secondary_muscles: string[]; instructions: string[]; category: string | null; image_url: string | null; source: string }>`
-    `select id, name, force, level, mechanic, equipment, primary_muscles, secondary_muscles,
-           instructions, category, image_url, source
-    from exercises
-    where lower(name) = ${name.toLowerCase()}
-    limit 1`;
-  if (rows[0]) return rows[0];
-  // fallback: try the old 24-char prefix fuzzy
-  const fuzzy = await sql<{ id: string; name: string; force: string | null; level: string | null; mechanic: string | null; equipment: string | null; primary_muscles: string[]; secondary_muscles: string[]; instructions: string[]; category: string | null; image_url: string | null; source: string }>`
-    `select id, name, force, level, mechanic, equipment, primary_muscles, secondary_muscles,
-           instructions, category, image_url, source
-    from exercises
-    where lower(name) like ${"%" + name.toLowerCase().slice(0, 24) + "%"}
-    order by length(name) asc
-    limit 1`;
-  return fuzzy[0] ?? null;
+  const rows = await sql<import("./library-query.ts").ExerciseRow>`
+    select id, name, force, level, mechanic, equipment, primary_muscles, secondary_muscles,
+      instructions, category, image_url, source from exercises where id = ${matched.id}`;
+  return rows[0] ?? null;
 }

@@ -1,31 +1,31 @@
-// @ts-ignore route generated after next build
 import { createFileRoute } from "@tanstack/react-router";
-import { createHmac } from "node:crypto";
 import { getSql } from "@/lib/db";
+import { processPaystackEvent, validPaystackSignature } from "@/lib/billing-integrity.server";
 
 export const Route = createFileRoute("/api/webhook/paystack")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env.PAYSTACK_SECRET_KEY;
-        if (!secret) return new Response("not configured", { status: 200 });
+        const secret = process.env.PAYSTACK_SECRET_KEY?.trim();
+        if (!secret) return new Response("webhook not configured", { status: 503 });
         const body = await request.text();
-        const hash = createHmac("sha512", secret).update(body).digest("hex");
-        const sig = request.headers.get("x-paystack-signature") ?? "";
-        if (hash !== sig) return new Response("bad sig", { status: 400 });
+        if (
+          !validPaystackSignature(body, request.headers.get("x-paystack-signature") ?? "", secret)
+        ) {
+          return new Response("invalid signature", { status: 400 });
+        }
+        let event: unknown;
         try {
-          const evt = JSON.parse(body) as { event: string; data: { customer?: { email?: string }; metadata?: { userId?: string } } };
-          if (evt.event === "charge.success") {
-            const userId = evt.data.metadata?.userId;
-            const email = evt.data.customer?.email?.toLowerCase();
-            const sql = await getSql();
-            if (userId) await sql`update profiles set plan='pro', plan_updated_at=now() where user_id=${userId}`;
-            else if (email) await sql`update profiles set plan='pro', plan_updated_at=now() where user_id in (select id from "user" where lower(email)=${email})`;
-          }
-          return new Response("ok", { status: 200 });
-        } catch (e) {
-          console.warn("[paystack webhook]", e);
-          return new Response("bad body", { status: 400 });
+          event = JSON.parse(body);
+        } catch {
+          return new Response("invalid JSON", { status: 400 });
+        }
+        try {
+          await processPaystackEvent(await getSql(), event);
+          return new Response("ok");
+        } catch {
+          console.error("[paystack webhook] payment validation or persistence failed");
+          return new Response("payment processing failed", { status: 503 });
         }
       },
     },

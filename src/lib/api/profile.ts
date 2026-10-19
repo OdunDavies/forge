@@ -60,7 +60,7 @@ function mapProfile(row: ProfileRow): Profile {
     focusMuscles: asStringArray(row.focus_muscles),
     onboardedAt: row.onboarded_at,
     plan: parseMembership(row.plan),
-    baseline_lifts: row.baseline_lifts as Record<string, number>,
+   baseline_lifts: (row.baseline_lifts ?? {}) as Record<string, number>,
     personalRecords: row.personal_records as Record<string, { weightKg: number; reps: number; estimated1RM: number }>,
     sessionHistory: row.session_history as Array<{
       id: string;
@@ -101,7 +101,7 @@ const upsertSchema = z.object({
   displayName: z.string().min(1).max(60),
   handle: z.string().min(2).max(24).optional(),
   bio: z.string().max(280).optional(),
-  sex: z.string().optional(),
+  sex: z.enum(["male", "female"]).nullable().optional(),
   birthYear: z.number().int().min(1940).max(2015).nullable().optional(),
   heightCm: z.number().positive().nullable().optional(),
   weightKg: z.number().positive().nullable().optional(),
@@ -114,6 +114,12 @@ const upsertSchema = z.object({
   injuries: z.string().max(500).optional(),
   availableDays: z.array(z.number().int().min(0).max(6)).optional(),
   focusMuscles: z.array(z.string()).max(6).optional(),
+  baseline_lifts: z.object({
+    squat: z.number().finite().positive().nullable().optional(),
+    bench: z.number().finite().positive().nullable().optional(),
+    deadlift: z.number().finite().positive().nullable().optional(),
+    overheadPress: z.number().finite().positive().nullable().optional(),
+  }).optional(),
   markOnboarded: z.boolean().optional(),
 });
 
@@ -182,10 +188,10 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
         handle,
         data.displayName,
         data.bio ?? existing[0]?.bio ?? "",
-        data.sex ?? existing[0]?.sex ?? null,
-        data.birthYear ?? existing[0]?.birth_year ?? null,
-        data.heightCm ?? num(existing[0]?.height_cm),
-        data.weightKg ?? num(existing[0]?.weight_kg),
+        data.sex !== undefined ? data.sex : existing[0]?.sex ?? null,
+        data.birthYear !== undefined ? data.birthYear : existing[0]?.birth_year ?? null,
+        data.heightCm !== undefined ? data.heightCm : num(existing[0]?.height_cm),
+        data.weightKg !== undefined ? data.weightKg : num(existing[0]?.weight_kg),
         data.units ?? existing[0]?.units ?? "metric",
         data.experience ?? existing[0]?.experience ?? null,
         data.goal ?? existing[0]?.goal ?? null,
@@ -195,6 +201,7 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
         data.injuries ?? existing[0]?.injuries ?? "",
         `{${available.join(",")}}`,
         toPgArray(focus),
+        JSON.stringify(data.baseline_lifts ?? existing[0]?.baseline_lifts ?? {}),
         onboarded,
       ],
     );

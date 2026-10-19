@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { num0 } from "@/lib/db-map";
+import { activityVisibilitySql } from "./activity-visibility";
 
 export type FeedItem = {
   id: number;
@@ -49,17 +50,20 @@ async function hydrate(rows: FeedRow[]): Promise<FeedItem[]> {
   if (!rows.length) return [];
   const sql = await getSql();
   const ids = rows.map((r) => r.id);
-  const sets = await sql<{
+  const sets = await sql.query<{
     session_id: number;
     exercise_name: string;
     weight_kg: unknown;
     reps: number | null;
     is_pr: boolean;
-  }>`select session_id, exercise_name, weight_kg, reps, is_pr from session_sets
-     where completed = true and is_warmup = false`;
+  }>(
+    `select session_id, exercise_name, weight_kg, reps, is_pr from session_sets
+     where session_id = any($1::int[]) and completed = true and is_warmup = false
+     order by id`,
+    [ids],
+  );
   const bySession = new Map<number, FeedItem["topSets"]>();
   for (const s of sets) {
-    if (!ids.includes(s.session_id)) continue;
     const list = bySession.get(s.session_id) ?? [];
     if (list.length >= 3) continue;
     list.push({
@@ -107,7 +111,7 @@ export const getFeed = createServerFn({ method: "GET" })
     const filter =
       scope === "global"
         ? `s.visibility = 'public'`
-        : `(s.user_id = $1 or s.user_id in (select following_id from follows where follower_id = $1))`;
+        : `(${activityVisibilitySql()}) and (s.user_id = $1 or s.user_id in (select following_id from follows where follower_id = $1))`;
     const limit = 20;
     const safeOffset = Math.max(0, Math.floor(offset));
     const rows = await sql.query<FeedRow>(
@@ -128,48 +132,69 @@ export const getFeed = createServerFn({ method: "GET" })
 
 export const toggleKudos = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((activityId: number) => activityId)
+  .validator((activityId: unknown) => z.number().int().positive().parse(activityId))
   .handler(async ({ context, data: activityId }) => {
     const sql = await getSql();
-    const existing = await sql<{ user_id: string }>`
-      select user_id from activity_kudos where activity_id = ${activityId} and user_id = ${context.userId}`;
-    if (existing[0]) {
-      await sql`delete from activity_kudos where activity_id = ${activityId} and user_id = ${context.userId}`;
+    const removed = await sql.query(
+      `delete from activity_kudos k using workout_sessions s
+      where k.activity_id = s.id and s.id = $2 and k.user_id = $1
+      and s.completed_at is not null and ${activityVisibilitySql()} returning k.user_id`,
+      [context.userId, activityId],
+    );
+    if (removed[0]) {
       return { kudoed: false };
     }
-    await sql`insert into activity_kudos (activity_id, user_id) values (${activityId}, ${context.userId})`;
+    const added = await sql.query(
+      `insert into activity_kudos (activity_id,user_id)
+      select s.id,$1 from workout_sessions s where s.id = $2
+      and s.completed_at is not null and ${activityVisibilitySql()}
+      on conflict do nothing returning user_id`,
+      [context.userId, activityId],
+    );
+    if (!added[0]) throw new Error("Activity not found or already kudoed");
     return { kudoed: true };
   });
 
 export const addComment = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: unknown) =>
-    z.object({ activityId: z.number(), body: z.string().min(1).max(280) }).parse(input),
+    z
+      .object({ activityId: z.number().int().positive(), body: z.string().trim().min(1).max(280) })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    await sql`insert into activity_comments (activity_id, user_id, body)
-              values (${data.activityId}, ${context.userId}, ${data.body})`;
+    const added = await sql.query(
+      `insert into activity_comments (activity_id,user_id,body)
+      select s.id,$1,$3 from workout_sessions s where s.id = $2
+      and s.completed_at is not null and ${activityVisibilitySql()} returning id`,
+      [context.userId, data.activityId, data.body],
+    );
+    if (!added[0]) throw new Error("Activity not found");
     return { ok: true };
   });
 
 export const listComments = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((activityId: number) => activityId)
-  .handler(async ({ data: activityId }) => {
+  .validator((activityId: unknown) => z.number().int().positive().parse(activityId))
+  .handler(async ({ context, data: activityId }) => {
     const sql = await getSql();
-    return sql<{
+    return sql.query<{
       id: number;
       body: string;
       created_at: string;
       handle: string;
       display_name: string;
       user_id: string;
-    }>`select c.id, c.body, c.created_at, c.user_id, p.handle, p.display_name
-       from activity_comments c
-       join profiles p on p.user_id = c.user_id
-       where c.activity_id = ${activityId}
-       order by c.created_at`;
+    }>(
+      `select c.id, c.body, c.created_at, c.user_id, p.handle, p.display_name
+        from activity_comments c
+        join workout_sessions s on s.id = c.activity_id
+        join profiles p on p.user_id = c.user_id
+        where c.activity_id = $2 and s.completed_at is not null and ${activityVisibilitySql()}
+        order by c.created_at`,
+      [context.userId, activityId],
+    );
   });
 
 export const toggleFollow = createServerFn({ method: "POST" })
@@ -209,14 +234,16 @@ export const followState = createServerFn({ method: "GET" })
 
 export const deleteComment = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: unknown) => z.object({ id: z.number() }).parse(input))
+  .validator((input: unknown) => z.object({ id: z.number().int().positive() }).parse(input))
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const existing = await sql<{ user_id: string }>`
-      select user_id from activity_comments where id = ${data.id}`;
-    if (!existing[0]) throw new Error("Comment not found");
-    if (existing[0].user_id !== context.userId) throw new Error("Not authorized");
-    await sql`delete from activity_comments where id = ${data.id}`;
+    const deleted = await sql.query(
+      `delete from activity_comments c using workout_sessions s
+      where c.id = $2 and c.user_id = $1 and s.id = c.activity_id
+      and s.completed_at is not null and ${activityVisibilitySql()} returning c.id`,
+      [context.userId, data.id],
+    );
+    if (!deleted[0]) throw new Error("Comment not found");
     return { ok: true };
   });
 
@@ -258,7 +285,7 @@ export const listUserActivities = createServerFn({ method: "GET" })
               exists(select 1 from activity_kudos k where k.activity_id = s.id and k.user_id = $1) as i_kudoed
        from workout_sessions s
        join profiles p on p.user_id = s.user_id
-       where s.user_id = $2 and s.completed_at is not null and s.visibility = 'public'
+        where s.user_id = $2 and s.completed_at is not null and ${activityVisibilitySql()}
        order by s.completed_at desc
        limit 20`,
       [context.userId, userId],

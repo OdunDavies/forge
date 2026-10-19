@@ -1,5 +1,12 @@
 import { getRequest } from "@tanstack/react-start/server";
-import { gateIdentityEnabled } from "./gate-identity.server";
+import {
+  GATE_IDENTITY_HEADER,
+  gateIdentityEnabled,
+  gateIdentityFromHeaders,
+} from "./gate-identity.server";
+import { gateRequestSessionAllowed, sessionRequestHeaders } from "./gate-request.server";
+import { GATE_PROVIDER_ID } from "./gate-session.server";
+import { getSql } from "../db";
 import { auth, authConfigured } from "./server";
 
 /**
@@ -54,22 +61,11 @@ export type VerifiedUser = { id: string; email: string | null };
  * as a bearer token, which we present as `Authorization: Bearer …` (the `bearer`
  * plugin resolves it). When deployed no token is passed and the cookie is used.
  */
-export async function getSessionUser(
-  bearerToken?: string,
-): Promise<VerifiedUser | null> {
+export async function getSessionUser(bearerToken?: string): Promise<VerifiedUser | null> {
   if (!authConfigured && !gateIdentityEnabled()) return null;
   const request = getRequest();
   if (!request) return null;
-  const headers = new Headers();
-  const cookie = request.headers.get("cookie");
-  if (cookie) headers.set("cookie", cookie);
-  for (const name of ["host", "x-forwarded-host", "x-forwarded-proto", "origin"]) {
-    const value = request.headers.get(name);
-    if (value) headers.set(name, value);
-  }
-  const existingAuth = request.headers.get("authorization");
-  if (bearerToken) headers.set("Authorization", `Bearer ${bearerToken}`);
-  else if (existingAuth) headers.set("Authorization", existingAuth);
+  const headers = sessionRequestHeaders(request, bearerToken);
 
   let session: { user?: { id: string; email?: string | null } } | null = null;
   try {
@@ -78,6 +74,15 @@ export async function getSessionUser(
     session = null;
   }
   if (!session?.user) return null;
+  if (gateIdentityEnabled()) {
+    const sql = await getSql();
+    const accounts = await sql<{ providerId: string; accountId: string }>`
+      select "providerId", "accountId" from account where "userId" = ${session.user.id}`;
+    const hasIdentityHeader = headers.has(GATE_IDENTITY_HEADER);
+    const identity = hasIdentityHeader ? await gateIdentityFromHeaders(headers) : null;
+    if (!gateRequestSessionAllowed(accounts, identity, hasIdentityHeader, GATE_PROVIDER_ID))
+      return null;
+  }
   return { id: session.user.id, email: session.user.email ?? null };
 }
 
@@ -94,7 +99,7 @@ export async function getSessionUser(
  */
 export async function requireUserId(bearerToken?: string): Promise<string> {
   if (!authConfigured && !gateIdentityEnabled()) {
-    if (databaseConfigured) {
+    if (databaseConfigured || process.env.NODE_ENV === "production") {
       throw new Error(
         "Auth is disabled (VITE_AUTH_ENABLED=false) but DATABASE_URL is set — " +
           "refusing to fall back to the shared dev user against a real database.",

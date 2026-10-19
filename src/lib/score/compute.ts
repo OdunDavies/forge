@@ -1,251 +1,212 @@
-import { STANDARDS, EXPERIENCE_BLEND, SCORING_WEIGHTS, PILLAR_THRESHOLDS, CONSISTENCY_WINDOW_DAYS, MIN_SESSIONS_FOR_SCORE } from "./config";
-import type { Profile } from "@/lib/api/profile";
-import type { WorkoutSession } from "@/lib/api/sessions";
+import {
+  CONSISTENCY_WINDOW_DAYS,
+  MIN_SESSIONS_FOR_SCORE,
+  SCORING_WEIGHTS,
+  STANDARDS,
+} from "./config.ts";
+import type { Profile, SessionSet, WorkoutSession } from "../api/types.ts";
+import { TARGET_TO_FOCUS_PRIMARY } from "../exercises/taxonomy.ts";
 
-/** Pillar weights (percentages must sum to 100). */
-export const SCORING_WEIGHTS = {
-  consistency: 0.3,
-  strength: 0.3,
-  progression: 0.2,
-  focus: 0.2,
-} as const;
+export type ScoreProfile = Pick<Profile, "sex" | "experience" | "daysPerWeek" | "focusMuscles">;
+export type MuscleResolver = (id: string) => { primary: string[]; secondary: string[] };
+export interface ScoreResult {
+  score: number;
+  pillars: { consistency: number; strength: number; progression: number; focus: number };
+  narrative: string;
+  calibrated: boolean;
+}
+export const DAY_MS = 86_400_000;
+const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
-/** Threshold for "active" status in each pillar (0-100 scale). */
-export const PILLAR_THRESHOLDS = {
-  consistency: 20,
-  strength: 20,
-  progression: 10,
-  focus: 15,
-} as const;
+export function isWorkingSet(set: SessionSet): boolean {
+  return (
+    set.completed &&
+    !set.isWarmup &&
+    Number.isInteger(set.reps) &&
+    (set.reps ?? 0) > 0 &&
+    (set.weightKg === null || (Number.isFinite(set.weightKg) && set.weightKg >= 0))
+  );
+}
 
-/** Rolling window for consistency calculation (days). */
-export const CONSISTENCY_WINDOW_DAYS = 28;
+export function completedWorkouts(sessions: WorkoutSession[], now: number): WorkoutSession[] {
+  const seen = new Set<number>();
+  return sessions.filter((session) => {
+    const time = session.completedAt ? Date.parse(session.completedAt) : NaN;
+    if (
+      !Number.isFinite(time) ||
+      time > now ||
+      seen.has(session.id) ||
+      !session.sets.some(isWorkingSet)
+    )
+      return false;
+    seen.add(session.id);
+    return true;
+  });
+}
 
-/** Minimum sessions required before a score is considered valid. */
-export const MIN_SESSIONS_FOR_SCORE = 3;
+export function weekStart(time: number): number {
+  const date = new Date(time);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  return date.getTime();
+}
 
-/** Compute consistency score (0-100) based on session frequency over the rolling window. */
 export function computeConsistency(
   sessions: WorkoutSession[],
-  windowDays: number
+  windowDays: number,
+  now: number,
+  plannedDays = 4,
 ): number {
-  if (sessions.length === 0) return 0;
-
-  // Group sessions by week (ISO week start Monday)
-  const weekMap = new Map<string, number>();
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - windowDays);
-
-  for (const session of sessions) {
-    const startedAt = new Date(session.startedAt);
-    if (startedAt < cutoff) continue;
-
-    // Get week start Monday
-    const day = startedAt.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-    const monday = startedAt.getDate() - day + (day === 0 ? -6 : 1);
-    const weekStart = new Date(startedAt);
-    weekStart.setDate(monday);
-    const key = weekStart.toISOString().split("T")[0];
-    weekMap.set(key, (weekMap.get(key) || 0) + 1);
-  }
-
-  // Count unique weeks with at least 1 session
-  const activeWeeks = weekMap.size;
-  const totalWeeks = Math.max(1, Math.ceil((windowDays + 1) / 7));
-
-  // Consistency: percentage of weeks with at least 1 session
-  const ratio = activeWeeks / totalWeeks;
-  return Math.round(ratio * 100);
-}
-
-/** Compute strength score (0-100) based on lifts vs standards. */
-export function computeStrength(profile: Profile, sessions: WorkoutSession[]): number {
-  const experience = profile.experience ?? "intermediate";
-  // Determine sex from profile if available; default to male for standard blending
-  const sex: "male" | "female" = (profile.sex ?? "male") as "male" | "female";
-
-  // If no baseline lifts, start from experience-blended standard
-  // (the actual baseline_lifts would come from the profile; simplified here)
-
-  // Extract best estimated 1RM from sessions for each lift type
-  const estimated1RMs = extractEstimated1RMs(sessions);
-
-  // Compare each lift to standard, then average
-  const lifts: string[] = [
-    "squat",
-    "bench",
-    "deadlift",
-    "overheadPress",
-  ];
-
-  let totalScore = 0;
-  let count = 0;
-
-  for (const lift of lifts) {
-    const user1RM = estimated1RMs[lift] ?? 0;
-    // Use the standards table for comparison
-    const standard = standardForLift(experience, sex, lift);
-    if (standard > 0) {
-      // Score: how close user is to standard, with diminishing returns above standard
-      const ratio = Math.min(1, user1RM / standard);
-      const liftScore = Math.round(ratio * 100);
-      totalScore += liftScore;
-      count++;
-    }
-  }
-
-  return count > 0 ? Math.round(totalScore / count) : 50;
-}
-
-/** Compute progression score (0-100) based on session-to-session improvements. */
-export function computeProgression(sessions: WorkoutSession[]): number {
-  if (sessions.length < 2) return 50; // neutral when insufficient data
-
-  // Sort sessions by start date descending (most recent first)
-  const sorted = [...sessions].sort(
-    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+  const dates = new Set(
+    completedWorkouts(sessions, now)
+      .filter((s) => Date.parse(s.completedAt!) > now - windowDays * DAY_MS)
+      .map((s) => new Date(s.completedAt!).toISOString().slice(0, 10)),
   );
-
-  // Compare each consecutive pair of sessions for the same exercises
-  let totalImprovement = 0;
-  let comparisonCount = 0;
-
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const current = sorted[i];
-    const previous = sorted[i + 1];
-
-    // Get common exercises by name
-    const currentExercises = new Set(
-      (current.sets ?? []).map((s: any) => s.exerciseName ?? "")
-    );
-    const previousExercises = new Set(
-      (previous.sets ?? []).map((s: any) => s.exerciseName ?? "")
-    );
-    const common = [...currentExercises].filter((x) => previousExercises.has(x));
-
-    for (const exercise of common) {
-      const currentSet = (current.sets ?? []).find((s: any) => s.exerciseName === exercise);
-      const previousSet = (previous.sets ?? []).find((s: any) => s.exerciseName === exercise);
-
-      if (currentSet && previousSet && currentSet.weightKg != null && previousSet.weightKg != null) {
-        // Weight progression
-        const weightDiff = currentSet.weightKg - previousSet.weightKg;
-        if (weightDiff > 0) {
-          totalImprovement += Math.min(25, weightDiff); // cap at 25 per exercise
-        }
-        comparisonCount++;
-      }
-    }
-  }
-
-  if (comparisonCount === 0) return 50;
-
-  const avgImprovement = totalImprovement / comparisonCount;
-  // Normalize to 0-100: assume ~50kg progression over ~10 comparisons = 5 points each
-  const normalized = Math.min(100, (avgImprovement / 50) * 100);
-  return Math.round(normalized);
+  return clamp((dates.size / ((Math.max(1, Math.min(7, plannedDays)) * windowDays) / 7)) * 100);
 }
 
-/** Compute focus score (0-100) based on volume on focus muscles vs catalog baseline.
- * 
- * @param profile User profile
- * @param sessions Array of completed workout sessions
- * @param exerciseFocusMuscles Callback that returns {primary, secondary} for a given exercise id
- */
-export function computeFocus(
-  profile: Profile,
+export function estimated1RM(weight: number, reps: number): number {
+  if (!Number.isFinite(weight) || weight <= 0 || !Number.isInteger(reps) || reps <= 0) return 0;
+  return reps === 1 ? weight : Math.round(weight * (1 + reps / 30) * 10) / 10;
+}
+
+type Lift = keyof typeof STANDARDS.beginner.male;
+export function classifyLift(name: string): Lift | null {
+  const normalized = name.toLowerCase().trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (/^(barbell )?(back )?squat$/.test(normalized)) return "squat";
+  if (/^(barbell )?(flat )?bench( press)?$/.test(normalized)) return "bench";
+  if (/^(barbell )?(conventional )?deadlift$/.test(normalized)) return "deadlift";
+  if (/^(barbell )?(standing )?(overhead press|military press|shoulder press)$/.test(normalized))
+    return "overheadPress";
+  return null;
+}
+
+export function computeStrength(profile: ScoreProfile, sessions: WorkoutSession[]): number {
+  const tier =
+    profile.experience === "advanced"
+      ? "advanced"
+      : profile.experience === "intermediate"
+        ? "intermediate"
+        : "beginner";
+  const standards = STANDARDS[tier];
+  const best = new Map<Lift, number>();
+  for (const session of sessions) {
+    if (!session.completedAt) continue;
+    for (const set of session.sets.filter(isWorkingSet)) {
+      const lift = classifyLift(set.exerciseName);
+      const value = estimated1RM(set.weightKg ?? 0, set.reps ?? 0);
+      if (lift && value > 0) best.set(lift, Math.max(best.get(lift) ?? 0, value));
+    }
+  }
+  let total = 0;
+  for (const [lift, value] of best) {
+    // Unknown/invalid sex uses the midpoint, never an unchecked table index.
+    const standard =
+      profile.sex === "male" || profile.sex === "female"
+        ? standards[profile.sex][lift]
+        : (standards.male[lift] + standards.female[lift]) / 2;
+    total += Math.min(1, value / standard) * 100;
+  }
+  return best.size ? clamp(total / best.size) : 0;
+}
+
+export function computeProgression(sessions: WorkoutSession[]): number {
+  const previous = new Map<string, number>();
+  let improvement = 0;
+  let comparisons = 0;
+  const sorted = sessions
+    .filter((s) => s.completedAt)
+    .sort((a, b) => Date.parse(a.completedAt!) - Date.parse(b.completedAt!) || a.id - b.id);
+  for (const session of sorted) {
+    const best = new Map<string, number>();
+    for (const set of session.sets.filter(isWorkingSet)) {
+      const key = set.exerciseId ?? set.exerciseName.trim().toLowerCase();
+      const value = estimated1RM(set.weightKg ?? 0, set.reps ?? 0);
+      if (value > 0) best.set(key, Math.max(best.get(key) ?? 0, value));
+    }
+    for (const [key, value] of best) {
+      const before = previous.get(key);
+      if (before) {
+        // A +/-10% change spans the full scale. Regressions are not improvements.
+        improvement += Math.max(-1, Math.min(1, (value / before - 1) / 0.1));
+        comparisons++;
+      }
+      previous.set(key, value);
+    }
+  }
+  return comparisons ? clamp(50 + (50 * improvement) / comparisons) : 0;
+}
+
+export function focusVolume(
+  profile: ScoreProfile,
   sessions: WorkoutSession[],
-  exerciseFocusMuscles: (exerciseId: string) => { primary: string[]; secondary: string[] }
+  resolve: MuscleResolver,
+): { focus: number; total: number } {
+  const targets = new Set(profile.focusMuscles.map((m) => m.toLowerCase()));
+  let focus = 0;
+  let total = 0;
+  for (const session of sessions) {
+    for (const set of session.sets.filter(isWorkingSet)) {
+      const volume = (set.weightKg ?? 0) * (set.reps ?? 0);
+      total += volume;
+      if (!set.exerciseId) continue;
+      const muscles = resolve(set.exerciseId);
+      if (
+        [...muscles.primary, ...muscles.secondary].some((m) =>
+          (TARGET_TO_FOCUS_PRIMARY[m.toLowerCase()] ?? [m.toLowerCase()]).some((group) =>
+            targets.has(group),
+          ),
+        )
+      )
+        focus += volume;
+    }
+  }
+  return { focus, total };
+}
+
+export function computeFocus(
+  profile: ScoreProfile,
+  sessions: WorkoutSession[],
+  resolve: MuscleResolver,
+  now: number,
 ): number {
-  const focusMuscles = profile.focusMuscles ?? [];
-
-  if (focusMuscles.length === 0) {
-    return 50; // neutral when no focus defined
-  }
-
-  // Calculate total volume on focus muscles from recent sessions
-  let focusVolume = 0;
-  let totalVolume = 0;
-
-  // Get sessions in the scoring window
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - CONSISTENCY_WINDOW_DAYS);
-
-  for (const session of sessions) {
-    const startedAt = new Date(session.startedAt);
-    if (startedAt < cutoff) continue;
-
-    // Resolve this session's exercise focus muscles
-    for (const set of session.sets ?? []) {
-      const exerciseId = set.exerciseId ?? set.exerciseName;
-      if (!exerciseId) continue;
-
-      const { primary, secondary } = exerciseFocusMuscles(exerciseId);
-      
-      // Add volume on focus muscles
-      const weight = set.weightKg ?? 0;
-      const reps = set.reps ?? 0;
-      const volume = weight * (reps || 0);
-
-      totalVolume += volume;
-
-      // Check if this exercise targets a focus muscle
-      for (const muscle of focusMuscles) {
-        if (primary.includes(muscle) || secondary.includes(muscle)) {
-          focusVolume += volume;
-          break;
-        }
-      }
-    }
-  }
-
-  if (totalVolume === 0) return 50;
-
-  const focusRatio = focusVolume / totalVolume;
-  return Math.round(focusRatio * 100);
+  if (!profile.focusMuscles.length) return 0;
+  const recent = completedWorkouts(sessions, now).filter(
+    (s) => Date.parse(s.completedAt!) > now - CONSISTENCY_WINDOW_DAYS * DAY_MS,
+  );
+  const volume = focusVolume(profile, recent, resolve);
+  return volume.total ? clamp((volume.focus / volume.total) * 100) : 0;
 }
 
-/** Helper: Epley formula for 1RM estimation. */
-function epley1RM(weight: number, reps: number): number {
-  if (reps <= 0) return weight;
-  return weight * (1 + reps / 30);
-}
-
-/** Extract estimated 1RM for each major lift from sessions. */
-function extractEstimated1RMs(sessions: WorkoutSession[]): Record<string, number> {
-  const result: Record<string, number> = {
-    squat: 0,
-    bench: 0,
-    deadlift: 0,
-    overheadPress: 0,
+export function computeForgeScore(
+  profile: ScoreProfile,
+  sessions: WorkoutSession[],
+  now: number,
+  resolve: MuscleResolver = () => ({ primary: [], secondary: [] }),
+): ScoreResult {
+  const completed = completedWorkouts(sessions, now);
+  const recent = completed.filter(
+    (s) => Date.parse(s.completedAt!) > now - CONSISTENCY_WINDOW_DAYS * DAY_MS,
+  );
+  const pillars = {
+    consistency: computeConsistency(completed, CONSISTENCY_WINDOW_DAYS, now, profile.daysPerWeek),
+    strength: computeStrength(profile, recent),
+    progression: computeProgression(recent),
+    focus: computeFocus(profile, recent, resolve, now),
   };
-
-  // Find the heaviest working set for each lift type
-  for (const session of sessions) {
-    for (const set of session.sets ?? []) {
-      const name = (set.exerciseName ?? "").toLowerCase();
-      const weight = set.weightKg ?? 0;
-      const reps = parseInt(set.reps ?? "0", 10) || 1;
-
-      if (name.includes("squat") || name.includes("back squat") || name.includes("front squat")) {
-        result.squat = Math.max(result.squat, epley1RM(weight, reps));
-      } else if (name.includes("bench") || name.includes("flat bench")) {
-        result.bench = Math.max(result.bench, epley1RM(weight, reps));
-      } else if (name.includes("deadlift")) {
-        result.deadlift = Math.max(result.deadlift, epley1RM(weight, reps));
-      } else if (name.includes("overhead") || name.includes("press") || name.includes("military")) {
-        result.overheadPress = Math.max(result.overheadPress, epley1RM(weight, reps));
-      }
-    }
-  }
-
-  return result;
-}
-
-/** Get the standard for a specific lift (non-blended, fixed tier). */
-function standardForLift(experience: string, sex: "male" | "female", lift: string): number {
-  const tier = experience === "advanced" ? "advanced" : experience === "intermediate" ? "intermediate" : "beginner";
-  const experienceStd = STANDARDS[tier as keyof typeof STANDARDS];
-  // Use type assertion to access the specific tier's sex/lift properties
-  return (experienceStd as any)[sex][lift];
+  const score = clamp(
+    Object.entries(pillars).reduce(
+      (sum, [key, value]) => sum + value * SCORING_WEIGHTS[key as keyof typeof pillars],
+      0,
+    ),
+  );
+  const calibrated = recent.length >= MIN_SESSIONS_FOR_SCORE;
+  return {
+    score,
+    pillars,
+    calibrated,
+    narrative: calibrated
+      ? `Forge Score: ${score}. Based on completed working sets in the last 28 days.`
+      : `Calibrating: ${recent.length}/${MIN_SESSIONS_FOR_SCORE} completed workouts in the last 28 days.`,
+  };
 }

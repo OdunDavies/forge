@@ -1,14 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql } from "@/lib/db";
+import { getSql, withTransaction, type Sql } from "@/lib/db";
 import { num } from "@/lib/db-map";
 import { extractJson, grokChat } from "@/lib/ai/grok";
 import { buildFallbackPlan, volumeBreakdown } from "@/lib/plan/fallback";
 import { loadProfileByUserId } from "./profile";
-import { searchExercises, getExercise, type Exercise } from "@/lib/api/library";
-import { matchExercise, exerciseFocusMuscles, type { Exercise as CatalogExercise } from "@/lib/exercises/catalog";
-import { suggestExercise } from "@/lib/exercises/match";
+import { ensureExerciseCatalog } from "@/lib/exercises/seed";
+import { generatedSchema, confirmTweakSchema, type GeneratedPlan } from "@/lib/plan/schema";
+import { replaceGeneratedPlan, replaceDayExercises } from "@/lib/plan/persistence";
 import type { ActivePlan, PlanDay, PlanExercise } from "./types";
 
 type PlanRow = {
@@ -42,28 +42,8 @@ type ExRow = {
   sort_order: number;
 };
 
-/** Resolve an exercise name to a catalog entry using the matcher.
- * Returns { id, name } or { id: null, name: original } if no match.
- * In lenient mode (for AI plans), relax some rules; in strict mode (for history),
- * never auto-link. */
-function resolveExerciseName(
-  name: string,
-  lenient = false
-): { id: string | null; name: string; method: "exact" | "fuzzy" | "null" } {
-  const result = matchExercise(name, new Map());
-  if (result) return result;
-  // No strict match; if lenient, try suggest()
-  if (lenient) {
-    const suggest = suggestExercise(name, new Map());
-    if (suggest) {
-      return { id: suggest.id, name: suggest.name, method: "relaxed" };
-    }
-  }
-  return { id: null, name, method: "null" };
-}
-
-export async function loadPlan(userId: string): Promise<ActivePlan | null> {
-  const sql = await getSql();
+export async function loadPlan(userId: string, sql?: Sql): Promise<ActivePlan | null> {
+  sql ??= await getSql();
   const plans = await sql<PlanRow>`
     select id, title, split, days_per_week, focus, notes, ai_rationale
     from workout_plans where user_id = ${userId} and is_active = true
@@ -78,6 +58,7 @@ export async function loadPlan(userId: string): Promise<ActivePlan | null> {
     ? await sql<ExRow>`
         select id, plan_day_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
         from plan_exercises where user_id = ${userId}
+          and plan_day_id in (select id from plan_days where plan_id = ${plan.id} and user_id = ${userId})
         order by sort_order`
     : [];
   const byDay = new Map<number, PlanExercise[]>();
@@ -104,16 +85,14 @@ export async function loadPlan(userId: string): Promise<ActivePlan | null> {
     focus: plan.focus,
     notes: plan.notes,
     aiRationale: plan.ai_rationale,
-    days: days.map(
-      (d): PlanDay => ({
-        id: d.id,
-        weekday: d.day_index,
-        title: d.title,
-        isRest: d.is_rest,
-        coachNotes: d.coach_notes,
-        exercises: byDay.get(d.id) ?? [],
-      }),
-    ),
+    days: days.map((d): PlanDay => ({
+      id: d.id,
+      weekday: d.day_index,
+      title: d.title,
+      isRest: d.is_rest,
+      coachNotes: d.coach_notes,
+      exercises: byDay.get(d.id) ?? [],
+    })),
   };
 }
 
@@ -121,84 +100,12 @@ export const getActivePlan = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => loadPlan(context.userId));
 
-const generatedSchema = z.object({
-  title: z.string(),
-  split: z.string().optional(),
-  focus: z.string().optional(),
-  rationale: z.string().optional(),
-  days: z.array(
-    z.object({
-      weekday: z.number().int().min(0).max(6),
-      title: z.string(),
-      isRest: z.boolean().optional(),
-      notes: z.string().optional(),
-      exercises: z
-        .array(
-          z.object({
-            name: z.string(),
-            sets: z.number().int().min(1).max(8),
-            reps: z.string(),
-            restSec: z.number().int.min(0).max(400).optional(),
-            rpe: z.number().min(5).max(10).optional(),
-            notes: z.string().optional(),
-          }),
-        )
-        .optional(),
-    }),
-  ),
-});
-
-async function persistGenerated(
-  userId: string,
-  generated: z.infer<typeof generatedSchema>,
-) {
-  const sql = await getSql();
-  await sql`update workout_plans set is_active = false where user_id = ${userId} and is_active = true`;
-  const inserted = await sql<{ id: number }>`
-    insert into workout_plans (user_id, title, split, days_per_week, focus, notes, ai_rationale, is_active)
-    values (
-      ${userId},
-      ${generated.title.slice(0, 80)},
-      ${generated.split ?? ""},
-      ${generated.days.filter((d) => !d.isRest).length},
-      ${generated.focus ?? ""},
-      ${""},
-      ${generated.rationale ?? ""},
-      true
-    ) returning id`;
-  const planId = inserted[0]!.id;
-
-  const byWeekday = new Map(generated.days.map((d) => [d.weekday, d]));
-  for (let wd = 0; wd < 7; wd++) {
-    const d = byWeekday.get(wd) ?? {
-      weekday: wd,
-      title: "Rest",
-      isRest: true,
-      exercises: [],
-      notes: "",
-    };
-    const isRest = Boolean(d.isRest) || !(d.exercises && d.exercises.length);
-    const dayRows = await sql<{ id: number }>`
-      insert into plan_days (plan_id, user_id, day_index, title, is_rest, coach_notes)
-      values (${planId}, ${userId}, ${wd}, ${d.title.slice(0, 48)}, ${isRest}, ${d.notes ?? ""})
-      returning id`;
-    const dayId = dayRows[0]!.id;
-    if (isRest) continue;
-    let sort = 0;
-    for (const ex of d.exercises ?? []) {
-      // Resolve exercise name using the matcher (strict by default; lenient for AI hints)
-      const match = resolveExerciseName(ex.name, /* lenient */ true);
-      await sql`
-        insert into plan_exercises (
-          plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
-        ) values (
-          ${dayId}, ${userId}, ${match.id ?? null}, ${match.name},
-          ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
-        )`;
-      sort += 1;
-    }
-  }
-  return loadPlan(userId);
+async function persistGenerated(userId: string, generated: GeneratedPlan) {
+  await ensureExerciseCatalog();
+  return withTransaction(async (sql: Sql) => {
+    await replaceGeneratedPlan(sql, userId, generated);
+    return loadPlan(userId, sql);
+  });
 }
 
 export const generateFirstPlan = createServerFn({ method: "POST" })
@@ -219,6 +126,7 @@ export const generateFirstPlan = createServerFn({ method: "POST" })
         isRest: d.isRest,
         notes: d.coachNotes,
         exercises: d.exercises.map((e) => ({
+          exerciseId: e.exerciseId,
           name: e.name,
           sets: e.sets,
           reps: e.reps,
@@ -272,37 +180,25 @@ Rules:
       try {
         const parsed = generatedSchema.parse(extractJson(ai.text));
         const focus = (profile.focusMuscles ?? []).map((m) => m.toLowerCase());
-        const titles = parsed.days.filter((d) => !d.isRest).map((d) => d.title.toLowerCase()).join(" ");
-        const named = focus.filter((m) => titles.includes(m));
-        if (focus.length && named.length === 0) throw new Error("plan ignored focus");
-        // 40/60 volume validation – now using catalog muscle resolution instead of name substrings
+        const scheduled = fallback.days.filter((d) => !d.isRest).map((d) => d.weekday);
+        const training = parsed.days.filter((d) => !d.isRest && d.exercises?.length);
+        if (
+          parsed.split !== fallback.split ||
+          parsed.days.length !== 7 ||
+          training.length !== scheduled.length ||
+          training.some((d) => !scheduled.includes(d.weekday))
+        ) {
+          throw new Error("plan changed the chosen split or schedule");
+        }
         if (focus.length) {
-          const allEx = parsed.days.flatMap((d) => d.exercises ?? []);
-          let focusSets = 0;
-          let totalSets = 0;
-          // Resolve each exercise's focus muscles via the catalog and tally
-          for (const ex of allEx) {
-            // Find the catalog entry for this exercise name
-            const catEntry = await getExercise(ex.name); // will search by name
-            if (catEntry) {
-              const { primary, secondary } = exerciseFocusMuscles(catEntry.id, new Map());
-              totalSets += ex.sets;
-              // Count primary focus muscles
-              const isFocus = focus.some((f) => primary.includes(f) || secondary.includes(f));
-              if (isFocus) focusSets += ex.sets;
-            } else {
-              // Fallback: name substring if catalog lookup fails (degraded mode)
-              for (const ex2 of allEx) {
-                const n = ex2.name.toLowerCase();
-                const isFocus = focus.some((f) => n.includes(f));
-                totalSets += ex2.sets;
-                if (isFocus) focusSets += ex2.sets;
-              }
-            }
-          }
-          const ratio = totalSets ? focusSets / totalSets : 0;
+          const { ratio } = volumeBreakdown(
+            training.flatMap((d) => d.exercises ?? []),
+            focus,
+          );
           if (ratio < 0.3 || ratio > 0.5) {
-            console.warn(`[plan] 40/60 proxy failed: focus ratio ${ratio.toFixed(2)} outside 0.30-0.50, falling back`);
+            console.warn(
+              `[plan] 40/60 proxy failed: focus ratio ${ratio.toFixed(2)} outside 0.30-0.50, falling back`,
+            );
             throw new Error(`focus ratio ${ratio.toFixed(2)} outside 0.30-0.50`);
           }
         }
@@ -319,21 +215,6 @@ Rules:
 const tweakSchema = z.object({
   reason: z.string().max(400).optional(),
   preview: z.boolean().optional(),
-});
-
-const confirmTweakSchema = z.object({
-  exercises: z.array(
-    z.object({
-      name: z.string(),
-      sets: z.number().int().min(1).max(8),
-      reps: z.string(),
-      restSec: z.number().int.min(0).max(400).optional(),
-      rpe: z.number().min(5).max(10).optional(),
-      notes: z.string().optional(),
-    }),
-  ),
-  message: z.string().optional(),
-  targetWeekday: z.number().int().min(0).max(6).optional(),
 });
 
 export const tweakTodayPlan = createServerFn({ method: "POST" })
@@ -358,7 +239,12 @@ export const tweakTodayPlan = createServerFn({ method: "POST" })
     if (!target) return { plan, message: "No training day to retune." };
 
     const sql = await getSql();
-    const recent = await sql<{ title: string; notes: string; volume_kg: unknown; started_at: string }>`
+    const recent = await sql<{
+      title: string;
+      notes: string;
+      volume_kg: unknown;
+      started_at: string;
+    }>`
       select title, notes, volume_kg, started_at from workout_sessions
       where user_id = ${context.userId} and completed_at is not null
       order by completed_at desc limit 5`;
@@ -384,55 +270,45 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
     );
 
     if (!ai.ok) {
-      console.warn("[plan] grokChat tweak failed", { userId: context.userId, error: ai.error, retryable: true });
+      console.warn("[plan] grokChat tweak failed", {
+        userId: context.userId,
+        error: ai.error,
+        retryable: true,
+      });
       return { plan, message: ai.error, retryable: true as const, offline: true as const };
     }
     try {
-      const parsed = z
-        .object({
-          message: z.string(),
-          exercises: z.array(
-            z.object({
-              name: z.string(),
-              sets: z.number(),
-              reps: z.string(),
-              restSec: z.number().optional(),
-              rpe: z.number().optional(),
-              notes: z.string().optional(),
-            }),
-          ),
-        })
-        .parse(extractJson(ai.text));
+      const parsed = confirmTweakSchema.parse(extractJson(ai.text));
 
       if (data.preview) {
         return {
           plan,
           message: parsed.message,
-          preview: parsed.exercises.slice(0, 8),
+          preview: parsed.exercises,
           targetDayId: target.id,
+          targetWeekday: target.weekday,
           targetTitle: target.title,
           retryable: false as const,
         };
       }
 
-      await sql`delete from plan_exercises where plan_day_id = ${target.id} and user_id = ${context.userId}`;
-      let sort = 0;
-      for (const ex of parsed.exercises.slice(0, 8)) {
-        const match = resolveExerciseName(ex.name, /* lenient */ true);
-        await sql`
-          insert into plan_exercises (
-            plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
-          ) values (
-            ${target.id}, ${context.userId}, ${match.id ?? null}, ${match.name},
-            ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
-          )`;
-        sort += 1;
-      }
-      await sql`update plan_days set coach_notes = ${parsed.message.slice(0, 500)} where id = ${target.id} and user_id = ${context.userId}`;
-      return { plan: await loadPlan(context.userId), message: parsed.message, retryable: false as const };
+      const targetId = target.id;
+      const updated = await withTransaction(async (tx: Sql) => {
+        await replaceDayExercises(tx, context.userId, targetId, parsed);
+        return loadPlan(context.userId, tx);
+      });
+      return {
+        plan: updated,
+        message: parsed.message ?? "Plan updated.",
+        retryable: false as const,
+      };
     } catch (e) {
       console.warn("[plan] tweak parse failed", { error: String(e), retryable: true });
-      return { plan, message: "Coach could not apply a structured tweak. Try again.", retryable: true as const };
+      return {
+        plan,
+        message: "Coach could not apply a structured tweak. Try again.",
+        retryable: true as const,
+      };
     }
   });
 
@@ -442,7 +318,7 @@ export const confirmTweak = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const plan = await loadPlan(context.userId);
     if (!plan) throw new Error("No active plan");
-    let target: typeof plan.days[number] | undefined;
+    let target: (typeof plan.days)[number] | undefined;
     if (data.targetWeekday !== undefined) {
       target = plan.days.find((d) => d.weekday === data.targetWeekday);
     } else {
@@ -451,27 +327,18 @@ export const confirmTweak = createServerFn({ method: "POST" })
       if (!target) {
         for (let i = 1; i <= 7; i++) {
           const day = plan.days.find((d) => d.weekday === (weekday + i) % 7 && !d.isRest);
-          if (day) { target = day; break; }
+          if (day) {
+            target = day;
+            break;
+          }
         }
       }
     }
-    if (!target) throw new Error("No training day to retune.");
-    const sql = await getSql();
-    await sql`delete from plan_exercises where plan_day_id = ${target.id} and user_id = ${context.userId}`;
-    let sort = 0;
-    for (const ex of data.exercises.slice(0, 8)) {
-      const match = resolveExerciseName(ex.name, /* lenient */ true);
-      await sql`
-        insert into plan_exercises (
-          plan_day_id, user_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
-        ) values (
-          ${target.id}, ${context.userId}, ${match.id ?? null}, ${match.name},
-          ${ex.sets}, ${ex.reps}, ${ex.restSec ?? 90}, ${ex.rpe ?? null}, ${ex.notes ?? ""}, ${sort}
-        )`;
-      sort += 1;
-    }
-    if (data.message) {
-      await sql`update plan_days set coach_notes = ${data.message.slice(0, 500)} where id = ${target.id} and user_id = ${context.userId}`;
-    }
-    return { plan: await loadPlan(context.userId), message: data.message ?? "Plan updated." };
+    if (!target || target.isRest) throw new Error("No training day to retune.");
+    const targetId = target.id;
+    const updated = await withTransaction(async (sql: Sql) => {
+      await replaceDayExercises(sql, context.userId, targetId, data);
+      return loadPlan(context.userId, sql);
+    });
+    return { plan: updated, message: data.message ?? "Plan updated." };
   });

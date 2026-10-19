@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { SessionSet, WorkoutSession } from "@/lib/api/types";
 import { cn, displayWeight, formatKg } from "@/lib/utils";
+import { toast } from "sonner";
+import { isWorkingSet } from "@/lib/score/compute";
 
 type Group = { name: string; exerciseId: string | null; sets: SessionSet[] };
 
@@ -20,7 +22,10 @@ export function SetLogger({
 }: {
   session: WorkoutSession;
   units: "metric" | "imperial";
-  onLog: (set: SessionSet, patch: { weightKg: number | null; reps: number | null; completed: boolean }) => void;
+  onLog: (
+    set: SessionSet,
+    patch: { weightKg: number | null; reps: number | null; completed: boolean },
+  ) => void | Promise<void>;
   onCompleteExercise: (name: string) => void;
   onAddSet: (name: string) => void;
   onRemoveSet: (set: SessionSet) => void;
@@ -30,7 +35,11 @@ export function SetLogger({
   const groups = useMemo(() => {
     const map = new Map<string, Group>();
     for (const s of session.sets) {
-      const g = map.get(s.exerciseName) ?? { name: s.exerciseName, exerciseId: s.exerciseId, sets: [] };
+      const g = map.get(s.exerciseName) ?? {
+        name: s.exerciseName,
+        exerciseId: s.exerciseId,
+        sets: [],
+      };
       g.sets.push(s);
       map.set(s.exerciseName, g);
     }
@@ -56,9 +65,8 @@ export function SetLogger({
       {groups.map((g) => {
         const done = g.sets.filter((s) => s.completed);
         const open = g.sets.find((s) => !s.completed);
-        const visible = open ? [...done, open] : done;
+        const visible = g.sets;
         const allDone = !open && done.length > 0;
-        const canRemove = g.sets.length > 1;
         return (
           <section key={g.name} className="rounded-xl bg-card p-4 shadow-[var(--shadow-border)]">
             <div className="flex items-start justify-between gap-3">
@@ -85,18 +93,27 @@ export function SetLogger({
                 <Button
                   size="sm"
                   variant={allDone ? "secondary" : "default"}
-                  disabled={busyName === g.name}
+                  disabled={
+                    busyName === g.name || Boolean(busyId) || allDone || !done.some(isWorkingSet)
+                  }
                   onClick={() => onCompleteExercise(g.name)}
                 >
-                  {allDone ? "Done" : busyName === g.name ? "Saving…" : "Mark done"}
+                  {allDone ? "Done" : busyName === g.name ? "Saving…" : "End lift"}
                 </Button>
               </div>
             </div>
             <div className="mt-3 space-y-2">
               {visible.map((set) => {
                 const d = val(set);
+                const dirty =
+                  d.w !==
+                    (set.weightKg != null ? String(displayWeight(set.weightKg, units)) : "") ||
+                  d.r !== (set.reps != null ? String(set.reps) : "");
                 return (
-                  <div key={set.id} className="grid grid-cols-[2rem_1fr_1fr_2.75rem_2.75rem] items-center gap-2">
+                  <div
+                    key={set.id}
+                    className="grid grid-cols-[2rem_1fr_1fr_2.75rem_2.75rem] items-center gap-2"
+                  >
                     <span className="text-xs tabular text-muted-foreground">{set.setIndex}</span>
                     <Input
                       inputMode="decimal"
@@ -119,23 +136,55 @@ export function SetLogger({
                     <button
                       type="button"
                       disabled={busyId === set.id}
-                      onClick={() => {
-                        const w = d.w ? Number(d.w) : null;
-                        const r = d.r ? Number(d.r) : null;
+                      onClick={async () => {
+                        const w = d.w.trim() ? Number(d.w) : null;
+                        const r = d.r.trim() ? Number(d.r) : null;
+                        if (
+                          (w !== null && (!Number.isFinite(w) || w < 0)) ||
+                          (r !== null && (!Number.isInteger(r) || r < 0)) ||
+                          ((!set.completed || dirty) && (!r || r <= 0))
+                        ) {
+                          toast.error("Enter a nonnegative weight and positive whole reps");
+                          return;
+                        }
                         const weightKg = w == null ? null : units === "imperial" ? w / 2.20462 : w;
-                        onLog(set, { weightKg, reps: r, completed: !set.completed });
+                        try {
+                          await onLog(set, {
+                            weightKg,
+                            reps: r,
+                            completed: !set.completed || dirty,
+                          });
+                          setDraft((previous) => {
+                            const next = { ...previous };
+                            delete next[set.id];
+                            return next;
+                          });
+                        } catch (error) {
+                          toast.error(
+                            error instanceof Error ? error.message : "Could not save set",
+                          );
+                        }
                       }}
                       className={cn(
                         "grid size-11 place-items-center rounded-md transition-colors",
-                        set.completed ? "bg-go text-background" : "bg-secondary text-muted-foreground",
+                        set.completed
+                          ? "bg-go text-background"
+                          : "bg-secondary text-muted-foreground",
                       )}
-                      aria-label={set.completed ? "Completed" : "Complete set"}
+                      aria-label={
+                        set.completed
+                          ? dirty
+                            ? "Save edited set"
+                            : "Undo completed set"
+                          : "Complete set"
+                      }
+                      title={set.completed ? (dirty ? "Save changes" : "Undo set") : "Log set"}
                     >
                       <Check className="size-4" />
                     </button>
                     <button
                       type="button"
-                      disabled={!canRemove || busyId === set.id || busyName === g.name}
+                      disabled={busyId === set.id || busyName === g.name}
                       onClick={() => onRemoveSet(set)}
                       className="grid size-11 place-items-center rounded-md bg-secondary text-muted-foreground disabled:opacity-30"
                       aria-label="Remove set"
@@ -147,7 +196,14 @@ export function SetLogger({
               })}
             </div>
             {g.sets.some((s) => s.isPr) && (
-              <p className="mt-2 text-xs uppercase tracking-[0.14em] text-signal">Personal record locked</p>
+              <p className="mt-2 text-xs uppercase tracking-[0.14em] text-signal">
+                Personal record
+              </p>
+            )}
+            {open && done.some(isWorkingSet) && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                End lift discards unlogged suggestions.
+              </p>
             )}
             <div className="mt-2 flex gap-2">
               <Button
@@ -177,13 +233,15 @@ export function SessionHeader({
   session: WorkoutSession;
   units: "metric" | "imperial";
 }) {
-  const done = session.sets.filter((s) => s.completed);
+  const done = session.sets.filter(isWorkingSet);
   const volume = done.reduce((a, s) => a + (s.weightKg ?? 0) * (s.reps ?? 0), 0);
   const reps = done.reduce((a, s) => a + (s.reps ?? 0), 0);
   return (
     <div className="mb-4 flex items-end justify-between gap-4">
       <div>
-        <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Today’s work</p>
+        <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          Today’s work
+        </p>
         <h2 className="display text-2xl font-semibold">{session.title}</h2>
       </div>
       <p className="text-right text-sm tabular text-muted-foreground">

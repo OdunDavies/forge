@@ -9,7 +9,7 @@ export const SCORING_WEIGHTS = {
   strength: 0.3,
   progression: 0.2,
   focus: 0.2,
-} as const
+} as const;
 
 // Threshold for "active" status in each pillar (0-100 scale)
 export const PILLAR_THRESHOLDS = {
@@ -17,10 +17,10 @@ export const PILLAR_THRESHOLDS = {
   strength: 20,
   progression: 10,
   focus: 15,
-} as const
+} as const;
 
 // Baseline standards for "strength" pillar based on experience and sex
-// Values are estimated 1RM totals (kg) for a single session's volume
+// Values are estimated one-rep maxima (kg) for each individual lift.
 export const STANDARDS = {
   beginner: {
     male: {
@@ -64,7 +64,7 @@ export const STANDARDS = {
       overheadPress: 75,
     },
   },
-} as const
+} as const;
 
 // Experience blending: how much the user's experience level influences
 // which standard table to use. Beginner users lean more on the beginner standard,
@@ -73,19 +73,19 @@ export const EXPERIENCE_BLEND = {
   beginner: 0.8, // 80% beginner standard, 20% progression-based
   intermediate: 0.5,
   advanced: 0.2,
-} as const
+} as const;
 
 // Rolling window for consistency calculation (days)
-export const CONSISTENCY_WINDOW_DAYS = 28
+export const CONSISTENCY_WINDOW_DAYS = 28;
 
 // Minimum sessions required before a score is considered valid
-export const MIN_SESSIONS_FOR_SCORE = 3
+export const MIN_SESSIONS_FOR_SCORE = 3;
 
 // Minimum planned days per week for streak calculation
-export const MIN_PLANNED_DAYS_PER_WEEK = 1
+export const MIN_PLANNED_DAYS_PER_WEEK = 1;
 
 // Streak calculation: consecutive weeks with >= 60% of planned days trained
-export const STREAK_PERCENTAGE_THRESHOLD = 0.6
+export const STREAK_PERCENTAGE_THRESHOLD = 0.6;
 
 // XP configuration
 export const XP = {
@@ -93,7 +93,7 @@ export const XP = {
   pr: 25,
   prWeeklyMax: 100,
   focusSession: 50,
-} as const
+} as const;
 
 // Rank thresholds (XP required to reach each rank)
 export const RANKS = [
@@ -102,11 +102,10 @@ export const RANKS = [
   { name: "Steel", xpFloor: 1500, color: "primary" },
   { name: "Titanium", xpFloor: 4500, color: "amber" },
   { name: "Adamant", xpFloor: 12000, color: "rose" },
-] as const
+] as const;
 
 // Minimum XP gap to next rank
 export const NEXT_RANK_GAP = (currentXp: number, ranks: typeof RANKS) => {
-  const currentRank = ranks.find((r) => currentXp >= r.xpFloor) || ranks[0]
-  const nextRank = ranks.find((r) => currentXp < r.xpFloor) || ranks[ranks.length - 1]
-  return nextRank.xpFloor - currentXp
-}
+  const nextRank = ranks.find((r) => currentXp < r.xpFloor) || ranks[ranks.length - 1];
+  return Math.max(0, nextRank.xpFloor - currentXp);
+};

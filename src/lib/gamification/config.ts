@@ -9,7 +9,7 @@ export const XP = {
   pr: 25,
   prWeeklyMax: 100, // max XP from PRs per week
   focusSession: 50,
-} as const
+} as const;
 
 // Rank thresholds (XP required to reach each rank)
 export const RANKS = [
@@ -18,13 +18,16 @@ export const RANKS = [
   { name: "Steel", xpFloor: 1500, color: "primary" },
   { name: "Titanium", xpFloor: 4500, color: "amber" },
   { name: "Adamant", xpFloor: 12000, color: "rose" },
-] as const
+] as const;
 
 // Minimum XP gap to next rank
 export function nextRankGap(currentXp: number): number {
-  const currentRank = RANKS.find((r) => currentXp >= r.xpFloor) || RANKS[0]
-  const nextRank = RANKS.find((r) => currentXp < r.xpFloor) || RANKS[RANKS.length - 1]
-  return nextRank.xpFloor - currentXp
+  const nextRank = RANKS.find((r) => currentXp < r.xpFloor) || RANKS[RANKS.length - 1];
+  return Math.max(0, nextRank.xpFloor - currentXp);
+}
+
+export function rankForXp(xp: number): (typeof RANKS)[number] {
+  return [...RANKS].reverse().find((rank) => xp >= rank.xpFloor) ?? RANKS[0];
 }
 
 // Experience needed for each rank up
@@ -39,28 +42,26 @@ export function calculateStreak(
   trainedDaysPerWeek: number[],
   plannedDaysPerWeek: number,
 ): { streak: number; bestStreak: number } {
-  const minDaysForStreak = Math.max(1, Math.ceil(0.6 * plannedDaysPerWeek))
+  const minDaysForStreak = Math.max(1, Math.ceil(0.6 * plannedDaysPerWeek));
 
-  let streak = 0
-  let bestStreak = 0
-  let currentStreak = 0
+  let streak = 0;
+  let bestStreak = 0;
+  let currentStreak = 0;
 
-  // We check consecutive weeks going back from current week
-  // For simplicity, we use a fixed window of 52 weeks (1 year)
-  const weeksInYear = 52
-
-  for (let i = 0; i < weeksInYear; i++) {
-    const weekTrainedDays = trainedDaysPerWeek[i % trainedDaysPerWeek.length] || 0
+  // Input is newest week first, with real gaps represented by zeroes.
+  let currentRun = true;
+  for (const weekTrainedDays of trainedDaysPerWeek) {
     if (weekTrainedDays >= minDaysForStreak) {
-      currentStreak++
-      streak = Math.max(streak, currentStreak)
-      bestStreak = Math.max(bestStreak, streak)
+      currentStreak++;
+      if (currentRun) streak++;
+      bestStreak = Math.max(bestStreak, currentStreak);
     } else {
-      currentStreak = 0
+      currentStreak = 0;
+      currentRun = false;
     }
   }
 
-  return { streak, bestStreak }
+  return { streak, bestStreak };
 }
 
 // Badge definitions
@@ -135,4 +136,4 @@ export const BADGES = {
     icon: "share",
     category: "social",
   },
-} as const
+} as const;

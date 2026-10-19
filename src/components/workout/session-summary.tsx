@@ -6,6 +6,7 @@ import type { WorkoutSession } from "@/lib/api/types";
 import { compressImage, durationParts, renderShareCardPng, shareOrCopy } from "@/lib/share";
 import { formatKg } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { isWorkingSet } from "@/lib/score/compute";
 
 function shortLift(name: string) {
   const cut = name.split(" - ")[0]?.trim() ?? name;
@@ -29,13 +30,16 @@ export function SessionSummary({
   const volume = formatKg(session.volumeKg, units);
   const time = durationParts(session.durationSec);
   const groups = new Map<string, { sets: number; top: string; score: number }>();
-  for (const s of session.sets.filter((x) => x.completed)) {
+  for (const s of session.sets.filter(isWorkingSet)) {
     const prev = groups.get(s.exerciseName) ?? { sets: 0, top: "", score: 0 };
     prev.sets += 1;
     const score = (s.weightKg ?? 0) * (s.reps ?? 0);
     if (score >= prev.score) {
       prev.score = score;
-      prev.top = s.weightKg != null ? `${formatKg(s.weightKg, units)} × ${s.reps ?? "—"}` : `${s.reps ?? "—"} reps`;
+      prev.top =
+        s.weightKg != null
+          ? `${formatKg(s.weightKg, units)} × ${s.reps ?? "—"}`
+          : `${s.reps ?? "—"} reps`;
     }
     groups.set(s.exerciseName, prev);
   }
@@ -63,7 +67,13 @@ export function SessionSummary({
         disabled={!isOwner || uploading}
         onClick={() => isOwner && fileRef.current?.click()}
         className="block w-full text-left disabled:cursor-default"
-        aria-label={isOwner ? (session.photoUrl ? "Replace workout photo" : "Add workout photo") : session.title}
+        aria-label={
+          isOwner
+            ? session.photoUrl
+              ? "Replace workout photo"
+              : "Add workout photo"
+            : session.title
+        }
       >
         <ShareCardFace
           title={session.title}
@@ -198,7 +208,9 @@ export function ShareCardFace({
         <dl className="mt-6 grid grid-cols-3 gap-3 text-white">
           <div className="min-w-0">
             <dt className="text-[11px] uppercase tracking-[0.14em] text-white/65">Volume</dt>
-            <dd className="display mt-1 truncate text-[1.45rem] font-semibold tabular leading-none">{volume}</dd>
+            <dd className="display mt-1 truncate text-[1.45rem] font-semibold tabular leading-none">
+              {volume}
+            </dd>
           </div>
           <div className="min-w-0">
             <dt className="text-[11px] uppercase tracking-[0.14em] text-white/65">Time</dt>
@@ -209,7 +221,9 @@ export function ShareCardFace({
           </div>
           <div className="min-w-0">
             <dt className="text-[11px] uppercase tracking-[0.14em] text-white/65">Sets</dt>
-            <dd className="display mt-1 truncate text-[1.45rem] font-semibold tabular leading-none">{setCount}</dd>
+            <dd className="display mt-1 truncate text-[1.45rem] font-semibold tabular leading-none">
+              {setCount}
+            </dd>
           </div>
         </dl>
         {topLift ? (

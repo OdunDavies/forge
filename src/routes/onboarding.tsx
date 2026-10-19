@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { generateFirstPlan } from "@/lib/api/plan";
 import { track } from "@/lib/analytics";
-import { getMyProfile, upsertMyProfile } from "@/lib/api/profile";
-import { useCurrentUser, useCurrentUserState } from "@/lib/auth/use-current-user";
+import { getMyProfile, upsertMyProfile, type Profile } from "@/lib/api/profile";
+import { useCurrentUserState, type AppUser } from "@/lib/auth/use-current-user";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { FOCUS_MUSCLES } from "@/lib/muscles";
 import { determineSplit } from "@/lib/plan/fallback";
-import { cn, kgFromInput } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { draftKey, draftFromProfile, restoreDraft, stepError, firstInvalidStep, profilePayload, measurementInput, type OnboardingDraft } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/onboarding")({ component: Onboarding });
 
@@ -33,121 +34,74 @@ const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
 function Onboarding() {
   const { user, isPending } = useCurrentUserState();
-  const me = useCurrentUser();
-  const navigate = useNavigate();
   const profileQ = useQuery({
-    queryKey: ["me"],
+    queryKey: ["me", user?.id],
     queryFn: () => getMyProfile(),
-    enabled: Boolean(user),
+    enabled: Boolean(user) && !isPending,
   });
-  const [step, setStep] = useState(0);
-  const [displayName, setDisplayName] = useState(me?.displayName ?? "");
-  const [goal, setGoal] = useState("");
-  const [focusMuscles, setFocusMuscles] = useState<string[]>([]);
-  const [experience, setExperience] = useState("");
-  const [equipment, setEquipment] = useState<string[]>([]);
-  const [availableDays, setAvailableDays] = useState<number[]>([]);
-  const [sessionMinutes, setSessionMinutes] = useState(60);
-  const [units, setUnits] = useState<"metric" | "imperial" | "">("");
-  const [weight, setWeight] = useState("");
-  const [height, setHeight] = useState("");
-  const [injuries, setInjuries] = useState("");
-  const [sex, setSex] = useState<string | null>(null);
-  const [birthYear, setBirthYear] = useState<number | null>(null);
-  const [squat, setSquat] = useState("");
-  const [bench, setBench] = useState("");
-  const [deadlift, setDeadlift] = useState("");
-  const [overheadPress, setOverheadPress] = useState("");
+
+  if (isPending) return <main role="status" className="p-8">Loading your account...</main>;
+  if (!user) return <RedirectToSignIn />;
+  if (profileQ.isPending) return <main role="status" className="p-8">Loading your profile...</main>;
+  if (profileQ.isError) return (
+    <main className="space-y-4 p-8">
+      <p role="alert">Could not load your profile. {profileQ.error.message}</p>
+      <Button onClick={() => void profileQ.refetch()} disabled={profileQ.isFetching}>Retry</Button>
+    </main>
+  );
+  if (profileQ.data?.onboardedAt) return <Navigate to="/today" />;
+  return <OnboardingForm key={user.id} user={user} profile={profileQ.data} />;
+}
+
+function OnboardingForm({ user: me, profile }: { user: AppUser; profile: Profile | null | undefined }) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const submitting = useRef(false);
+  const [draft, setDraft] = useState(() => {
+    const base = draftFromProfile(profile);
+    try { return restoreDraft(localStorage.getItem(draftKey(me.id)), base); }
+    catch { return base; }
+  });
+  const { step, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, sex, birthYear, squat, bench, deadlift, overheadPress } = draft;
+  const field = <K extends keyof OnboardingDraft>(key: K) => (value: OnboardingDraft[K] | ((previous: OnboardingDraft[K]) => OnboardingDraft[K])) => {
+    setDraft((previous) => ({ ...previous, [key]: typeof value === "function" ? value(previous[key]) : value }));
+  };
+  const setStep = field("step"), setGoal = field("goal"), setFocusMuscles = field("focusMuscles"), setExperience = field("experience");
+  const setEquipment = field("equipment"), setAvailableDays = field("availableDays"), setSessionMinutes = field("sessionMinutes");
+  const setWeight = field("weight"), setHeight = field("height"), setInjuries = field("injuries"), setSex = field("sex"), setBirthYear = field("birthYear");
+  const setSquat = field("squat"), setBench = field("bench"), setDeadlift = field("deadlift"), setOverheadPress = field("overheadPress");
   const [error, setError] = useState<string | null>(null);
 
-  // restore draft v2
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("forge-onboarding-draft-v2");
-      if (!raw) return;
-      const d = JSON.parse(raw) as Record<string, unknown>;
-      if (typeof d.displayName === "string") setDisplayName(d.displayName);
-      if (typeof d.goal === "string") setGoal(d.goal);
-      if (Array.isArray(d.focusMuscles)) setFocusMuscles(d.focusMuscles as string[]);
-      if (typeof d.experience === "string") setExperience(d.experience);
-      if (Array.isArray(d.equipment)) setEquipment(d.equipment as string[]);
-      if (Array.isArray(d.availableDays)) setAvailableDays(d.availableDays as number[]);
-      if (typeof d.sessionMinutes === "number") setSessionMinutes(d.sessionMinutes);
-      if (d.units === "metric" || d.units === "imperial") setUnits(d.units);
-      if (typeof d.weight === "string") setWeight(d.weight);
-      if (typeof d.height === "string") setHeight(d.height);
-      if (typeof d.injuries === "string") setInjuries(d.injuries);
-      if (typeof d.sex === "string") setSex(d.sex === "prefer-not-to-say" ? null : d.sex);
-      if (typeof d.birthYear === "number") setBirthYear(d.birthYear);
-      if (typeof d.squat === "string") setSquat(d.squat);
-      if (typeof d.bench === "string") setBench(d.bench);
-      if (typeof d.deadlift === "string") setDeadlift(d.deadlift);
-      if (typeof d.overheadPress === "string") setOverheadPress(d.overheadPress);
-      // clamp step to valid range [0, steps.length-1]
-      if (typeof d.step === "number") setStep(Math.min(8, Math.max(0, d.step)));
-    } catch { /* ignore */ }
-  }, []);
-
-  // autosave draft v2
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "forge-onboarding-draft-v2",
-        JSON.stringify({ displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, sex, birthYear, squat, bench, deadlift, overheadPress, step }),
-      );
-    } catch { /* ignore */ }
-  }, [displayName, goal, focusMuscles, experience, equipment, availableDays, sessionMinutes, units, weight, height, injuries, sex, birthYear, squat, bench, deadlift, overheadPress, step]);
+    try { localStorage.setItem(draftKey(me.id), JSON.stringify(draft)); }
+    catch { /* Storage may be unavailable. */ }
+  }, [draft, me.id]);
 
   const save = useMutation({
     mutationFn: async () => {
-      const measure = units === "imperial" ? "imperial" : "metric";
-      const weightKg = weight ? kgFromInput(Number(weight), measure) : null;
-      const heightCm = height
-        ? measure === "imperial"
-          ? Number(height) * 2.54
-          : Number(height)
-        : null;
-      const days = availableDays.length >= 2 ? availableDays : [1, 2, 3, 4];
-      await upsertMyProfile({
-        data: {
-          displayName: displayName.trim() || me?.displayName || "Athlete",
-          goal: goal || "strength",
-          experience: experience || "intermediate",
-          equipment: equipment.length ? equipment : ["body only"],
-          availableDays: days,
-          daysPerWeek: days.length,
-          sessionMinutes,
-          units: measure,
-          weightKg,
-          heightCm,
-          injuries,
-          sex:
-            sex === "prefer-not-to-say" ? null : sex,
-          birthYear:
-            birthYear ?? null,
-          baseline_lifts: {
-            squat: squat ? Number(squat) : null,
-            bench: bench ? Number(bench) : null,
-            deadlift: deadlift ? Number(deadlift) : null,
-            overheadPress: overheadPress ? Number(overheadPress) : null,
-          },
-        },
-      });
-      return generateFirstPlan();
+      const data = profilePayload(draft, me.displayName);
+      await upsertMyProfile({ data });
+      const plan = await generateFirstPlan();
+      if (!plan) throw new Error("Could not build your plan. Please try again.");
+      const completed = await upsertMyProfile({ data: { displayName: data.displayName, markOnboarded: true } });
+      return { profile: completed, plan };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ profile: completed, plan }) => {
+      qc.setQueryData(["me", me.id], completed);
+      qc.setQueryData(["me"], completed);
+      qc.setQueryData(["plan"], plan);
       track("onboarding_plan_built", {
         source: "onboarding",
-        displayName: displayName.trim() || "Athlete",
         goal,
         hasBaselineLifts: !!(
           squat || bench || deadlift || overheadPress
         ),
       });
-      try { localStorage.removeItem("forge-onboarding-draft-v2"); } catch { /* ignore */ }
+      try { localStorage.removeItem(draftKey(me.id)); } catch { /* ignore */ }
       await navigate({ to: "/today" });
     },
     onError: (e: Error) => {
+      submitting.current = false;
       const msg = e.message || "Could not build your plan";
       if (/unauthorized|deferSessionRefresh|method not allowed/i.test(msg)) {
         setError("Your session dropped. Sign in again, then tap Build my plan.");
@@ -157,37 +111,17 @@ function Onboarding() {
     },
   });
 
-  if (isPending || profileQ.isPending) return <div className="min-h-dvh bg-background" />;
-  if (!user) return <RedirectToSignIn />;
-  if (profileQ.data?.onboardedAt) return <Navigate to="/today" />
-
-  // step readiness based on completed steps
-  const stepReady =
-    step === 0
-      ? true
-      : step === 1
-      ? Boolean(goal)
-      : step === 2
-      ? focusMuscles.length > 0
-      : step === 3
-      ? Boolean(experience)
-      : step === 4
-      ? equipment.length > 0
-      : step === 5
-      ? availableDays.length >= 2
-      : step === 6
-      ? units.length > 0
-      : step === 7
-      ? true
-      : true;
-
-  // track step viewed events
-  useEffect(() => {
-    track("onboarding_baseline_skipped", {
-      source: "onboarding",
-      step: step + 1,
-    });
-  }, [step]);
+  const validationError = stepError(draft, step);
+  const stepReady = !validationError;
+  const changeUnits = (next: "metric" | "imperial") => {
+    if (units && units !== next) {
+      const toImperial = next === "imperial";
+      setDraft((d) => ({ ...d, units: next,
+        weight: d.weight.trim() && Number.isFinite(Number(d.weight)) ? measurementInput(Number(d.weight), toImperial ? 2.20462 : 1 / 2.20462) : d.weight,
+        height: d.height.trim() && Number.isFinite(Number(d.height)) ? measurementInput(Number(d.height), toImperial ? 1 / 2.54 : 2.54) : d.height,
+      }));
+    } else field("units")(next);
+  };
 
   const steps = [
     {
@@ -206,11 +140,12 @@ function Onboarding() {
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="sex">Sex</Label>
-              <div className="space-y-2">
+               <Label id="sex-label">Sex</Label>
+               <div role="group" aria-labelledby="sex-label" className="space-y-2">
                 <button
                   type="button"
                   onClick={() => setSex("male")}
+                  aria-pressed={sex === "male"}
                   className={cn(
                     "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
                     sex === "male" ? "bg-primary text-primary-foreground" : "bg-secondary",
@@ -221,6 +156,7 @@ function Onboarding() {
                 <button
                   type="button"
                   onClick={() => setSex("female")}
+                  aria-pressed={sex === "female"}
                   className={cn(
                     "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
                     sex === "female" ? "bg-primary text-primary-foreground" : "bg-secondary",
@@ -231,6 +167,7 @@ function Onboarding() {
                 <button
                   type="button"
                   onClick={() => setSex("prefer-not-to-say")}
+                  aria-pressed={sex === "prefer-not-to-say"}
                   className={cn(
                     "h-10 rounded-md px-3 text-sm font-medium shadow-[var(--shadow-border)]",
                     sex === "prefer-not-to-say" ? "bg-primary text-primary-foreground" : "bg-secondary",
@@ -357,8 +294,10 @@ function Onboarding() {
               const on = availableDays.includes(i);
               return (
                 <button
-                  key={`${d}`}
+                  key={i}
                   type="button"
+                  aria-label={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][i]}
+                  aria-pressed={on}
                   onClick={() =>
                     setAvailableDays((prev) =>
                       on ? prev.filter((x) => x !== i) : [...prev, i].sort(),
@@ -382,8 +321,9 @@ function Onboarding() {
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Minutes</Label>
+              <Label htmlFor="session-minutes">Minutes</Label>
               <Input
+                id="session-minutes"
                 type="number"
                 min={20}
                 max={180}
@@ -399,18 +339,28 @@ function Onboarding() {
       title: "Optional vitals",
       body: (
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label id="units-label">Units</Label>
+            <div role="group" aria-labelledby="units-label" className="flex gap-2">
+              {(["metric", "imperial"] as const).map((u) => (
+                <button key={u} type="button" aria-pressed={units === u} onClick={() => changeUnits(u)} className={cn("h-11 flex-1 rounded-md px-3 text-sm capitalize", units === u ? "bg-primary text-primary-foreground" : "bg-secondary")}>{u}</button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Bodyweight ({units === "imperial" ? "lb" : "kg"})</Label>
+              <Label htmlFor="bodyweight">Bodyweight ({units === "imperial" ? "lb" : "kg"})</Label>
               <Input
+                id="bodyweight"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 inputMode="decimal"
               />
             </div>
             <div>
-              <Label>Height ({units === "imperial" ? "in" : "cm"})</Label>
+              <Label htmlFor="height">Height ({units === "imperial" ? "in" : "cm"})</Label>
               <Input
+                id="height"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
                 inputMode="decimal"
@@ -419,8 +369,9 @@ function Onboarding() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Birth year</Label>
+              <Label htmlFor="birth-year">Birth year</Label>
               <Input
+                id="birth-year"
                 type="number"
                 min={1940}
                 max={2015}
@@ -432,6 +383,10 @@ function Onboarding() {
                 }
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="injuries">Injuries or limitations</Label>
+            <Textarea id="injuries" value={injuries} onChange={(e) => setInjuries(e.target.value)} maxLength={500} placeholder="Anything your plan should work around" />
           </div>
           {sex && sex !== "prefer-not-to-say" && (
             <p className="mt-2 text-xs text-muted-foreground">
@@ -450,8 +405,9 @@ function Onboarding() {
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-3">
-              <Label>Squat (kg)</Label>
+              <Label htmlFor="squat">Squat (kg)</Label>
               <Input
+                id="squat"
                 value={squat}
                 onChange={(e) => setSquat(e.target.value)}
                 inputMode="decimal"
@@ -462,8 +418,9 @@ function Onboarding() {
               </p>
             </div>
             <div className="space-y-3">
-              <Label>Bench (kg)</Label>
+              <Label htmlFor="bench">Bench (kg)</Label>
               <Input
+                id="bench"
                 value={bench}
                 onChange={(e) => setBench(e.target.value)}
                 inputMode="decimal"
@@ -476,8 +433,9 @@ function Onboarding() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-3">
-              <Label>Deadlift (kg)</Label>
+              <Label htmlFor="deadlift">Deadlift (kg)</Label>
               <Input
+                id="deadlift"
                 value={deadlift}
                 onChange={(e) => setDeadlift(e.target.value)}
                 inputMode="decimal"
@@ -488,8 +446,9 @@ function Onboarding() {
               </p>
             </div>
             <div className="space-y-3">
-              <Label>Overhead press (kg)</Label>
+              <Label htmlFor="overhead-press">Overhead press (kg)</Label>
               <Input
+                id="overhead-press"
                 value={overheadPress}
                 onChange={(e) => setOverheadPress(e.target.value)}
                 inputMode="decimal"
@@ -527,7 +486,9 @@ function Onboarding() {
               key={i}
               type="button"
               aria-label={`Go to step ${i + 1}`}
-              onClick={() => setStep(i)}
+              aria-current={i === step ? "step" : undefined}
+              disabled={save.isPending || i > firstInvalidStep(draft)}
+              onClick={() => { setError(null); setStep(i); }}
               className={cn(
                 "size-2 rounded-full transition-colors",
                 isVisited ? "bg-primary" : "bg-secondary",
@@ -540,7 +501,7 @@ function Onboarding() {
       <h1 className="display mt-8 text-3xl font-semibold">
         {steps[step].title}
       </h1>
-      <div className="mt-6 flex-1">{steps[step].body}</div>
+      <fieldset disabled={save.isPending} className="mt-6 flex-1">{steps[step].body}</fieldset>
       {availableDays.length >= 2 && experience ? (
         <p className="mt-2 text-sm text-muted-foreground">
           Split: <span className="font-medium text-foreground">
@@ -549,10 +510,12 @@ function Onboarding() {
           {focusMuscles.length ? ` · 40% of sets on ${focusMuscles.join(" + ")}` : ""}
         </p>
       ) : null}
-      {error && <p className="mb-3 text-sm text-signal">{error}</p>}
+      {validationError && <p role="status" className="mb-3 text-sm text-muted-foreground">{validationError}</p>}
+      {error && <p role="alert" className="mb-3 text-sm text-signal">{error}</p>}
+      {save.isPending && <p role="status" className="mb-3 text-sm">Building your plan...</p>}
       <div className="flex gap-3">
         {step > 0 && (
-          <Button variant="outline" className="flex-1" onClick={() => setStep((s) => Math.max(0, s - 1))}>
+          <Button variant="outline" disabled={save.isPending} className="flex-1" onClick={() => { setError(null); setStep((s) => Math.max(0, s - 1)); }}>
             Back
           </Button>
         )}
@@ -560,11 +523,23 @@ function Onboarding() {
           className="flex-1"
           disabled={save.isPending || !stepReady}
           onClick={() => {
-            if (!last) setStep((s) => Math.min(maxValidStep, s + 1));
-            else save.mutate();
+            if (submitting.current) return;
+            setError(null);
+            if (!last) {
+              if (stepReady) setStep((s) => Math.min(maxValidStep, s + 1));
+            } else {
+              const invalid = firstInvalidStep(draft);
+              if (invalid < steps.length) {
+                setStep(invalid);
+                setError(stepError(draft, invalid));
+                return;
+              }
+              submitting.current = true;
+              save.mutate();
+            }
           }}
         >
-          {last ? "Build my plan" : "Continue"}
+          {save.isPending ? "Building your plan..." : last ? "Build my plan" : "Continue"}
         </Button>
       </div>
     </main>

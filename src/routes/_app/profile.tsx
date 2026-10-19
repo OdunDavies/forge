@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UserButton } from "@/lib/auth/gates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { getMyProfile, upsertMyProfile } from "@/lib/api/profile";
 import { generateFirstPlan } from "@/lib/api/plan";
 import { coachQuota } from "@/lib/api/billing";
 import { FOCUS_MUSCLES } from "@/lib/muscles";
-import { cn, formatKg, formatDuration, kgFromInput, displayWeight } from "@/lib/utils";
+import { cn, formatKg, formatDuration, kgFromInput } from "@/lib/utils";
 import {
   formatPrice,
   membershipLabel,
@@ -20,15 +20,18 @@ import {
   type PaidMembership,
 } from "@/lib/billing";
 import { toast } from "sonner";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { draftFromProfile, measurementInput, stepError } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/_app/profile")({ component: ProfilePage });
 
 function ProfilePage() {
   const qc = useQueryClient();
-  const me = useQuery({ queryKey: ["me"], queryFn: () => getMyProfile() });
-  const quota = useQuery({ queryKey: ["coach-quota"], queryFn: () => coachQuota() });
-  const history = useQuery({ queryKey: ["history"], queryFn: () => listMyHistory() });
-  const prs = useQuery({ queryKey: ["prs"], queryFn: () => getPersonalRecords() });
+  const { user, isPending } = useCurrentUserState();
+  const me = useQuery({ queryKey: ["me", user?.id], queryFn: () => getMyProfile(), enabled: Boolean(user) && !isPending });
+  const quota = useQuery({ queryKey: ["coach-quota"], queryFn: () => coachQuota(), enabled: Boolean(user) && !isPending });
+  const history = useQuery({ queryKey: ["history"], queryFn: () => listMyHistory(), enabled: Boolean(user) && !isPending });
+  const prs = useQuery({ queryKey: ["prs"], queryFn: () => getPersonalRecords(), enabled: Boolean(user) && !isPending });
   const GOALS = [
     { id: "strength", label: "Get stronger" },
     { id: "hypertrophy", label: "Build muscle" },
@@ -55,10 +58,13 @@ function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [injuries, setInjuries] = useState("");
+  const submitting = useRef(false);
+  const hydratedUser = useRef<string | null>(null);
 
   useEffect(() => {
     const d = me.data;
-    if (!d) return;
+    if (!d || hydratedUser.current === d.userId) return;
+    hydratedUser.current = d.userId;
     setFocusMuscles(d.focusMuscles ?? []);
     setGoal(d.goal ?? "");
     setExperience(d.experience ?? "");
@@ -66,54 +72,72 @@ function ProfilePage() {
     setAvailableDays(d.availableDays ?? []);
     setSessionMinutes(d.sessionMinutes ?? 60);
     setUnitsState(d.units ?? "metric");
-    setWeight(d.weightKg != null ? String(Math.round(displayWeight(d.weightKg, d.units ?? "metric") * 10) / 10) : "");
-    setHeight(d.heightCm != null ? String(Math.round(d.heightCm)) : "");
+    setWeight(measurementInput(d.weightKg, d.units === "imperial" ? 2.20462 : 1));
+    setHeight(measurementInput(d.heightCm, d.units === "imperial" ? 1 / 2.54 : 1));
     setDisplayName(d.displayName ?? "");
     setBio(d.bio ?? "");
     setInjuries(d.injuries ?? "");
   }, [me.data]);
 
   const save = useMutation({
-    mutationFn: async () => {
-      const weightKg = weight ? kgFromInput(Number(weight), units) : null;
-      const heightCm = height
+    mutationFn: async (rebuild: boolean) => {
+      if (!me.data || !user) throw new Error("Load your profile before saving.");
+      if (!displayName.trim() || displayName.trim().length > 60) throw new Error("Name must contain 1 to 60 characters.");
+      if (bio.length > 280) throw new Error("Keep your bio under 280 characters.");
+      const draft = { ...draftFromProfile(me.data), goal, experience, equipment, focusMuscles, availableDays, sessionMinutes, units, weight, height, injuries };
+      for (const step of [1, 2, 3, 4, 5, 6]) {
+        const error = stepError(draft, step);
+        if (error) throw new Error(error);
+      }
+      const weightKg = weight.trim() ? kgFromInput(Number(weight), units) : null;
+      const heightCm = height.trim()
         ? units === "imperial"
           ? Number(height) * 2.54
           : Number(height)
         : null;
-      const days = availableDays.length >= 2 ? availableDays : [1, 2, 3, 4];
-      return upsertMyProfile({
+      const updated = await upsertMyProfile({
         data: {
-          displayName: displayName.trim() || me.data?.displayName || "Athlete",
+          displayName: displayName.trim(),
           bio,
           injuries,
           focusMuscles,
-          goal: goal || undefined,
-          experience: experience || undefined,
-          equipment: equipment.length ? equipment : undefined,
-          availableDays: days,
-          daysPerWeek: days.length,
+          goal,
+          experience,
+          equipment,
+          availableDays,
+          daysPerWeek: availableDays.length,
           sessionMinutes,
           units,
           weightKg,
           heightCm,
         },
       });
+      qc.setQueryData(["me", user.id], updated);
+      qc.setQueryData(["me"], updated);
+      if (rebuild) {
+        const plan = await generateFirstPlan();
+        if (!plan) throw new Error("Your profile was saved, but the plan could not be rebuilt. Try again.");
+        qc.setQueryData(["plan"], plan);
+        await qc.invalidateQueries({ queryKey: ["plan"] });
+      }
     },
-    onSuccess: () => {
-      toast("Profile updated — onboarding choices saved");
-      void qc.invalidateQueries({ queryKey: ["me"] });
-    },
+    onSuccess: (_, rebuild) => toast(rebuild ? "Profile saved and plan rebuilt" : "Profile updated"),
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => { submitting.current = false; },
   });
 
-  const rebuild = useMutation({
-    mutationFn: () => generateFirstPlan(),
-    onSuccess: () => {
-      toast("Plan rebuilt from your profile");
-      void qc.invalidateQueries({ queryKey: ["plan"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const submit = (rebuild: boolean) => {
+    if (submitting.current) return;
+    submitting.current = true;
+    save.mutate(rebuild);
+  };
+  const changeUnits = (next: "metric" | "imperial") => {
+    if (next === units) return;
+    const imperial = next === "imperial";
+    if (weight.trim() && Number.isFinite(Number(weight))) setWeight(measurementInput(Number(weight), imperial ? 2.20462 : 1 / 2.20462));
+    if (height.trim() && Number.isFinite(Number(height))) setHeight(measurementInput(Number(height), imperial ? 1 / 2.54 : 2.54));
+    setUnitsState(next);
+  };
 
   const p = me.data;
   const displayUnits = p?.units ?? "metric";
@@ -121,6 +145,10 @@ function ProfilePage() {
   const plan = quota.data?.plan ?? p?.plan ?? "free";
   const exhausted = Boolean(quota.data?.exhausted);
   const upgrades = (quota.data?.upgrades ?? []) as PaidMembership[];
+
+  if (isPending || !user || me.isPending) return <p role="status">Loading your profile...</p>;
+  if (me.isError) return <div className="space-y-4"><p role="alert">Could not load your profile. {me.error.message}</p><Button onClick={() => void me.refetch()} disabled={me.isFetching}>Retry</Button></div>;
+  if (!p) return <p role="alert">Complete onboarding before editing your profile.</p>;
 
   return (
     <div className="space-y-8">
@@ -183,14 +211,14 @@ function ProfilePage() {
       )}
       <div className="space-y-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
         <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Profile — onboarding choices, editable</p>
-        <div className="grid gap-3">
+        <fieldset disabled={save.isPending} className="grid gap-3">
           <div className="space-y-2">
-            <Label>Name</Label>
-            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Athlete" />
+            <Label htmlFor="profile-name">Name</Label>
+            <Input id="profile-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Athlete" maxLength={60} />
           </div>
           <div className="space-y-2">
-            <Label>Bio</Label>
-            <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Train like a mission" />
+            <Label htmlFor="profile-bio">Bio</Label>
+            <Textarea id="profile-bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Train like a mission" maxLength={280} />
           </div>
           <div className="space-y-2">
             <Label>Goal</Label>
@@ -246,30 +274,32 @@ function ProfilePage() {
               <Label>Units</Label>
               <div className="flex gap-2">
                 {(["metric", "imperial"] as const).map((u) => (
-                  <button key={u} type="button" onClick={() => setUnitsState(u)} className={cn("h-10 flex-1 rounded-md text-sm capitalize", units === u ? "bg-primary text-primary-foreground" : "bg-secondary")}>{u}</button>
+                  <button key={u} type="button" aria-pressed={units === u} onClick={() => changeUnits(u)} className={cn("h-10 flex-1 rounded-md text-sm capitalize", units === u ? "bg-primary text-primary-foreground" : "bg-secondary")}>{u}</button>
                 ))}
               </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Bodyweight ({units === "imperial" ? "lb" : "kg"})</Label>
-              <Input value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" />
+              <Label htmlFor="profile-weight">Bodyweight ({units === "imperial" ? "lb" : "kg"})</Label>
+              <Input id="profile-weight" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" />
             </div>
             <div className="space-y-2">
-              <Label>Height ({units === "imperial" ? "in" : "cm"})</Label>
-              <Input value={height} onChange={(e) => setHeight(e.target.value)} inputMode="decimal" />
+              <Label htmlFor="profile-height">Height ({units === "imperial" ? "in" : "cm"})</Label>
+              <Input id="profile-height" value={height} onChange={(e) => setHeight(e.target.value)} inputMode="decimal" />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Injuries</Label>
-            <Textarea value={injuries} onChange={(e) => setInjuries(e.target.value)} placeholder="Left shoulder pinch…" />
+            <Label htmlFor="profile-injuries">Injuries</Label>
+            <Textarea id="profile-injuries" value={injuries} onChange={(e) => setInjuries(e.target.value)} maxLength={500} placeholder="Left shoulder pinch…" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save profile"}</Button>
-            <Button variant="outline" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>{rebuild.isPending ? "Rebuilding…" : "Save & rebuild plan"}</Button>
+            <Button onClick={() => submit(false)} disabled={save.isPending}>{save.isPending && !save.variables ? "Saving..." : "Save profile"}</Button>
+            <Button variant="outline" onClick={() => submit(true)} disabled={save.isPending}>{save.isPending && save.variables ? "Saving & rebuilding..." : "Save & rebuild plan"}</Button>
           </div>
-        </div>
+        </fieldset>
+        {save.isPending && <p role="status">{save.variables ? "Saving your profile and rebuilding your plan..." : "Saving your profile..."}</p>}
+        {save.isError && <p role="alert" className="text-sm text-signal">{save.error.message}</p>}
       </div>
 
       <section>

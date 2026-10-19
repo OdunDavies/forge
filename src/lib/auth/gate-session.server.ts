@@ -1,10 +1,6 @@
 import type { BetterAuthPlugin } from "better-auth";
-import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
-import {
-  parseSetCookieHeader,
-  setRequestCookie,
-  setSessionCookie,
-} from "better-auth/cookies";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
+import { parseSetCookieHeader, setRequestCookie, setSessionCookie } from "better-auth/cookies";
 import { handleOAuthUserInfo } from "better-auth/oauth2";
 import {
   GATE_IDENTITY_HEADER,
@@ -55,9 +51,7 @@ async function emitSessionCookie(
     return null;
   }
 
-  const sessionValue = parseSetCookieHeader(signedCookie).get(
-    sessionTokenName,
-  )?.value;
+  const sessionValue = parseSetCookieHeader(signedCookie).get(sessionTokenName)?.value;
   if (!sessionValue) {
     console.error(`${LOG} signed Set-Cookie missing session token value`, {
       cookiePreview: signedCookie.slice(0, 120),
@@ -128,10 +122,7 @@ async function expireSessionDataCookie(
         `${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=0`,
     );
   } catch (err) {
-    console.error(
-      `${LOG} responseHeaders.append (expire session_data) failed`,
-      err,
-    );
+    console.error(`${LOG} responseHeaders.append (expire session_data) failed`, err);
   }
 }
 
@@ -146,11 +137,7 @@ async function writeGateMarkerCookie(
   clear: boolean,
 ): Promise<void> {
   const sessionMaxAge = ctx.context.sessionConfig.expiresIn;
-  const maxAge = clear
-    ? 0
-    : typeof sessionMaxAge === "number"
-      ? sessionMaxAge
-      : undefined;
+  const maxAge = clear ? 0 : typeof sessionMaxAge === "number" ? sessionMaxAge : undefined;
   const value = clear ? "" : "1";
   try {
     const { setCookie } = await import("@tanstack/react-start/server");
@@ -219,24 +206,27 @@ export function gateIdentitySessions() {
               console.error(`${LOG} no request headers on /get-session`);
               return;
             }
-            // Bearer auth (live-preview popup) already carries a session — leave it alone.
-            if (inbound.get("authorization")) return;
             if (!inbound.get(GATE_IDENTITY_HEADER)) {
+              const existing = await getSessionFromCtx(ctx);
+              if (existing?.user) {
+                const accounts = await ctx.context.internalAdapter.findAccounts(existing.user.id);
+                if (accounts.some((account) => account.providerId === GATE_PROVIDER_ID)) {
+                  throw new APIError("UNAUTHORIZED", { message: "Gate identity required" });
+                }
+              }
               await clearGateMarkerIfPresent(ctx, inbound);
               return;
             }
 
             const identity = await gateIdentityFromHeaders(inbound);
             if (!identity) {
-              console.error(
-                `${LOG} ${GATE_IDENTITY_HEADER} present but verification failed`,
-              );
-              return;
+              console.error(`${LOG} ${GATE_IDENTITY_HEADER} present but verification failed`);
+              throw new APIError("UNAUTHORIZED", { message: "Invalid gate identity" });
             }
 
             const sessionCookieName = ctx.context.authCookies.sessionToken.name;
             const cookieHeader = inbound.get("cookie") ?? "";
-            if (cookieHeader.includes(`${sessionCookieName}=`)) {
+            if (cookieHeader.includes(`${sessionCookieName}=`) || inbound.get("authorization")) {
               const existing = await getSessionFromCtx(ctx).catch((err) => {
                 console.error(`${LOG} getSessionFromCtx failed`, err);
                 return null;
@@ -249,29 +239,19 @@ export function gateIdentitySessions() {
                     return null;
                   });
                 if (!accounts) {
-                  console.error(
-                    `${LOG} could not load accounts for existing session user`,
-                    { userId: existing.user.id },
-                  );
-                  return;
+                  console.error(`${LOG} could not load accounts for existing session user`, {
+                    userId: existing.user.id,
+                  });
+                  throw new APIError("UNAUTHORIZED", { message: "Cannot verify session binding" });
                 }
-                if (
-                  sessionBoundToGateIdentity(
-                    accounts,
-                    identity.sub,
-                    GATE_PROVIDER_ID,
-                  )
-                ) {
+                if (sessionBoundToGateIdentity(accounts, identity.sub, GATE_PROVIDER_ID)) {
                   await writeGateMarkerCookie(ctx, false);
                   return;
                 }
                 await ctx.context.internalAdapter
                   .deleteSession(existing.session.token)
                   .catch((err) => {
-                    console.error(
-                      `${LOG} deleteSession (stale non-gate session) failed`,
-                      err,
-                    );
+                    console.error(`${LOG} deleteSession (stale non-gate session) failed`, err);
                     return null;
                   });
               }
@@ -292,7 +272,7 @@ export function gateIdentitySessions() {
                   hasData: Boolean(result.data),
                   sub: identity.sub,
                 });
-                return;
+                throw new APIError("UNAUTHORIZED", { message: "Gate session creation failed" });
               }
 
               // Persist session rows + internal newSession state.
@@ -307,11 +287,10 @@ export function gateIdentitySessions() {
                 result.data.session.token,
               );
               if (!sessionValue) {
-                console.error(
-                  `${LOG} session created in DB but cookie was not emitted`,
-                  { userId: result.data.user.id },
-                );
-                return;
+                console.error(`${LOG} session created in DB but cookie was not emitted`, {
+                  userId: result.data.user.id,
+                });
+                throw new APIError("UNAUTHORIZED", { message: "Gate session cookie failed" });
               }
 
               await writeGateMarkerCookie(ctx, false);
@@ -321,15 +300,14 @@ export function gateIdentitySessions() {
 
               // Inject the cookie into this request so the rest of /get-session
               // resolves the newly created session in the same round-trip.
-              const headers = new Headers(
-                Object.fromEntries(inbound.entries()),
-              );
+              const headers = new Headers(Object.fromEntries(inbound.entries()));
               setRequestCookie(headers, sessionCookieName, sessionValue);
               removeRequestCookie(headers, sessionDataCookie.name);
-              return { context: { headers } };
+              headers.delete("authorization");
+              return { context: { headers, session: null } };
             } catch (err) {
               console.error(`${LOG} gate identity session hook threw`, err);
-              return;
+              throw new APIError("UNAUTHORIZED", { message: "Gate session verification failed" });
             }
           }),
         },
