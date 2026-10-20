@@ -3,7 +3,6 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db.server";
 import { asNumberArray, asStringArray, num } from "@/lib/db-map";
-import { parseMembership } from "@/lib/billing";
 import type { Profile } from "./types";
 export type { Profile } from "./types";
 import { slugifyHandle, toPgArray } from "@/lib/utils";
@@ -27,7 +26,6 @@ type ProfileRow = {
   available_days: unknown;
   focus_muscles: unknown;
   onboarded_at: string | null;
-  plan: string | null;
   baseline_lifts: unknown;
   personal_records: unknown;
   session_history: unknown;
@@ -59,9 +57,12 @@ function mapProfile(row: ProfileRow): Profile {
     availableDays: asNumberArray(row.available_days),
     focusMuscles: asStringArray(row.focus_muscles),
     onboardedAt: row.onboarded_at,
-    plan: parseMembership(row.plan),
+
     baseline_lifts: (row.baseline_lifts ?? {}) as Record<string, number>,
-    personalRecords: row.personal_records as Record<string, { weightKg: number; reps: number; estimated1RM: number }>,
+    personalRecords: row.personal_records as Record<
+      string,
+      { weightKg: number; reps: number; estimated1RM: number }
+    >,
     sessionHistory: row.session_history as Array<{
       id: string;
       volumeKg: number;
@@ -78,11 +79,13 @@ function mapProfile(row: ProfileRow): Profile {
   };
 }
 
-export const loadProfileByUserId = createServerOnlyFn(async (userId: string): Promise<Profile | null> => {
-  const sql = await getSql();
-  const rows = await sql<ProfileRow>`select * from profiles where user_id = ${userId} limit 1`;
-  return rows[0] ? mapProfile(rows[0]) : null;
-});
+export const loadProfileByUserId = createServerOnlyFn(
+  async (userId: string): Promise<Profile | null> => {
+    const sql = await getSql();
+    const rows = await sql<ProfileRow>`select * from profiles where user_id = ${userId} limit 1`;
+    return rows[0] ? mapProfile(rows[0]) : null;
+  },
+);
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -93,10 +96,21 @@ export const getProfileByHandle = createServerFn({ method: "GET" })
   .validator((h: string) => h.trim().toLowerCase())
   .handler(async ({ data: handle }) => {
     const sql = await getSql();
-    const rows = await sql<Pick<ProfileRow, "user_id" | "handle" | "display_name" | "bio" | "goal" | "experience">>`
+    const rows = await sql<
+      Pick<ProfileRow, "user_id" | "handle" | "display_name" | "bio" | "goal" | "experience">
+    >`
       select user_id, handle, display_name, bio, goal, experience from profiles where handle = ${handle} limit 1`;
     const row = rows[0];
-    return row ? { userId: row.user_id, handle: row.handle, displayName: row.display_name, bio: row.bio, goal: row.goal, experience: row.experience } : null;
+    return row
+      ? {
+          userId: row.user_id,
+          handle: row.handle,
+          displayName: row.display_name,
+          bio: row.bio,
+          goal: row.goal,
+          experience: row.experience,
+        }
+      : null;
   });
 
 const upsertSchema = z.object({
@@ -116,12 +130,14 @@ const upsertSchema = z.object({
   injuries: z.string().max(500).optional(),
   availableDays: z.array(z.number().int().min(0).max(6)).optional(),
   focusMuscles: z.array(z.string()).max(6).optional(),
-  baseline_lifts: z.object({
-    squat: z.number().finite().positive().nullable().optional(),
-    bench: z.number().finite().positive().nullable().optional(),
-    deadlift: z.number().finite().positive().nullable().optional(),
-    overheadPress: z.number().finite().positive().nullable().optional(),
-  }).optional(),
+  baseline_lifts: z
+    .object({
+      squat: z.number().finite().positive().nullable().optional(),
+      bench: z.number().finite().positive().nullable().optional(),
+      deadlift: z.number().finite().positive().nullable().optional(),
+      overheadPress: z.number().finite().positive().nullable().optional(),
+    })
+    .optional(),
   markOnboarded: z.boolean().optional(),
 });
 
@@ -130,7 +146,8 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
   .validator((input: unknown) => upsertSchema.parse(input))
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const existing = await sql<ProfileRow>`select * from profiles where user_id = ${context.userId} limit 1`;
+    const existing =
+      await sql<ProfileRow>`select * from profiles where user_id = ${context.userId} limit 1`;
     let handle = (data.handle ?? existing[0]?.handle ?? slugifyHandle(data.displayName))
       .toLowerCase()
       .replace(/[^a-z0-9_]/g, "")
@@ -155,7 +172,7 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
     const focus = data.focusMuscles ?? asStringArray(existing[0]?.focus_muscles);
     const onboarded = data.markOnboarded
       ? new Date().toISOString()
-      : existing[0]?.onboarded_at ?? null;
+      : (existing[0]?.onboarded_at ?? null);
 
     await sql.query(
       `insert into profiles (
@@ -190,8 +207,8 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
         handle,
         data.displayName,
         data.bio ?? existing[0]?.bio ?? "",
-        data.sex !== undefined ? data.sex : existing[0]?.sex ?? null,
-        data.birthYear !== undefined ? data.birthYear : existing[0]?.birth_year ?? null,
+        data.sex !== undefined ? data.sex : (existing[0]?.sex ?? null),
+        data.birthYear !== undefined ? data.birthYear : (existing[0]?.birth_year ?? null),
         data.heightCm !== undefined ? data.heightCm : num(existing[0]?.height_cm),
         data.weightKg !== undefined ? data.weightKg : num(existing[0]?.weight_kg),
         data.units ?? existing[0]?.units ?? "metric",
@@ -203,11 +220,16 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
         data.injuries ?? existing[0]?.injuries ?? "",
         `{${available.join(",")}}`,
         toPgArray(focus),
-        JSON.stringify(data.baseline_lifts ? Object.fromEntries(Object.entries(data.baseline_lifts).filter(([,v]) => v != null)) : existing[0]?.baseline_lifts ?? {}),
+        JSON.stringify(
+          data.baseline_lifts
+            ? Object.fromEntries(Object.entries(data.baseline_lifts).filter(([, v]) => v != null))
+            : (existing[0]?.baseline_lifts ?? {}),
+        ),
         onboarded,
       ],
     );
 
-    const rows = await sql<ProfileRow>`select * from profiles where user_id = ${context.userId} limit 1`;
+    const rows =
+      await sql<ProfileRow>`select * from profiles where user_id = ${context.userId} limit 1`;
     return mapProfile(rows[0]!);
   });

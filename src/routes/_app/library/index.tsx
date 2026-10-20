@@ -9,7 +9,17 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/library/")({ component: LibraryPage });
 
-const MUSCLES = ["chest", "lats", "quadriceps", "hamstrings", "glutes", "shoulders", "biceps", "triceps", "abdominals"];
+const MUSCLES = [
+  "chest",
+  "lats",
+  "quadriceps",
+  "hamstrings",
+  "glutes",
+  "shoulders",
+  "biceps",
+  "triceps",
+  "abdominals",
+];
 const EQUIP = ["barbell", "dumbbell", "cable", "machine", "body only", "kettlebells", "bands"];
 
 function LibraryPage() {
@@ -34,10 +44,15 @@ function LibraryPage() {
         </p>
         <h1 className="display text-3xl font-semibold">How to move</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Search a lift, open the cues, then add it to today’s session. This is the form guide — not a shopping list.
+          Search a lift, open the cues, then add it to today’s session.
         </p>
       </header>
-      <Input placeholder="Bench, squat, face pull…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <Input
+        aria-label="Search exercises"
+        placeholder="Bench, squat, face pull…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
       <div className="mt-3 flex flex-wrap gap-2">
         {MUSCLES.map((m) => (
           <button
@@ -46,7 +61,9 @@ function LibraryPage() {
             onClick={() => setMuscle((x) => (x === m ? "" : m))}
             className={cn(
               "h-9 rounded-full px-3 text-xs capitalize",
-              muscle === m ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground",
+              muscle === m
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground",
             )}
           >
             {m}
@@ -61,7 +78,9 @@ function LibraryPage() {
             onClick={() => setEquipment((x) => (x === m ? "" : m))}
             className={cn(
               "h-9 rounded-full px-3 text-xs capitalize",
-              equipment === m ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground",
+              equipment === m
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground",
             )}
           >
             {m}
@@ -105,15 +124,7 @@ function LibraryPage() {
             className="flex gap-3 rounded-xl bg-card p-3 shadow-[var(--shadow-border)]"
           >
             <div className="size-16 shrink-0 overflow-hidden rounded-md bg-secondary">
-              <img
-                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M12 15l-3-3a5 5 0 0 1 7.072-7.072L12 7.928l5.05-5.05a5 5 0 0 1 7.072 7.072L12 15Zm0-10L3 5v6h6v4H3v12h6v-4h3v4h6v-6h3v-12h6V5h-6Z'/%3E%3C/svg%3E"
-                alt="Exercise illustration"
-                className="size-full object-cover"
-                loading="lazy"
-              />
-              <div
-                className="grid size-full place-items-center text-[10px] uppercase tracking-[0.14em] text-muted-foreground"
-              >
+              <div className="grid size-full place-items-center text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                 {ex.primaryMuscles[0] ?? "lift"}
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getExercise } from "@/lib/api/library";
@@ -28,10 +29,22 @@ function ExercisePage() {
       await qc.invalidateQueries({ queryKey: ["active-session"] });
       await navigate({ to: "/log" });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
+  if (ex.isError)
+    return (
+      <p role="alert">
+        Could not load this exercise.{" "}
+        <button type="button" className="underline" onClick={() => void ex.refetch()}>
+          Retry
+        </button>
+      </p>
+    );
   if (!ex.data) {
-    return <p className="text-sm text-muted-foreground">{ex.isPending ? "Loading…" : "Not found."}</p>;
+    return (
+      <p className="text-sm text-muted-foreground">{ex.isPending ? "Loading…" : "Not found."}</p>
+    );
   }
 
   return (
@@ -73,7 +86,10 @@ function ExercisePage() {
           </li>
         ))}
       </ol>
-      <Button onClick={() => add.mutate()} disabled={add.isPending}>
+      <Button
+        onClick={() => add.mutate()}
+        disabled={add.isPending || session.isPending || session.isError}
+      >
         Add to session
       </Button>
     </article>

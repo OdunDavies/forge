@@ -32,6 +32,7 @@ function LogPage() {
   const sessionQ = useQuery({ queryKey: ["active-session"], queryFn: () => getActiveSession() });
   const units = profile.data?.units ?? "metric";
   const [q, setQ] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("private");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [busyName, setBusyName] = useState<string | null>(null);
   const [addingCustom, setAddingCustom] = useState(false);
@@ -49,25 +50,45 @@ function LogPage() {
   const start = useMutation({
     mutationFn: () => startTodaysSession(),
     onSuccess: (s) => qc.setQueryData(["active-session"], s),
+    onError: (e: Error) => toast.error(e.message),
   });
   const startEmpty = useMutation({
     mutationFn: () => startEmptySession({ data: "Open session" }),
     onSuccess: (s) => qc.setQueryData(["active-session"], s),
+    onError: (e: Error) => toast.error(e.message),
   });
   const finish = useMutation({
-    mutationFn: () => finishSession({ data: { sessionId: sessionQ.data!.id, visibility: "public" } }),
+    mutationFn: () => finishSession({ data: { sessionId: sessionQ.data!.id, visibility } }),
     onSuccess: (s) => {
       toast("Workout logged");
       void qc.invalidateQueries();
       void navigate({ to: "/session/$id", params: { id: String(s.id) } });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   useEffect(() => {
-    if (sessionQ.isPending || sessionQ.data || start.isPending || start.isSuccess) return;
+    if (
+      sessionQ.isPending ||
+      sessionQ.isError ||
+      sessionQ.data ||
+      start.isPending ||
+      start.isSuccess ||
+      start.isError
+    )
+      return;
     if (!plan.isSuccess || !shouldAutostart) return;
     start.mutate();
-  }, [sessionQ.isPending, sessionQ.data, plan.isSuccess, shouldAutostart, start.isPending, start.isSuccess, start]);
+  }, [
+    sessionQ.isPending,
+    sessionQ.isError,
+    sessionQ.data,
+    plan.isSuccess,
+    shouldAutostart,
+    start.isPending,
+    start.isSuccess,
+    start,
+  ]);
 
   async function onLog(
     set: SessionSet,
@@ -181,14 +202,22 @@ function LogPage() {
         </p>
       </header>
 
+      {sessionQ.isError && (
+        <p role="alert">
+          Could not load your session.{" "}
+          <button type="button" className="underline" onClick={() => void sessionQ.refetch()}>
+            Retry
+          </button>
+        </p>
+      )}
       {!session ? (
         <div className="space-y-3 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
           <p className="text-sm text-muted-foreground">
-            {shouldAutostart || start.isPending
+            {(shouldAutostart && !start.isError) || start.isPending
               ? "Loading today's work…"
               : "No session running. Start from today's plan or go freestyle."}
           </p>
-          {!shouldAutostart && (
+          {(!shouldAutostart || start.isError) && (
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => start.mutate()}>Start today's workout</Button>
               <Button variant="outline" onClick={() => startEmpty.mutate()}>
@@ -222,11 +251,16 @@ function LogPage() {
               }}
             >
               <Input
+                aria-label="Add an exercise"
                 placeholder="Search the library or type your own lift…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
-              <Button type="submit" variant="secondary" disabled={addingCustom || q.trim().length < 2}>
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={addingCustom || q.trim().length < 2}
+              >
                 {addingCustom ? "Adding…" : "Add"}
               </Button>
             </form>
@@ -238,14 +272,19 @@ function LogPage() {
                 onClick={() => void addLift(q, null)}
               >
                 <span>
-                  Use <span className="font-medium text-foreground">"${q.trim()}"</span> as your lift
+                  Use <span className="font-medium text-foreground">&ldquo;{q.trim()}&rdquo;</span>{" "}
+                  as your lift
                 </span>
-                <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Custom</span>
+                <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  Custom
+                </span>
               </button>
             )}
             {customHits.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Your lifts</p>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Your lifts
+                </p>
                 {customHits.map((name) => (
                   <button
                     key={name}
@@ -254,7 +293,9 @@ function LogPage() {
                     onClick={() => void addLift(name, null)}
                   >
                     <span>{name}</span>
-                    <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Yours</span>
+                    <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      Yours
+                    </span>
                   </button>
                 ))}
               </div>
@@ -269,7 +310,9 @@ function LogPage() {
                   onClick={() => void addLift(ex.name, ex.id)}
                 >
                   <span>{ex.name}</span>
-                  <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{ex.equipment}</span>
+                  <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    {ex.equipment}
+                  </span>
                 </button>
               );
             })}
@@ -278,12 +321,26 @@ function LogPage() {
             </Button>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-8 space-y-3">
+            <label htmlFor="workout-visibility" className="block text-sm font-medium">
+              Who can see this workout?
+            </label>
+            <select
+              id="workout-visibility"
+              value={visibility}
+              onChange={(event) => setVisibility(event.target.value as typeof visibility)}
+              className="h-11 w-full rounded-md bg-secondary px-3 text-sm"
+              disabled={finish.isPending}
+            >
+              <option value="private">Only me</option>
+              <option value="followers">My followers</option>
+              <option value="public">Everyone</option>
+            </select>
             <Button onClick={() => finish.mutate()} disabled={finish.isPending} className="w-full">
               {finish.isPending ? "Saving recap…" : "Finish workout"}
             </Button>
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              Remaining sets are marked done. Forge then rewrites the next session from this log.
+              Only completed sets count toward your progress.
             </p>
           </div>
         </>

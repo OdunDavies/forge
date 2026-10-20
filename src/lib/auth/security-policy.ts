@@ -12,12 +12,3 @@ export function authSecurityPolicy(env: Record<string, string | undefined>) {
   }
   return { production, secret, origin };
 }
-
-export function devUpgradeAllowed(env: Record<string, string | undefined>): boolean {
-  return (
-    env.NODE_ENV === "development" &&
-    env.VERCEL_ENV !== "production" &&
-    !env.STRIPE_SECRET_KEY?.trim() &&
-    !env.PAYSTACK_SECRET_KEY?.trim()
-  );
-}

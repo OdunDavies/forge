@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SessionSummary } from "@/components/workout/session-summary";
@@ -31,14 +32,20 @@ function SessionPage() {
 
   const kudos = useMutation({
     mutationFn: () => toggleKudos({ data: sessionId }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["session"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["session"] });
+      void qc.invalidateQueries({ queryKey: ["feed"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
   const comment = useMutation({
     mutationFn: () => addComment({ data: { activityId: sessionId, body } }),
     onSuccess: () => {
       setBody("");
       void qc.invalidateQueries({ queryKey: ["comments", sessionId] });
+      void qc.invalidateQueries({ queryKey: ["feed"] });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
   const photo = useMutation({
     mutationFn: (photoUrl: string) => saveSessionPhoto({ data: { sessionId, photoUrl } }),
@@ -46,7 +53,21 @@ function SessionPage() {
   });
 
   const s = session.data;
-  if (!s) return <p className="text-sm text-muted-foreground">{session.isPending ? "Loading…" : "Not found."}</p>;
+  if (session.isError)
+    return (
+      <p role="alert">
+        Could not load this workout.{" "}
+        <button type="button" className="underline" onClick={() => void session.refetch()}>
+          Retry
+        </button>
+      </p>
+    );
+  if (!s)
+    return (
+      <p className="text-sm text-muted-foreground">
+        {session.isPending ? "Loading…" : "Not found."}
+      </p>
+    );
   const isOwner = Boolean(me && s.userId === me.id);
 
   return (
@@ -86,11 +107,23 @@ function SessionPage() {
           ))}
       </ul>
       {s.notes && <p className="text-sm text-muted-foreground">{s.notes}</p>}
-      <Button variant="outline" onClick={() => kudos.mutate()}>
+      <Button
+        variant="outline"
+        onClick={() => kudos.mutate()}
+        disabled={kudos.isPending || !s.completedAt}
+      >
         Give kudos
       </Button>
       <section>
         <h2 className="display text-lg font-semibold">Comments</h2>
+        {comments.isError && (
+          <p role="alert">
+            Could not load comments.{" "}
+            <button type="button" className="underline" onClick={() => void comments.refetch()}>
+              Retry
+            </button>
+          </p>
+        )}
         <ul className="mt-3 space-y-2 text-sm">
           {(comments.data ?? []).map((c) => (
             <li key={c.id} className="rounded-md bg-secondary px-3 py-2">
@@ -106,8 +139,14 @@ function SessionPage() {
             if (body.trim()) comment.mutate();
           }}
         >
-          <Input value={body} onChange={(e) => setBody(e.target.value)} placeholder="Say something useful" />
-          <Button type="submit" disabled={comment.isPending}>
+          <Input
+            aria-label="Comment"
+            maxLength={280}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Say something useful"
+          />
+          <Button type="submit" disabled={comment.isPending || !body.trim() || !s.completedAt}>
             Post
           </Button>
         </form>

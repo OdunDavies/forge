@@ -4,7 +4,7 @@ import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getTodaySummary } from "@/lib/api/daily";
 import { confirmTweak, getActivePlan, tweakTodayPlan } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
@@ -52,6 +52,7 @@ function TodayPage() {
       void qc.invalidateQueries({ queryKey: ["active-session"] });
       void navigate({ to: "/log" });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
   const tweak = useMutation({
     mutationFn: () => tweakTodayPlan({ data: { preview: true } }),
@@ -62,9 +63,23 @@ function TodayPage() {
         return;
       }
       if ("preview" in res && (res as { preview?: unknown }).preview) {
-        const r = res as { preview: { name: string; sets: number; reps: string }[]; message: string };
-        const before = (focus?.exercises ?? []).map((e) => ({ name: e.exerciseName, sets: e.sets, reps: e.reps }));
-        setPendingTweak({ before, after: r.preview, message: r.message, targetWeekday: focus?.weekday });
+        const r = res as {
+          preview: { name: string; sets: number; reps: string }[];
+          message: string;
+          targetWeekday: number;
+        };
+        const target = days.find((day) => day.weekday === r.targetWeekday);
+        const before = (target?.exercises ?? []).map((e) => ({
+          name: e.exerciseName,
+          sets: e.sets,
+          reps: e.reps,
+        }));
+        setPendingTweak({
+          before,
+          after: r.preview,
+          message: r.message,
+          targetWeekday: r.targetWeekday,
+        });
       } else {
         toast((res as { message: string }).message);
         void qc.invalidateQueries({ queryKey: ["plan"] });
@@ -78,7 +93,13 @@ function TodayPage() {
   const confirm = useMutation({
     mutationFn: () => {
       if (!pendingTweak) throw new Error("No pending tweak");
-      return confirmTweak({ data: { exercises: pendingTweak.after, message: pendingTweak.message, targetWeekday: pendingTweak.targetWeekday } });
+      return confirmTweak({
+        data: {
+          exercises: pendingTweak.after,
+          message: pendingTweak.message,
+          targetWeekday: pendingTweak.targetWeekday,
+        },
+      });
     },
     onSuccess: (res) => {
       track("tweakTodayPlan", { source: "today" });
@@ -96,7 +117,9 @@ function TodayPage() {
       <div role="status" aria-busy="true" className="space-y-5">
         <div className="h-9 w-48 animate-pulse rounded bg-secondary" />
         <div className="grid grid-cols-3 gap-3">
-          {[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-xl bg-card" />)}
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="h-24 animate-pulse rounded-xl bg-card" />
+          ))}
         </div>
         <div className="h-72 animate-pulse rounded-2xl bg-card" />
         <span className="sr-only">Loading today&apos;s training</span>
@@ -108,7 +131,19 @@ function TodayPage() {
       <div role="alert" className="rounded-2xl border bg-card p-6 text-center">
         <h1 className="display text-2xl font-semibold">Today&apos;s training couldn&apos;t load</h1>
         <p className="mt-2 text-sm text-muted-foreground">Check your connection, then try again.</p>
-        <Button className="mt-5" onClick={() => void Promise.all([profile.refetch(), plan.refetch(), summary.refetch(), session.refetch()])}>Try again</Button>
+        <Button
+          className="mt-5"
+          onClick={() =>
+            void Promise.all([
+              profile.refetch(),
+              plan.refetch(),
+              summary.refetch(),
+              session.refetch(),
+            ])
+          }
+        >
+          Try again
+        </Button>
       </div>
     );
   }
@@ -141,7 +176,12 @@ function TodayPage() {
                 )}
               >
                 <p className="text-[10px] uppercase tracking-[0.12em]">{weekdayName(d.weekday)}</p>
-                <p className={cn("mt-1 text-[11px] font-medium", isToday && "text-primary-foreground")}>
+                <p
+                  className={cn(
+                    "mt-1 text-[11px] font-medium",
+                    isToday && "text-primary-foreground",
+                  )}
+                >
                   {d.isRest ? "Rest" : d.title.split(" ")[0]}
                 </p>
               </div>
@@ -152,7 +192,9 @@ function TodayPage() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Card>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Today volume</p>
+          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            Today volume
+          </p>
           <p className="display mt-2 text-2xl tabular">{formatKg(vol, units)}</p>
         </Card>
         <Card>
@@ -160,9 +202,10 @@ function TodayPage() {
           <p className="display mt-2 text-2xl tabular">{summary.data?.setCount ?? 0}</p>
         </Card>
         <Card>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Week volume</p>
+          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            Week volume
+          </p>
           <p className="display mt-2 text-2xl tabular">{formatKg(week, units)}</p>
-          <Progress className="mt-3" value={Math.min(100, (week / 20000) * 100)} />
         </Card>
       </div>
 
@@ -205,7 +248,11 @@ function TodayPage() {
             {(focus?.exercises ?? []).map((ex) => (
               <li key={ex.id} className="flex items-baseline justify-between gap-3 py-3 text-sm">
                 {ex.exerciseId ? (
-                  <Link to="/library/$id" params={{ id: ex.exerciseId }} className="truncate hover:underline">
+                  <Link
+                    to="/library/$id"
+                    params={{ id: ex.exerciseId }}
+                    className="truncate hover:underline"
+                  >
                     {ex.exerciseName}
                   </Link>
                 ) : (
@@ -244,30 +291,54 @@ function TodayPage() {
       </Card>
 
       {pendingTweak && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl bg-card p-6 shadow-lg">
-            <h3 className="text-lg font-semibold">Before vs After</h3>
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open && !confirm.isPending) setPendingTweak(null);
+          }}
+        >
+          <DialogContent
+            aria-describedby={undefined}
+            className="max-h-[80vh] max-w-2xl overflow-auto"
+          >
+            <DialogTitle>Review plan changes</DialogTitle>
             <p className="mt-2 text-sm text-muted-foreground">{pendingTweak.message}</p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-sm font-medium">Before</p>
                 <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                  {pendingTweak.before.length ? pendingTweak.before.map((e, i) => <li key={i}>{e.name} — {e.sets} × {e.reps}</li>) : <li>Rest</li>}
+                  {pendingTweak.before.length ? (
+                    pendingTweak.before.map((e, i) => (
+                      <li key={i}>
+                        {e.name} — {e.sets} × {e.reps}
+                      </li>
+                    ))
+                  ) : (
+                    <li>Rest</li>
+                  )}
                 </ul>
               </div>
               <div>
                 <p className="text-sm font-medium">After</p>
                 <ul className="mt-2 space-y-1 text-sm">
-                  {pendingTweak.after.map((e, i) => <li key={i}>{e.name} — {e.sets} × {e.reps}</li>)}
+                  {pendingTweak.after.map((e, i) => (
+                    <li key={i}>
+                      {e.name} — {e.sets} × {e.reps}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
             <div className="mt-6 flex gap-2">
-              <Button onClick={() => confirm.mutate()} disabled={confirm.isPending}>Apply</Button>
-              <Button variant="outline" onClick={() => setPendingTweak(null)}>Cancel</Button>
+              <Button onClick={() => confirm.mutate()} disabled={confirm.isPending}>
+                Apply
+              </Button>
+              <Button variant="outline" onClick={() => setPendingTweak(null)}>
+                Cancel
+              </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

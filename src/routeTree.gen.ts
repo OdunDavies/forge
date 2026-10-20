@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AppCoachRouteImport } from './routes/_app/coach'
 import { Route as AppFeedRouteImport } from './routes/_app/feed'
 import { Route as AppGoalScanRouteImport } from './routes/_app/goal-scan'
@@ -27,8 +26,6 @@ import { Route as AppLibraryIdRouteImport } from './routes/_app/library/$id'
 import { Route as AppSessionIdRouteImport } from './routes/_app/session.$id'
 import { Route as AppUHandleRouteImport } from './routes/_app/u.$handle'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
-import { Route as ApiWebhookPaystackRouteImport } from './routes/api/webhook.paystack'
-import { Route as ApiWebhookStripeRouteImport } from './routes/api/webhook.stripe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -47,11 +44,6 @@ const LoginRoute = LoginRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PricingRoute = PricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppCoachRoute = AppCoachRouteImport.update({
@@ -119,22 +111,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiWebhookPaystackRoute = ApiWebhookPaystackRouteImport.update({
-  id: '/api/webhook/paystack',
-  path: '/api/webhook/paystack',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiWebhookStripeRoute = ApiWebhookStripeRouteImport.update({
-  id: '/api/webhook/stripe',
-  path: '/api/webhook/stripe',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
-  '/pricing': typeof PricingRoute
   '/coach': typeof AppCoachRoute
   '/feed': typeof AppFeedRoute
   '/goal-scan': typeof AppGoalScanRoute
@@ -147,15 +128,12 @@ export interface FileRoutesByFullPath {
   '/session/$id': typeof AppSessionIdRoute
   '/u/$handle': typeof AppUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/webhook/paystack': typeof ApiWebhookPaystackRoute
-  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/library/': typeof AppLibraryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
-  '/pricing': typeof PricingRoute
   '/coach': typeof AppCoachRoute
   '/feed': typeof AppFeedRoute
   '/goal-scan': typeof AppGoalScanRoute
@@ -168,8 +146,6 @@ export interface FileRoutesByTo {
   '/session/$id': typeof AppSessionIdRoute
   '/u/$handle': typeof AppUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/webhook/paystack': typeof ApiWebhookPaystackRoute
-  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/library': typeof AppLibraryIndexRoute
 }
 export interface FileRoutesById {
@@ -178,7 +154,6 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
-  '/pricing': typeof PricingRoute
   '/_app/coach': typeof AppCoachRoute
   '/_app/feed': typeof AppFeedRoute
   '/_app/goal-scan': typeof AppGoalScanRoute
@@ -191,8 +166,6 @@ export interface FileRoutesById {
   '/_app/session/$id': typeof AppSessionIdRoute
   '/_app/u/$handle': typeof AppUHandleRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/webhook/paystack': typeof ApiWebhookPaystackRoute
-  '/api/webhook/stripe': typeof ApiWebhookStripeRoute
   '/_app/library/': typeof AppLibraryIndexRoute
 }
 export interface FileRouteTypes {
@@ -201,7 +174,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/onboarding'
-    | '/pricing'
     | '/coach'
     | '/feed'
     | '/goal-scan'
@@ -214,15 +186,12 @@ export interface FileRouteTypes {
     | '/session/$id'
     | '/u/$handle'
     | '/api/auth/$'
-    | '/api/webhook/paystack'
-    | '/api/webhook/stripe'
     | '/library/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/onboarding'
-    | '/pricing'
     | '/coach'
     | '/feed'
     | '/goal-scan'
@@ -235,8 +204,6 @@ export interface FileRouteTypes {
     | '/session/$id'
     | '/u/$handle'
     | '/api/auth/$'
-    | '/api/webhook/paystack'
-    | '/api/webhook/stripe'
     | '/library'
   id:
     | '__root__'
@@ -244,7 +211,6 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/onboarding'
-    | '/pricing'
     | '/_app/coach'
     | '/_app/feed'
     | '/_app/goal-scan'
@@ -257,8 +223,6 @@ export interface FileRouteTypes {
     | '/_app/session/$id'
     | '/_app/u/$handle'
     | '/api/auth/$'
-    | '/api/webhook/paystack'
-    | '/api/webhook/stripe'
     | '/_app/library/'
   fileRoutesById: FileRoutesById
 }
@@ -267,10 +231,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
-  PricingRoute: typeof PricingRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiWebhookPaystackRoute: typeof ApiWebhookPaystackRoute
-  ApiWebhookStripeRoute: typeof ApiWebhookStripeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -301,13 +262,6 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/coach': {
@@ -401,20 +355,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/webhook/paystack': {
-      id: '/api/webhook/paystack'
-      path: '/api/webhook/paystack'
-      fullPath: '/api/webhook/paystack'
-      preLoaderRoute: typeof ApiWebhookPaystackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/webhook/stripe': {
-      id: '/api/webhook/stripe'
-      path: '/api/webhook/stripe'
-      fullPath: '/api/webhook/stripe'
-      preLoaderRoute: typeof ApiWebhookStripeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -455,10 +395,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
-  PricingRoute: PricingRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  ApiWebhookPaystackRoute: ApiWebhookPaystackRoute,
-  ApiWebhookStripeRoute: ApiWebhookStripeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

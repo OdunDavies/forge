@@ -195,7 +195,7 @@ Rules:
 - HARD VOLUME RULE: ~40% of all working sets this week must train the focus muscles (${(profile.focusMuscles ?? []).join(", ") || "none listed"}), ~60% must train other major muscle groups the split has room for (variety, not the same 2 muscles repeated). Count secondary activation (rows hit back + biceps). Keep the split's structure while placing the 60% variety work (upper variety on upper days, leg variety on leg days).
 - Prefer compounds first. Respect injuries by swapping the offending pattern, never by ignoring it.
 - Use exercise names close to: ${catalogHint}
-- JSON shape: {"title":"...","split":"${fallback.split}","focus":"...","rationale":"2-3 sentences naming the 40/60 split","days":[{"weekday":1,"title":"${fallback.days.find((d) => !d.isRest)?.title ?? "Push"}","isRest":false,"notes":"...","exercises":[{"name":"...","sets":4,"reps":"6-8","restSec":180,"rpe":8,"notes":""}]}]}
+- JSON shape: {"title":"...","split":"${fallback.split}","focus":"...","rationale":"2-3 practical sentences explaining how this plan supports the the athlete's goals; omit internal ratios and implementation details","days":[{"weekday":1,"title":"${fallback.days.find((d) => !d.isRest)?.title ?? "Push"}","isRest":false,"notes":"...","exercises":[{"name":"...","sets":4,"reps":"6-8","restSec":180,"rpe":8,"notes":""}]}]}
 - Keep each training day to 4-6 lifts.`;
 
     const ai = await grokChat(

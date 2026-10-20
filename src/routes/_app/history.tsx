@@ -13,6 +13,27 @@ function HistoryPage() {
   return (
     <div>
       <h1 className="display text-3xl font-semibold">History</h1>
+      {history.isPending && (
+        <p role="status" className="mt-6">
+          Loading workouts...
+        </p>
+      )}
+      {history.isError && (
+        <p role="alert" className="mt-6">
+          Could not load your history.{" "}
+          <button type="button" className="underline" onClick={() => void history.refetch()}>
+            Retry
+          </button>
+        </p>
+      )}
+      {history.isSuccess && history.data.length === 0 && (
+        <div className="mt-6 space-y-3">
+          <p>Your completed workouts will appear here.</p>
+          <Link to="/log" className="inline-block py-3 underline">
+            Log your first workout
+          </Link>
+        </div>
+      )}
       <ul className="mt-6 space-y-2">
         {(history.data ?? []).map((s) => (
           <li key={s.id}>

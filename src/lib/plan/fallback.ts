@@ -301,16 +301,12 @@ export function buildFallbackPlan(profile: FallbackProfile) {
       exercises,
     };
   });
-  const volume = volumeBreakdown(
-    days.flatMap((d) => d.exercises),
-    [...focus],
-  );
   return {
     title: `${split} Starter`,
     split,
     focus: [...focus].join(", "),
     rationale: focus.size
-      ? `Targets roughly 40% focus / 60% variety work within the split. This starter has ${Math.round(volume.ratio * 100)}% focus sets; equipment and injury restrictions take priority.`
+      ? `Emphasizes ${[...focus].join(", ")} while training the rest of your body. Sessions match your schedule, equipment, and movement restrictions.`
       : "A balanced starter using your available equipment and training days. Keep effort conservative while building consistency.",
     days,
   };

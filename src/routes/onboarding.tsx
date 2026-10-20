@@ -393,9 +393,9 @@ function Onboarding() {
   useEffect(() => {
     if (draftReady) track("onboarding_step_viewed", { source: "dream_body", step: step + 1 });
   }, [draftReady, step]);
-  if (isPending || profileQ.isPending || (user && !draftReady))
-    return <div className="min-h-[100svh] bg-background" />;
+  if (isPending) return <div className="min-h-[100svh] bg-background" />;
   if (!user) return <RedirectToSignIn />;
+  if (profileQ.isPending || !draftReady) return <div className="min-h-[100svh] bg-background" />;
   if (profileQ.isError)
     return (
       <main className="space-y-4 p-8">
@@ -869,39 +869,13 @@ function Onboarding() {
           </div>
         </div>
       </div>
-      <div className="mt-4 rounded-[1.5rem] border bg-card p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="display text-xl font-semibold">Your first week</h2>
-          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">
-            {days.length} workouts
-          </span>
-        </div>
-        <div className="mt-5 space-y-3">
-          {days.map((d, i) => (
-            <div key={d} className="flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                {DAYS[d]}
-              </span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="h-full rounded-full bg-primary/55"
-                  style={{ width: `${72 + (i % 3) * 10}%` }}
-                />
-              </div>
-              <span className="w-20 text-right text-xs text-muted-foreground">
-                {i % 2 ? "Lower body" : "Upper body"}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
       {error && (
         <p role="alert" className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </p>
       )}
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Your plan keeps adapting as you log workouts.
+        Review your training week after creating your plan.
       </p>
     </StepFrame>
   );

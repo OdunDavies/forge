@@ -156,7 +156,17 @@ export default defineConfig(({ command, isPreview }) => ({
     port: 8081,
     strictPort: true,
   },
-  resolve: { tsconfigPaths: true },
+  resolve: { tsconfigPaths: true, dedupe: ["react", "react-dom"] },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom/client",
+      "@tanstack/react-router",
+      "@tanstack/react-query",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-label",
+    ],
+  },
   plugins: [
     pgliteBootstrapPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.

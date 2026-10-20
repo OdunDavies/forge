@@ -15,7 +15,8 @@ export async function grokChat(
   opts: { maxTokens?: number; json?: boolean; timeoutMs?: number; modelLimit?: number } = {},
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) return { ok: false, error: "AI is not available in this environment" };
+  if (!apiKey)
+    return { ok: false, error: "Coach is temporarily unavailable. Please try again later." };
 
   const system = messages
     .filter((m) => m.role === "system")
@@ -41,7 +42,7 @@ export async function grokChat(
 
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
   if (!/^[a-zA-Z0-9._-]+$/.test(model))
-    return { ok: false, error: "Coach is not configured correctly" };
+    return { ok: false, error: "Coach is temporarily unavailable. Please try again later." };
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -134,10 +135,17 @@ async function analyzePhysiquePhotos(
   context: string,
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) return { ok: false, error: "Photo analysis is not configured yet." };
+  if (!apiKey)
+    return {
+      ok: false,
+      error: "Photo analysis is temporarily unavailable. Please try again later.",
+    };
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
   if (!/^[a-zA-Z0-9._-]+$/.test(model))
-    return { ok: false, error: "Photo analysis is not configured correctly." };
+    return {
+      ok: false,
+      error: "Photo analysis is temporarily unavailable. Please try again later.",
+    };
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,

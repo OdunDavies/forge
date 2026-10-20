@@ -10,16 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { getPersonalRecords, listMyHistory } from "@/lib/api/sessions";
 import { getMyProfile, upsertMyProfile } from "@/lib/api/profile";
 import { generateFirstPlan } from "@/lib/api/plan";
-import { coachQuota } from "@/lib/api/billing";
 import { FOCUS_MUSCLES } from "@/lib/muscles";
 import { cn, formatKg, formatDuration, kgFromInput } from "@/lib/utils";
-import {
-  formatPrice,
-  membershipLabel,
-  PLANS,
-  useBillingRegion,
-  type PaidMembership,
-} from "@/lib/billing";
 import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { draftFromProfile, measurementInput, stepError } from "@/lib/onboarding";
@@ -29,10 +21,21 @@ export const Route = createFileRoute("/_app/profile")({ component: ProfilePage }
 function ProfilePage() {
   const qc = useQueryClient();
   const { user, isPending } = useCurrentUserState();
-  const me = useQuery({ queryKey: ["me", user?.id], queryFn: () => getMyProfile(), enabled: Boolean(user) && !isPending });
-  const quota = useQuery({ queryKey: ["coach-quota"], queryFn: () => coachQuota(), enabled: Boolean(user) && !isPending });
-  const history = useQuery({ queryKey: ["history"], queryFn: () => listMyHistory(), enabled: Boolean(user) && !isPending });
-  const prs = useQuery({ queryKey: ["prs"], queryFn: () => getPersonalRecords(), enabled: Boolean(user) && !isPending });
+  const me = useQuery({
+    queryKey: ["me", user?.id],
+    queryFn: () => getMyProfile(),
+    enabled: Boolean(user) && !isPending,
+  });
+  const history = useQuery({
+    queryKey: ["history"],
+    queryFn: () => listMyHistory(),
+    enabled: Boolean(user) && !isPending,
+  });
+  const prs = useQuery({
+    queryKey: ["prs"],
+    queryFn: () => getPersonalRecords(),
+    enabled: Boolean(user) && !isPending,
+  });
   const GOALS = [
     { id: "strength", label: "Get stronger" },
     { id: "hypertrophy", label: "Build muscle" },
@@ -44,7 +47,16 @@ function ProfilePage() {
     { id: "intermediate", label: "Intermediate" },
     { id: "advanced", label: "Advanced" },
   ];
-  const EQUIP = ["barbell", "dumbbell", "kettlebells", "machine", "cable", "bands", "body only", "full gym"];
+  const EQUIP = [
+    "barbell",
+    "dumbbell",
+    "kettlebells",
+    "machine",
+    "cable",
+    "bands",
+    "body only",
+    "full gym",
+  ];
   const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
   const [focusMuscles, setFocusMuscles] = useState<string[]>([]);
@@ -83,9 +95,22 @@ function ProfilePage() {
   const save = useMutation({
     mutationFn: async (rebuild: boolean) => {
       if (!me.data || !user) throw new Error("Load your profile before saving.");
-      if (!displayName.trim() || displayName.trim().length > 60) throw new Error("Name must contain 1 to 60 characters.");
+      if (!displayName.trim() || displayName.trim().length > 60)
+        throw new Error("Name must contain 1 to 60 characters.");
       if (bio.length > 280) throw new Error("Keep your bio under 280 characters.");
-      const draft = { ...draftFromProfile(me.data), goal, experience, equipment, focusMuscles, availableDays, sessionMinutes, units, weight, height, injuries };
+      const draft = {
+        ...draftFromProfile(me.data),
+        goal,
+        experience,
+        equipment,
+        focusMuscles,
+        availableDays,
+        sessionMinutes,
+        units,
+        weight,
+        height,
+        injuries,
+      };
       for (const step of [1, 2, 3, 4, 5, 6]) {
         const error = stepError(draft, step);
         if (error) throw new Error(error);
@@ -116,15 +141,19 @@ function ProfilePage() {
       qc.setQueryData(["me", user.id], updated);
       qc.setQueryData(["me"], updated);
       if (rebuild) {
-        const plan = await generateFirstPlan();
-        if (!plan) throw new Error("Your profile was saved, but the plan could not be rebuilt. Try again.");
+        const { plan } = await generateFirstPlan();
+        if (!plan)
+          throw new Error("Your profile was saved, but the plan could not be rebuilt. Try again.");
         qc.setQueryData(["plan"], plan);
         await qc.invalidateQueries({ queryKey: ["plan"] });
       }
     },
-    onSuccess: (_, rebuild) => toast(rebuild ? "Profile saved and plan rebuilt" : "Profile updated"),
+    onSuccess: (_, rebuild) =>
+      toast(rebuild ? "Profile saved and plan rebuilt" : "Profile updated"),
     onError: (e: Error) => toast.error(e.message),
-    onSettled: () => { submitting.current = false; },
+    onSettled: () => {
+      submitting.current = false;
+    },
   });
 
   const submit = (rebuild: boolean) => {
@@ -135,27 +164,35 @@ function ProfilePage() {
   const changeUnits = (next: "metric" | "imperial") => {
     if (next === units) return;
     const imperial = next === "imperial";
-    if (weight.trim() && Number.isFinite(Number(weight))) setWeight(measurementInput(Number(weight), imperial ? 2.20462 : 1 / 2.20462));
-    if (height.trim() && Number.isFinite(Number(height))) setHeight(measurementInput(Number(height), imperial ? 1 / 2.54 : 2.54));
+    if (weight.trim() && Number.isFinite(Number(weight)))
+      setWeight(measurementInput(Number(weight), imperial ? 2.20462 : 1 / 2.20462));
+    if (height.trim() && Number.isFinite(Number(height)))
+      setHeight(measurementInput(Number(height), imperial ? 1 / 2.54 : 2.54));
     setUnitsState(next);
   };
 
   const p = me.data;
   const displayUnits = p?.units ?? "metric";
-  const { region } = useBillingRegion();
-  const plan = quota.data?.plan ?? p?.plan ?? "free";
-  const exhausted = Boolean(quota.data?.exhausted);
-  const upgrades = (quota.data?.upgrades ?? []) as PaidMembership[];
 
   if (isPending || !user || me.isPending) return <p role="status">Loading your profile...</p>;
-  if (me.isError) return <div className="space-y-4"><p role="alert">Could not load your profile. {me.error.message}</p><Button onClick={() => void me.refetch()} disabled={me.isFetching}>Retry</Button></div>;
+  if (me.isError)
+    return (
+      <div className="space-y-4">
+        <p role="alert">Could not load your profile. {me.error.message}</p>
+        <Button onClick={() => void me.refetch()} disabled={me.isFetching}>
+          Retry
+        </Button>
+      </div>
+    );
   if (!p) return <p role="alert">Complete onboarding before editing your profile.</p>;
 
   return (
     <div className="space-y-8">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">@{p?.handle}</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            @{p?.handle}
+          </p>
           <h1 className="display text-3xl font-semibold">{p?.displayName}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {p?.goal} · {p?.experience} · {p?.daysPerWeek} days
@@ -164,73 +201,63 @@ function ProfilePage() {
         <UserButton />
       </header>
 
-      <section className="rounded-xl bg-card px-5 py-4 shadow-[var(--shadow-border)]">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Membership</p>
-        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="display text-2xl font-semibold">{membershipLabel(plan as "free")}</h2>
-          {quota.data?.limit == null ? (
-            <p className="text-sm text-muted-foreground">Unlimited coach</p>
-          ) : (
-            <p className="text-sm tabular text-muted-foreground">
-              {quota.data.used} / {quota.data.limit} coach asks this week
-            </p>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">{PLANS.free.blurb}</p>
-      </section>
-
-      <Link to="/goal-scan" className="flex items-center gap-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><ScanLine className="size-5" /></span>
-        <span><strong className="block text-sm">Scan a goal physique</strong><span className="mt-1 block text-xs text-muted-foreground">Turn a reference photo into training priorities and update your plan.</span></span>
+      <Link
+        to="/goal-scan"
+        className="flex items-center gap-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]"
+      >
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+          <ScanLine className="size-5" />
+        </span>
+        <span>
+          <strong className="block text-sm">Scan a goal physique</strong>
+          <span className="mt-1 block text-xs text-muted-foreground">
+            Turn a reference photo into training priorities and update your plan.
+          </span>
+        </span>
       </Link>
 
-      {exhausted && upgrades.length > 0 && (
-        <div className="space-y-3">
-<p className="text-sm text-muted-foreground">
-              This week’s {membershipLabel(plan as "free")} quota is used. Next tier:
-            </p>
-          {upgrades.map((tier) => {
-            const spec = PLANS[tier];
-            const price = formatPrice(region, "month", tier);
-            return (
-              <Link
-                key={tier}
-                to="/pricing"
-                className={cn(
-                  "flex items-center justify-between rounded-xl px-5 py-4 shadow-[var(--shadow-border)]",
-                  "bg-card",
-                )}
-              >
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                    {spec.name}
-                  </p>
-                  <p className="mt-1 text-sm">
-                    {spec.name} · {price}/mo · {spec.blurb}
-                  </p>
-                </div>
-                <span className="text-sm text-steel">See {spec.name}</span>
-              </Link>
-            );
-          })}
-        </div>
-      )}
       <div className="space-y-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Profile — onboarding choices, editable</p>
+        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Training preferences
+        </p>
         <fieldset disabled={save.isPending} className="grid gap-3">
           <div className="space-y-2">
             <Label htmlFor="profile-name">Name</Label>
-            <Input id="profile-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Athlete" maxLength={60} />
+            <Input
+              id="profile-name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Athlete"
+              maxLength={60}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-bio">Bio</Label>
-            <Textarea id="profile-bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Train like a mission" maxLength={280} />
+            <Textarea
+              id="profile-bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Train like a mission"
+              maxLength={280}
+            />
           </div>
           <div className="space-y-2">
             <Label>Goal</Label>
             <div className="flex flex-wrap gap-2">
               {GOALS.map((g) => (
-                <button key={g.id} type="button" onClick={() => setGoal(g.id)} className={cn("h-10 rounded-full px-3 text-sm", goal === g.id ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>{g.label}</button>
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => setGoal(g.id)}
+                  className={cn(
+                    "h-10 rounded-full px-3 text-sm",
+                    goal === g.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground",
+                  )}
+                >
+                  {g.label}
+                </button>
               ))}
             </div>
           </div>
@@ -238,7 +265,17 @@ function ProfilePage() {
             <Label>Experience</Label>
             <div className="flex flex-wrap gap-2">
               {EXPS.map((e) => (
-                <button key={e.id} type="button" onClick={() => setExperience(e.id)} className={cn("h-10 rounded-full px-3 text-sm", experience === e.id ? "bg-primary text-primary-foreground" : "bg-secondary")}>{e.label}</button>
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => setExperience(e.id)}
+                  className={cn(
+                    "h-10 rounded-full px-3 text-sm",
+                    experience === e.id ? "bg-primary text-primary-foreground" : "bg-secondary",
+                  )}
+                >
+                  {e.label}
+                </button>
               ))}
             </div>
           </div>
@@ -248,7 +285,27 @@ function ProfilePage() {
               {FOCUS_MUSCLES.map((m) => {
                 const on = focusMuscles.includes(m.id);
                 return (
-                  <button key={m.id} type="button" onClick={() => setFocusMuscles((prev) => on ? prev.filter((x) => x !== m.id) : prev.length >= 4 ? prev : [...prev, m.id])} className={cn("h-10 rounded-full px-3 text-sm", on ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>{m.label}</button>
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() =>
+                      setFocusMuscles((prev) =>
+                        on
+                          ? prev.filter((x) => x !== m.id)
+                          : prev.length >= 4
+                            ? prev
+                            : [...prev, m.id],
+                      )
+                    }
+                    className={cn(
+                      "h-10 rounded-full px-3 text-sm",
+                      on
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground",
+                    )}
+                  >
+                    {m.label}
+                  </button>
                 );
               })}
             </div>
@@ -258,7 +315,21 @@ function ProfilePage() {
             <div className="flex flex-wrap gap-2">
               {EQUIP.map((eq) => {
                 const on = equipment.includes(eq);
-                return <button key={eq} type="button" onClick={() => setEquipment((prev) => on ? prev.filter((x) => x !== eq) : [...prev, eq])} className={cn("h-10 rounded-full px-3 text-sm capitalize", on ? "bg-primary text-primary-foreground" : "bg-secondary")}>{eq}</button>;
+                return (
+                  <button
+                    key={eq}
+                    type="button"
+                    onClick={() =>
+                      setEquipment((prev) => (on ? prev.filter((x) => x !== eq) : [...prev, eq]))
+                    }
+                    className={cn(
+                      "h-10 rounded-full px-3 text-sm capitalize",
+                      on ? "bg-primary text-primary-foreground" : "bg-secondary",
+                    )}
+                  >
+                    {eq}
+                  </button>
+                );
               })}
             </div>
           </div>
@@ -267,45 +338,110 @@ function ProfilePage() {
             <div className="flex gap-1.5">
               {DAYS.map((d, i) => {
                 const on = availableDays.includes(i);
-                return <button key={`${d}-${i}`} type="button" onClick={() => setAvailableDays((prev) => on ? prev.filter((x) => x !== i) : [...prev, i].sort())} className={cn("size-9 rounded-full text-sm", on ? "bg-primary text-primary-foreground" : "bg-secondary")}>{d}</button>;
+                return (
+                  <button
+                    key={`${d}-${i}`}
+                    type="button"
+                    onClick={() =>
+                      setAvailableDays((prev) =>
+                        on ? prev.filter((x) => x !== i) : [...prev, i].sort(),
+                      )
+                    }
+                    className={cn(
+                      "size-9 rounded-full text-sm",
+                      on ? "bg-primary text-primary-foreground" : "bg-secondary",
+                    )}
+                  >
+                    {d}
+                  </button>
+                );
               })}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Minutes / session</Label>
-              <Input type="number" min={20} max={180} value={sessionMinutes} onChange={(e) => setSessionMinutes(Number(e.target.value))} />
+              <Input
+                type="number"
+                min={20}
+                max={180}
+                value={sessionMinutes}
+                onChange={(e) => setSessionMinutes(Number(e.target.value))}
+              />
             </div>
             <div className="space-y-2">
               <Label>Units</Label>
               <div className="flex gap-2">
                 {(["metric", "imperial"] as const).map((u) => (
-                  <button key={u} type="button" aria-pressed={units === u} onClick={() => changeUnits(u)} className={cn("h-10 flex-1 rounded-md text-sm capitalize", units === u ? "bg-primary text-primary-foreground" : "bg-secondary")}>{u}</button>
+                  <button
+                    key={u}
+                    type="button"
+                    aria-pressed={units === u}
+                    onClick={() => changeUnits(u)}
+                    className={cn(
+                      "h-10 flex-1 rounded-md text-sm capitalize",
+                      units === u ? "bg-primary text-primary-foreground" : "bg-secondary",
+                    )}
+                  >
+                    {u}
+                  </button>
                 ))}
               </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="profile-weight">Bodyweight ({units === "imperial" ? "lb" : "kg"})</Label>
-              <Input id="profile-weight" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" />
+              <Label htmlFor="profile-weight">
+                Bodyweight ({units === "imperial" ? "lb" : "kg"})
+              </Label>
+              <Input
+                id="profile-weight"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                inputMode="decimal"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="profile-height">Height ({units === "imperial" ? "in" : "cm"})</Label>
-              <Input id="profile-height" value={height} onChange={(e) => setHeight(e.target.value)} inputMode="decimal" />
+              <Input
+                id="profile-height"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                inputMode="decimal"
+              />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-injuries">Injuries</Label>
-            <Textarea id="profile-injuries" value={injuries} onChange={(e) => setInjuries(e.target.value)} maxLength={500} placeholder="Left shoulder pinch…" />
+            <Textarea
+              id="profile-injuries"
+              value={injuries}
+              onChange={(e) => setInjuries(e.target.value)}
+              maxLength={500}
+              placeholder="Left shoulder pinch…"
+            />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => submit(false)} disabled={save.isPending}>{save.isPending && !save.variables ? "Saving..." : "Save profile"}</Button>
-            <Button variant="outline" onClick={() => submit(true)} disabled={save.isPending}>{save.isPending && save.variables ? "Saving & rebuilding..." : "Save & rebuild plan"}</Button>
+            <Button onClick={() => submit(false)} disabled={save.isPending}>
+              {save.isPending && !save.variables ? "Saving..." : "Save profile"}
+            </Button>
+            <Button variant="outline" onClick={() => submit(true)} disabled={save.isPending}>
+              {save.isPending && save.variables ? "Saving & rebuilding..." : "Save & rebuild plan"}
+            </Button>
           </div>
         </fieldset>
-        {save.isPending && <p role="status">{save.variables ? "Saving your profile and rebuilding your plan..." : "Saving your profile..."}</p>}
-        {save.isError && <p role="alert" className="text-sm text-signal">{save.error.message}</p>}
+        {save.isPending && (
+          <p role="status">
+            {save.variables
+              ? "Saving your profile and rebuilding your plan..."
+              : "Saving your profile..."}
+          </p>
+        )}
+        {save.isError && (
+          <p role="alert" className="text-sm text-signal">
+            {save.error.message}
+          </p>
+        )}
       </div>
 
       <section>
@@ -320,7 +456,9 @@ function ProfilePage() {
             </li>
           ))}
           {(prs.data ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">PRs appear when a logged set beats your best e1RM.</p>
+            <p className="text-sm text-muted-foreground">
+              PRs appear when a logged set beats your best e1RM.
+            </p>
           )}
         </ul>
       </section>

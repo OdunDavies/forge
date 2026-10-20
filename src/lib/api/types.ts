@@ -17,7 +17,6 @@ export type Profile = {
   availableDays: number[];
   focusMuscles: string[];
   onboardedAt: string | null;
-  plan: "free" | "pro" | "pro_max";
   baseline_lifts: Record<string, number>;
   personalRecords: Record<string, { weightKg: number; reps: number; estimated1RM: number }>;
   sessionHistory: Array<{

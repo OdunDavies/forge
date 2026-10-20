@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ActivityCard } from "@/components/social/activity-card";
 import { Button } from "@/components/ui/button";
 import { followState, listUserActivities, toggleFollow, toggleKudos } from "@/lib/api/social";
@@ -27,29 +28,57 @@ function PublicProfile() {
   });
   const tog = useMutation({
     mutationFn: () => toggleFollow({ data: profile.data!.userId }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["follow"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["follow"] });
+      void qc.invalidateQueries({ queryKey: ["feed"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
   const kudos = useMutation({
     mutationFn: (id: number) => toggleKudos({ data: id }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["acts"] }),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const p = profile.data;
-  if (!p) return <p className="text-sm text-muted-foreground">{profile.isPending ? "Loading…" : "Athlete not found."}</p>;
+  if (profile.isError)
+    return (
+      <p role="alert">
+        Could not load this athlete.{" "}
+        <button type="button" className="underline" onClick={() => void profile.refetch()}>
+          Retry
+        </button>
+      </p>
+    );
+  if (!p)
+    return (
+      <p className="text-sm text-muted-foreground">
+        {profile.isPending ? "Loading…" : "Athlete not found."}
+      </p>
+    );
 
   return (
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">@{p.handle}</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            @{p.handle}
+          </p>
           <h1 className="display text-3xl font-semibold">{p.displayName}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{p.bio || `${p.goal ?? "Training"} · ${p.experience ?? ""}`}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {p.bio || `${p.goal ?? "Training"} · ${p.experience ?? ""}`}
+          </p>
           <p className="mt-2 text-xs tabular text-muted-foreground">
-            {follow.data?.followerCount ?? 0} followers · {follow.data?.followingCount ?? 0} following
+            {follow.data?.followerCount ?? 0} followers · {follow.data?.followingCount ?? 0}{" "}
+            following
           </p>
         </div>
-        {!follow.data?.isSelf && (
-          <Button variant={follow.data?.following ? "outline" : "default"} onClick={() => tog.mutate()}>
+        {follow.isSuccess && !follow.data.isSelf && (
+          <Button
+            variant={follow.data?.following ? "outline" : "default"}
+            onClick={() => tog.mutate()}
+            disabled={tog.isPending}
+          >
             {follow.data?.following ? "Following" : "Follow"}
           </Button>
         )}

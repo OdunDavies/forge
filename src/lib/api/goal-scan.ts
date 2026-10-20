@@ -54,7 +54,7 @@ export const scanGoalBody = createServerFn({ method: "POST" })
     if (!match || Buffer.from(match[2], "base64").length > 1_000_000)
       throw new Error("Choose a JPEG, PNG, or WebP photo under 1 MB.");
     const apiKey = process.env.GEMINI_API_KEY?.trim();
-    if (!apiKey) throw new Error("Photo analysis is not configured yet.");
+    if (!apiKey) throw new Error("Photo analysis is unavailable right now.");
     await consumeAiBudget(context.userId);
     const profile = await loadProfileByUserId(context.userId);
     const contextText = JSON.stringify({
@@ -94,7 +94,7 @@ export const compareBodyPhotos = createServerFn({ method: "POST" })
     const current = parseGoalPhoto(data.currentImage);
     const goal = parseGoalPhoto(data.goalImage);
     if (!process.env.GEMINI_API_KEY?.trim())
-      throw new Error("Photo analysis is not configured yet. You can choose a goal instead.");
+      throw new Error("Photo analysis is unavailable right now. You can choose a goal instead.");
     await consumeAiBudget(context.userId);
     const profile = await loadProfileByUserId(context.userId);
     const answer = await comparePhysiquePhotos(

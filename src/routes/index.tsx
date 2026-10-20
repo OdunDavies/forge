@@ -18,9 +18,6 @@ function Home() {
         <Wordmark />
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
-            <Link to="/pricing">Pricing</Link>
-          </Button>
-          <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
             <Link to="/login">Sign in</Link>
           </Button>
           <Button size="sm" asChild>
@@ -32,13 +29,14 @@ function Home() {
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-8 lg:grid-cols-2 lg:pt-16">
         <div>
           <p className="mb-5 text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-            Strength social · AI coach · Mission log
+            Free training plans, workout tracking, and coaching
           </p>
           <h1 className="display max-w-3xl text-4xl font-semibold leading-[1.05] sm:text-6xl">
-            The training OS for people who lift.
+            Build strength. Track your progress.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Log sets in seconds. Let Forge rewrite tomorrow from yesterday’s data, injuries, and PRs.
+            Get a plan for your goals, log your workouts, and adjust your training as you progress.
+            Everything is free.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button size="lg" asChild>
@@ -47,21 +45,24 @@ function Home() {
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link to="/pricing">Explore free membership</Link>
-            </Button>
           </div>
           <dl className="mt-14 grid grid-cols-3 gap-4 max-w-xl">
             <div>
-              <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Movements</dt>
+              <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Movements
+              </dt>
               <dd className="display mt-1 text-2xl tabular">{count.toLocaleString()}+</dd>
             </div>
             <div>
-              <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Coach</dt>
+              <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Coach
+              </dt>
               <dd className="display mt-1 text-2xl">Forge</dd>
             </div>
             <div>
-              <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Social</dt>
+              <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Social
+              </dt>
               <dd className="display mt-1 text-2xl">Kudos</dd>
             </div>
           </dl>
@@ -78,7 +79,9 @@ function Home() {
                 className="size-12 rounded-lg object-cover"
               />
               <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Mission board</p>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Mission board
+                </p>
                 <p className="display text-lg font-semibold">Upper A · live</p>
               </div>
             </div>
@@ -91,7 +94,9 @@ function Home() {
               <div
                 key={`${d}-${i}`}
                 className={`rounded-md py-2 text-center text-[11px] ${
-                  i === 1 ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                  i === 1
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground"
                 }`}
               >
                 {d}
@@ -112,8 +117,7 @@ function Home() {
             ))}
           </ul>
           <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-            Forge reads last session, injuries, and energy — then retunes the next lift, not the whole
-            month.
+            Review suggested changes before applying them to your next workout.
           </p>
         </aside>
       </section>
@@ -129,7 +133,7 @@ function Home() {
             {
               icon: Brain,
               title: "Forge coaches you",
-              body: "The model reads your log, injuries, and energy, then retunes the next session.",
+              body: "Get coaching based on your workouts, goals, and how you feel.",
             },
             {
               icon: Dumbbell,
