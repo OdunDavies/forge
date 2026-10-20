@@ -1,0 +1,40 @@
+- generic [active] [ref=f2e1]:
+  - main [ref=f2e2]:
+    - generic [ref=f2e3]:
+      - generic [ref=f2e4]:
+        - button "Go back" [ref=f2e5] [cursor=pointer]
+        - generic [ref=f2e10]: 2/12
+      - generic [ref=f2e11]:
+        - generic [ref=f2e36]:
+          - heading "What are you working toward?" [level=1] [ref=f2e37]
+          - paragraph [ref=f2e38]: Choose a goal or use your current and dream body photos to guide your plan.
+        - group "How to set your training goal" [ref=f2e39]:
+          - button "Choose a goal" [pressed] [ref=f2e40] [cursor=pointer]
+          - button "Use my photos" [ref=f2e41] [cursor=pointer]
+        - generic [ref=f2e42]:
+          - button "Lean & defined Visible definition and athletic lines" [ref=f2e43] [cursor=pointer]:
+            - generic [ref=f2e47]:
+              - strong [ref=f2e48]: Lean & defined
+              - generic [ref=f2e49]: Visible definition and athletic lines
+          - button "Athletic Speed, power, and balanced muscle" [ref=f2e51] [cursor=pointer]:
+            - generic [ref=f2e55]:
+              - strong [ref=f2e56]: Athletic
+              - generic [ref=f2e57]: Speed, power, and balanced muscle
+          - button "Muscular More size through the upper body" [ref=f2e59] [cursor=pointer]:
+            - generic [ref=f2e67]:
+              - strong [ref=f2e68]: Muscular
+              - generic [ref=f2e69]: More size through the upper body
+          - button "Strong & powerful Dense muscle and bigger compound lifts" [ref=f2e71] [cursor=pointer]:
+            - generic [ref=f2e79]:
+              - strong [ref=f2e80]: Strong & powerful
+              - generic [ref=f2e81]: Dense muscle and bigger compound lifts
+          - button "Strong curves Glutes, legs, and a strong core" [ref=f2e83] [cursor=pointer]:
+            - generic [ref=f2e87]:
+              - strong [ref=f2e88]: Strong curves
+              - generic [ref=f2e89]: Glutes, legs, and a strong core
+          - button "Balanced fitness Move well, feel good, stay capable" [ref=f2e91] [cursor=pointer]:
+            - generic [ref=f2e97]:
+              - strong [ref=f2e98]: Balanced fitness
+              - generic [ref=f2e99]: Move well, feel good, stay capable
+      - button "Continue" [disabled]
+  - region "Notifications alt+T"

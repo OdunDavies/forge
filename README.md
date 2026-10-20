@@ -27,7 +27,7 @@ Build is already set for Vercel (`nitro` vercel preset). Set these environment v
 | `DATABASE_URL` | yes | Postgres connection string (Neon, Supabase, or any Postgres) |
 | `BETTER_AUTH_SECRET` | yes | Session signing secret |
 | `BETTER_AUTH_URL` | yes | Canonical public site URL, e.g. `https://forge.example.com` |
-| `GEMINI_API_KEY` | for AI coach | Google Gemini (AI Studio) |
+| `GEMINI_API_KEY` | for AI coach and photo analysis | Google Gemini (AI Studio) |
 | `GEMINI_MODEL` | optional | Gemini model override; defaults to `gemini-3.8-flash` |
 | `GOOGLE_CLIENT_ID` | for Google login | Google Cloud OAuth web client |
 | `GOOGLE_CLIENT_SECRET` | for Google login | Google Cloud OAuth web client |
@@ -42,6 +42,8 @@ Email/password works without Google keys. The Grok broker (`GROK_AUTH_*`) is onl
 
 
 Migrations in `migrations/` apply automatically during `npm run build` when `DATABASE_URL` is set.
+
+Onboarding offers **Use my photos** alongside preset goals. Users can upload a current photo and a goal reference, review suggested training priorities, and use that analysis when generating their first plan. Photos are compressed in the browser and sent to Gemini; only the derived notes and priorities are stored in `goal_scans`. Migration `0011_body_goal_comparisons.sql` adds comparison metadata. Photo analysis requires `GEMINI_API_KEY`; users can continue with a preset goal when analysis is unavailable.
 
 ## Release checks
 

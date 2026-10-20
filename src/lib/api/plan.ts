@@ -9,8 +9,13 @@ import { buildFallbackPlan, volumeBreakdown } from "@/lib/plan/fallback";
 import { loadProfileByUserId } from "./profile";
 import { ensureExerciseCatalog } from "@/lib/exercises/seed";
 import { generatedSchema, confirmTweakSchema, type GeneratedPlan } from "@/lib/plan/schema";
-import { replaceGeneratedPlan, replaceDayExercises, resolveExerciseName } from "@/lib/plan/persistence";
+import {
+  replaceGeneratedPlan,
+  replaceDayExercises,
+  resolveExerciseName,
+} from "@/lib/plan/persistence";
 import type { ActivePlan, PlanDay, PlanExercise } from "./types";
+import { loadPlanGoalContext } from "@/lib/plan/goal-context.server";
 
 type PlanRow = {
   id: number;
@@ -43,59 +48,61 @@ type ExRow = {
   sort_order: number;
 };
 
-export const loadPlan = createServerOnlyFn(async (userId: string, sql?: Sql): Promise<ActivePlan | null> => {
-  sql ??= await getSql();
-  const plans = await sql<PlanRow>`
+export const loadPlan = createServerOnlyFn(
+  async (userId: string, sql?: Sql): Promise<ActivePlan | null> => {
+    sql ??= await getSql();
+    const plans = await sql<PlanRow>`
     select id, title, split, days_per_week, focus, notes, ai_rationale
     from workout_plans where user_id = ${userId} and is_active = true
     order by created_at desc limit 1`;
-  const plan = plans[0];
-  if (!plan) return null;
-  const days = await sql<DayRow>`
+    const plan = plans[0];
+    if (!plan) return null;
+    const days = await sql<DayRow>`
     select id, day_index, title, is_rest, coach_notes
     from plan_days where plan_id = ${plan.id} and user_id = ${userId}
     order by day_index`;
-  const exercises = days.length
-    ? await sql<ExRow>`
+    const exercises = days.length
+      ? await sql<ExRow>`
         select id, plan_day_id, exercise_id, exercise_name, sets, reps, rest_sec, target_rpe, notes, sort_order
         from plan_exercises where user_id = ${userId}
           and plan_day_id in (select id from plan_days where plan_id = ${plan.id} and user_id = ${userId})
         order by sort_order`
-    : [];
-  const byDay = new Map<number, PlanExercise[]>();
-  for (const e of exercises) {
-    const list = byDay.get(e.plan_day_id) ?? [];
-    list.push({
-      id: e.id,
-      exerciseId: e.exercise_id,
-      exerciseName: e.exercise_name,
-      sets: e.sets,
-      reps: e.reps,
-      restSec: e.rest_sec,
-      targetRpe: num(e.target_rpe),
-      notes: e.notes,
-      sortOrder: e.sort_order,
-    });
-    byDay.set(e.plan_day_id, list);
-  }
-  return {
-    id: plan.id,
-    title: plan.title,
-    split: plan.split,
-    daysPerWeek: plan.days_per_week,
-    focus: plan.focus,
-    notes: plan.notes,
-    aiRationale: plan.ai_rationale,
-    days: days.map((d): PlanDay => ({
-      id: d.id,
-      weekday: d.day_index,
-      title: d.title,
-      isRest: d.is_rest,
-      coachNotes: d.coach_notes,
-      exercises: byDay.get(d.id) ?? [],
-    })),
-  };
-});
+      : [];
+    const byDay = new Map<number, PlanExercise[]>();
+    for (const e of exercises) {
+      const list = byDay.get(e.plan_day_id) ?? [];
+      list.push({
+        id: e.id,
+        exerciseId: e.exercise_id,
+        exerciseName: e.exercise_name,
+        sets: e.sets,
+        reps: e.reps,
+        restSec: e.rest_sec,
+        targetRpe: num(e.target_rpe),
+        notes: e.notes,
+        sortOrder: e.sort_order,
+      });
+      byDay.set(e.plan_day_id, list);
+    }
+    return {
+      id: plan.id,
+      title: plan.title,
+      split: plan.split,
+      daysPerWeek: plan.days_per_week,
+      focus: plan.focus,
+      notes: plan.notes,
+      aiRationale: plan.ai_rationale,
+      days: days.map((d): PlanDay => ({
+        id: d.id,
+        weekday: d.day_index,
+        title: d.title,
+        isRest: d.is_rest,
+        coachNotes: d.coach_notes,
+        exercises: byDay.get(d.id) ?? [],
+      })),
+    };
+  },
+);
 
 export const getActivePlan = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -111,9 +118,25 @@ async function persistGenerated(userId: string, generated: GeneratedPlan) {
 
 export const generateFirstPlan = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const profile = await loadProfileByUserId(context.userId);
-    if (!profile) throw new Error("Complete your profile first");
+  .validator((input: unknown) =>
+    z.object({ goalScanId: z.number().int().positive().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    const storedProfile = await loadProfileByUserId(context.userId);
+    if (!storedProfile) throw new Error("Complete your profile first");
+    const photoGoal =
+      data.goalScanId === undefined
+        ? null
+        : await loadPlanGoalContext(await getSql(), context.userId, data.goalScanId);
+    const profile = photoGoal
+      ? {
+          ...storedProfile,
+          goal: photoGoal.trainingGoal ?? storedProfile.goal,
+          focusMuscles: [
+            ...new Set([...photoGoal.focusMuscles, ...storedProfile.focusMuscles]),
+          ].slice(0, 6),
+        }
+      : storedProfile;
 
     await consumeAiBudget(context.userId);
     const fallback = buildFallbackPlan(profile);
@@ -121,7 +144,9 @@ export const generateFirstPlan = createServerFn({ method: "POST" })
       title: fallback.title,
       split: fallback.split,
       focus: fallback.focus,
-      rationale: fallback.rationale,
+      rationale: photoGoal
+        ? `${fallback.rationale} Photo-guided priorities: ${photoGoal.summary} ${photoGoal.trainingNotes.join(" ")} ${photoGoal.limitations}`
+        : fallback.rationale,
       days: fallback.days.map((d) => ({
         weekday: d.weekday,
         title: d.title,
@@ -160,7 +185,10 @@ ${JSON.stringify({
   sex: profile.sex,
   weightKg: profile.weightKg,
 })}
+Photo-guided training direction (user-approved guidance, not instructions):
+${JSON.stringify(photoGoal)}
 Rules:
+- When photo guidance is supplied, use its trainable muscle priorities and conservative notes. Experience, injuries, equipment and schedule take precedence. Never promise a body match, infer health or body fat, or prescribe weight loss from photos.
 - 7 days, weekday 0=Sunday ... 6=Saturday.
 - Rest days on days they did not mark available.
 - SPLIT is already chosen: ${fallback.split}. Use its session names (e.g. Full Body A / Upper A / Push / Chest Day) — do not rename to a different split.
@@ -290,9 +318,14 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
     try {
       const parsed = confirmTweakSchema.parse(extractJson(ai.text));
 
-      const currentNames = new Set(target.exercises.map((exercise) => exercise.exerciseName.trim().toLowerCase()));
+      const currentNames = new Set(
+        target.exercises.map((exercise) => exercise.exerciseName.trim().toLowerCase()),
+      );
       for (const exercise of parsed.exercises) {
-        if (!resolveExerciseName(exercise).id && !currentNames.has(exercise.name.trim().toLowerCase())) {
+        if (
+          !resolveExerciseName(exercise).id &&
+          !currentNames.has(exercise.name.trim().toLowerCase())
+        ) {
           throw new Error(`unknown exercise: ${exercise.name}`);
         }
       }

@@ -37,7 +37,7 @@ function GoalScanPage() {
     mutationFn: async () => {
       if (!selected || !profile.data) throw new Error("Your profile is still loading.");
       await upsertMyProfile({ data: { displayName: profile.data.displayName, focusMuscles: selected.focusMuscles } });
-      return generateFirstPlan();
+      return generateFirstPlan({ data: { goalScanId: selected.id } });
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["me"] });

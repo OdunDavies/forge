@@ -1,7 +1,20 @@
 /* eslint-disable no-useless-escape -- imperial height uses a literal inch mark */
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Dumbbell, Flame, Heart, Home, LoaderCircle, ShieldCheck, Sparkles, Target, Trophy, Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Dumbbell,
+  Flame,
+  Heart,
+  Home,
+  LoaderCircle,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Trophy,
+  Zap,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
@@ -11,6 +24,8 @@ import { getMyProfile, upsertMyProfile } from "@/lib/api/profile";
 import { track } from "@/lib/analytics";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUser, useCurrentUserState } from "@/lib/auth/use-current-user";
+import { BodyGoalUpload } from "@/components/onboarding/body-goal-upload";
+import type { BodyGoalScan } from "@/lib/body-goal";
 import { determineSplit } from "@/lib/plan/fallback";
 import { cn, kgFromInput } from "@/lib/utils";
 
@@ -18,60 +33,876 @@ export const Route = createFileRoute("/onboarding")({ component: Onboarding });
 type DreamId = "lean" | "athletic" | "muscular" | "powerful" | "curvy" | "balanced";
 type Units = "metric" | "imperial";
 const DREAMS: Array<{ id: DreamId; label: string; note: string; goal: string; focus: string[] }> = [
-  { id: "lean", label: "Lean & defined", note: "Visible definition and athletic lines", goal: "recomp", focus: ["core", "shoulders", "chest"] },
-  { id: "athletic", label: "Athletic", note: "Speed, power, and balanced muscle", goal: "general", focus: ["legs", "core", "shoulders"] },
-  { id: "muscular", label: "Muscular", note: "More size through the upper body", goal: "hypertrophy", focus: ["chest", "back", "arms"] },
-  { id: "powerful", label: "Strong & powerful", note: "Dense muscle and bigger compound lifts", goal: "strength", focus: ["legs", "back", "chest"] },
-  { id: "curvy", label: "Strong curves", note: "Glutes, legs, and a strong core", goal: "hypertrophy", focus: ["glutes", "legs", "core"] },
-  { id: "balanced", label: "Balanced fitness", note: "Move well, feel good, stay capable", goal: "general", focus: ["core", "back", "legs"] },
+  {
+    id: "lean",
+    label: "Lean & defined",
+    note: "Visible definition and athletic lines",
+    goal: "recomp",
+    focus: ["core", "shoulders", "chest"],
+  },
+  {
+    id: "athletic",
+    label: "Athletic",
+    note: "Speed, power, and balanced muscle",
+    goal: "general",
+    focus: ["legs", "core", "shoulders"],
+  },
+  {
+    id: "muscular",
+    label: "Muscular",
+    note: "More size through the upper body",
+    goal: "hypertrophy",
+    focus: ["chest", "back", "arms"],
+  },
+  {
+    id: "powerful",
+    label: "Strong & powerful",
+    note: "Dense muscle and bigger compound lifts",
+    goal: "strength",
+    focus: ["legs", "back", "chest"],
+  },
+  {
+    id: "curvy",
+    label: "Strong curves",
+    note: "Glutes, legs, and a strong core",
+    goal: "hypertrophy",
+    focus: ["glutes", "legs", "core"],
+  },
+  {
+    id: "balanced",
+    label: "Balanced fitness",
+    note: "Move well, feel good, stay capable",
+    goal: "general",
+    focus: ["core", "back", "legs"],
+  },
 ];
-const EXPERIENCE = [["beginner", "Beginner", "New to lifting or less than 1 year"], ["intermediate", "Intermediate", "1–3 years of consistent training"], ["advanced", "Advanced", "3+ years with solid technique"]] as const;
+const EXPERIENCE = [
+  ["beginner", "Beginner", "New to lifting or less than 1 year"],
+  ["intermediate", "Intermediate", "1–3 years of consistent training"],
+  ["advanced", "Advanced", "3+ years with solid technique"],
+] as const;
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
-function Option({ selected, title, note, icon, onClick }: { selected: boolean; title: string; note?: string; icon?: ReactNode; onClick: () => void }) {
-  return <button type="button" aria-pressed={selected} onClick={onClick} className={cn("flex min-h-20 w-full items-center gap-4 rounded-[1.25rem] border bg-card px-5 py-4 text-left shadow-sm transition", selected ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/45")}>
-    {icon && <span className={cn("grid size-11 shrink-0 place-items-center rounded-xl", selected ? "bg-primary/12 text-primary" : "bg-secondary text-muted-foreground")}>{icon}</span>}
-    <span className="min-w-0 flex-1"><strong className={cn("block text-base", selected && "text-primary")}>{title}</strong>{note && <span className="mt-0.5 block text-sm leading-snug text-muted-foreground">{note}</span>}</span>
-    <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border", selected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30")}>{selected && <Check className="size-4" />}</span>
-  </button>;
+function Option({
+  selected,
+  title,
+  note,
+  icon,
+  onClick,
+}: {
+  selected: boolean;
+  title: string;
+  note?: string;
+  icon?: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={cn(
+        "flex min-h-20 w-full items-center gap-4 rounded-[1.25rem] border bg-card px-5 py-4 text-left shadow-sm transition",
+        selected ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/45",
+      )}
+    >
+      {icon && (
+        <span
+          className={cn(
+            "grid size-11 shrink-0 place-items-center rounded-xl",
+            selected ? "bg-primary/12 text-primary" : "bg-secondary text-muted-foreground",
+          )}
+        >
+          {icon}
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <strong className={cn("block text-base", selected && "text-primary")}>{title}</strong>
+        {note && (
+          <span className="mt-0.5 block text-sm leading-snug text-muted-foreground">{note}</span>
+        )}
+      </span>
+      <span
+        className={cn(
+          "grid size-6 shrink-0 place-items-center rounded-full border",
+          selected
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-muted-foreground/30",
+        )}
+      >
+        {selected && <Check className="size-4" />}
+      </span>
+    </button>
+  );
 }
-function StepFrame({ step, total, onBack, children, action, actionLabel = "Continue", disabled = false, busy = false }: { step: number; total: number; onBack: () => void; children: ReactNode; action?: () => void; actionLabel?: string; disabled?: boolean; busy?: boolean }) {
-  return <main className="onboarding-screen"><div className="mx-auto flex min-h-[100svh] w-full max-w-xl flex-col px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8">
-    <header className="flex h-12 items-center gap-4"><button type="button" onClick={onBack} aria-label="Go back" className="grid size-10 place-items-center rounded-full hover:bg-card"><ArrowLeft className="size-5" /></button><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-primary/10"><div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${((step + 1) / total) * 100}%` }} /></div><span className="w-10 text-right text-xs font-semibold tabular-nums text-muted-foreground">{step + 1}/{total}</span></header>
-    <section className="flex flex-1 flex-col py-8 sm:py-12">{children}</section>{action && <Button size="lg" className="h-14 w-full rounded-2xl text-base shadow-lg shadow-primary/15" disabled={disabled || busy} onClick={action}>{busy && <LoaderCircle className="size-4 animate-spin" />}{actionLabel}</Button>}
-  </div></main>;
+function StepFrame({
+  step,
+  total,
+  onBack,
+  children,
+  action,
+  actionLabel = "Continue",
+  disabled = false,
+  busy = false,
+}: {
+  step: number;
+  total: number;
+  onBack: () => void;
+  children: ReactNode;
+  action?: () => void;
+  actionLabel?: string;
+  disabled?: boolean;
+  busy?: boolean;
+}) {
+  return (
+    <main className="onboarding-screen">
+      <div className="mx-auto flex min-h-[100svh] w-full max-w-xl flex-col px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8">
+        <header className="flex h-12 items-center gap-4">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Go back"
+            className="grid size-10 place-items-center rounded-full hover:bg-card"
+          >
+            <ArrowLeft className="size-5" />
+          </button>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-primary/10">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: `${((step + 1) / total) * 100}%` }}
+            />
+          </div>
+          <span className="w-10 text-right text-xs font-semibold tabular-nums text-muted-foreground">
+            {step + 1}/{total}
+          </span>
+        </header>
+        <section className="flex flex-1 flex-col py-8 sm:py-12">{children}</section>
+        {action && (
+          <Button
+            size="lg"
+            className="h-14 w-full rounded-2xl text-base shadow-lg shadow-primary/15"
+            disabled={disabled || busy}
+            onClick={action}
+          >
+            {busy && <LoaderCircle className="size-4 animate-spin" />}
+            {actionLabel}
+          </Button>
+        )}
+      </div>
+    </main>
+  );
 }
-function Heading({ title, copy }: { title: string; copy: string }) { return <div className="mb-8"><h1 className="display text-3xl font-semibold leading-tight sm:text-4xl">{title}</h1><p className="mt-2 text-base leading-relaxed text-muted-foreground sm:text-lg">{copy}</p></div>; }
+function Heading({ title, copy }: { title: string; copy: string }) {
+  return (
+    <div className="mb-8">
+      <h1 className="display text-3xl font-semibold leading-tight sm:text-4xl">{title}</h1>
+      <p className="mt-2 text-base leading-relaxed text-muted-foreground sm:text-lg">{copy}</p>
+    </div>
+  );
+}
 
 function Onboarding() {
-  const { user, isPending } = useCurrentUserState(); const me = useCurrentUser(); const navigate = useNavigate(); const queryClient = useQueryClient();
-  const profileQ = useQuery({ queryKey: ["me"], queryFn: () => getMyProfile(), enabled: Boolean(user) });
+  const { user, isPending } = useCurrentUserState();
+  const me = useCurrentUser();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const profileQ = useQuery({
+    queryKey: ["me"],
+    queryFn: () => getMyProfile(),
+    enabled: Boolean(user),
+  });
   const submitting = useRef(false);
-  const [step, setStep] = useState(0); const [name, setName] = useState(me?.displayName ?? ""); const [dream, setDream] = useState<DreamId | "">(""); const [draftReady, setDraftReady] = useState(false);
-  const [experience, setExperience] = useState(""); const [path, setPath] = useState<"guided" | "self" | "">(""); const [sex, setSex] = useState(""); const [age, setAge] = useState(25);
-  const [units, setUnits] = useState<Units>("metric"); const [heightCm, setHeightCm] = useState(178); const [weight, setWeight] = useState(79); const [location, setLocation] = useState<"home" | "gym" | "">("");
-  const [days, setDays] = useState<number[]>([1, 2, 4, 6]); const [minutes, setMinutes] = useState(60); const [extraFocus, setExtraFocus] = useState<string[]>([]); const [injuries, setInjuries] = useState(""); const [error, setError] = useState<string | null>(null);
-  const selectedDream = DREAMS.find((item) => item.id === dream); const focus = useMemo(() => Array.from(new Set([...(selectedDream?.focus ?? []), ...extraFocus])).slice(0, 6), [selectedDream, extraFocus]);
-  const equipment = location === "gym" ? ["full gym", "barbell", "dumbbell", "machine", "cable"] : ["body only", "dumbbell", "bands"];
-  const split = determineSplit(days.length, experience || "intermediate", focus, selectedDream?.goal ?? "general"); const total = 12; const userId = user?.id; const draftKey = `forge-onboarding-dream-v1:${userId ?? "pending"}`;
-  useEffect(() => { if (!userId) return; try { const raw = sessionStorage.getItem(draftKey); if (!raw) return; const d = JSON.parse(raw); if (typeof d.step === "number") setStep(Math.min(total - 1, Math.max(0, d.step))); if (typeof d.name === "string") setName(d.name); if (DREAMS.some((x) => x.id === d.dream)) setDream(d.dream); if (typeof d.experience === "string") setExperience(d.experience); if (d.path === "guided" || d.path === "self") setPath(d.path); if (typeof d.sex === "string") setSex(d.sex); if (typeof d.age === "number") setAge(d.age); if (d.units === "metric" || d.units === "imperial") setUnits(d.units); if (typeof d.heightCm === "number") setHeightCm(d.heightCm); if (typeof d.weight === "number") setWeight(d.weight); if (d.location === "home" || d.location === "gym") setLocation(d.location); if (Array.isArray(d.days)) setDays(d.days); if (typeof d.minutes === "number") setMinutes(d.minutes); if (Array.isArray(d.extraFocus)) setExtraFocus(d.extraFocus); if (typeof d.injuries === "string") setInjuries(d.injuries); } catch { /* invalid draft */ } finally { setDraftReady(true); } }, [userId, draftKey]);
-  useEffect(() => { if (!userId || !draftReady) return; try { sessionStorage.setItem(draftKey, JSON.stringify({ step, name, dream, experience, path, sex, age, units, heightCm, weight, location, days, minutes, extraFocus, injuries })); } catch { /* storage unavailable */ } }, [userId, draftKey, draftReady, step, name, dream, experience, path, sex, age, units, heightCm, weight, location, days, minutes, extraFocus, injuries]);
-  const save = useMutation({ mutationFn: async () => { if (!selectedDream) throw new Error("Choose your dream body first."); const weightKg = units === "imperial" ? kgFromInput(weight, "imperial") : weight; await upsertMyProfile({ data: { displayName: name.trim() || me?.displayName || "Athlete", goal: selectedDream.goal, experience: experience || "intermediate", equipment, availableDays: days, daysPerWeek: days.length, sessionMinutes: minutes, units, weightKg, heightCm, injuries, focusMuscles: focus, sex: sex === "prefer-not-to-say" ? null : sex, birthYear: new Date().getFullYear() - age } }); const result = await generateFirstPlan(); if (!result?.plan) throw new Error("Could not create a training plan. Please try again."); await upsertMyProfile({ data: { displayName: name.trim() || me?.displayName || "Athlete", markOnboarded: true } }); await Promise.all([queryClient.invalidateQueries({ queryKey: ["me"] }), queryClient.invalidateQueries({ queryKey: ["plan"] })]); return result; }, onSuccess: async () => { track("onboarding_plan_built", { source: "dream_body", dream, goal: selectedDream?.goal }); try { sessionStorage.removeItem(draftKey); } catch { /* noop */ } await navigate({ to: "/today" }); }, onError: (e: Error) => setError(e.message || "Could not build your plan"), onSettled: () => { submitting.current = false; } });
-  useEffect(() => { if (draftReady) track("onboarding_step_viewed", { source: "dream_body", step: step + 1 }); }, [draftReady, step]);
-  if (isPending || profileQ.isPending || (user && !draftReady)) return <div className="min-h-[100svh] bg-background" />; if (!user) return <RedirectToSignIn />; if (profileQ.isError) return <main className="space-y-4 p-8"><p role="alert">Could not load your profile. {profileQ.error.message}</p><Button onClick={() => void profileQ.refetch()} disabled={profileQ.isFetching}>Retry</Button></main>; if (profileQ.data?.onboardedAt) return <Navigate to="/today" />;
-  const scrollToTop = () => { document.body.scrollTo({ top: 0, behavior: "auto" }); window.scrollTo({ top: 0, behavior: "auto" }); };
-  const next = () => { setError(null); setStep((s) => Math.min(total - 1, s + 1)); scrollToTop(); }; const back = () => { if (step === 0) void navigate({ to: "/" }); else { setStep((s) => s - 1); scrollToTop(); } }; const toggleFocus = (m: string) => setExtraFocus((v) => v.includes(m) ? v.filter((x) => x !== m) : v.length < 3 ? [...v, m] : v);
+  const [step, setStep] = useState(0);
+  const [name, setName] = useState(me?.displayName ?? "");
+  const [dream, setDream] = useState<DreamId | "">("");
+  const [draftReady, setDraftReady] = useState(false);
+  const [experience, setExperience] = useState("");
+  const [path, setPath] = useState<"guided" | "self" | "">("");
+  const [sex, setSex] = useState("");
+  const [age, setAge] = useState(25);
+  const [units, setUnits] = useState<Units>("metric");
+  const [heightCm, setHeightCm] = useState(178);
+  const [weight, setWeight] = useState(79);
+  const [location, setLocation] = useState<"home" | "gym" | "">("");
+  const [days, setDays] = useState<number[]>([1, 2, 4, 6]);
+  const [minutes, setMinutes] = useState(60);
+  const [extraFocus, setExtraFocus] = useState<string[]>([]);
+  const [injuries, setInjuries] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [goalMode, setGoalMode] = useState<"preset" | "photos">("preset");
+  const [photoGoalState, setPhotoGoalState] = useState<{
+    userId: string;
+    scan: BodyGoalScan;
+  } | null>(null);
+  const userId = user?.id;
+  const photoGoal = photoGoalState?.userId === userId ? (photoGoalState?.scan ?? null) : null;
+  const selectedDream = DREAMS.find((item) => item.id === dream);
+  const focus = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...(goalMode === "photos"
+            ? (photoGoal?.focusMuscles ?? [])
+            : (selectedDream?.focus ?? [])),
+          ...extraFocus,
+        ]),
+      ).slice(0, 6),
+    [selectedDream, goalMode, photoGoal, extraFocus],
+  );
+  const equipment =
+    location === "gym"
+      ? ["full gym", "barbell", "dumbbell", "machine", "cable"]
+      : ["body only", "dumbbell", "bands"];
+  const goal =
+    goalMode === "photos"
+      ? (photoGoal?.trainingGoal ?? "general")
+      : (selectedDream?.goal ?? "general");
+  const goalLabel = goalMode === "photos" ? "Photo-guided training" : selectedDream?.label;
+  const goalDescription =
+    goalMode === "photos" ? "photo reference" : selectedDream?.label.toLowerCase();
+  const hasGoal = goalMode === "photos" ? Boolean(photoGoal) : Boolean(selectedDream);
+  const split = determineSplit(days.length, experience || "intermediate", focus, goal);
+  const total = 12;
+  const draftKey = `forge-onboarding-dream-v1:${userId ?? "pending"}`;
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (typeof d.step === "number") setStep(Math.min(total - 1, Math.max(0, d.step)));
+      if (typeof d.name === "string") setName(d.name);
+      if (DREAMS.some((x) => x.id === d.dream)) setDream(d.dream);
+      if (typeof d.experience === "string") setExperience(d.experience);
+      if (d.path === "guided" || d.path === "self") setPath(d.path);
+      if (typeof d.sex === "string") setSex(d.sex);
+      if (typeof d.age === "number") setAge(d.age);
+      if (d.units === "metric" || d.units === "imperial") setUnits(d.units);
+      if (typeof d.heightCm === "number") setHeightCm(d.heightCm);
+      if (typeof d.weight === "number") setWeight(d.weight);
+      if (d.location === "home" || d.location === "gym") setLocation(d.location);
+      if (Array.isArray(d.days)) setDays(d.days);
+      if (typeof d.minutes === "number") setMinutes(d.minutes);
+      if (Array.isArray(d.extraFocus)) setExtraFocus(d.extraFocus);
+      if (typeof d.injuries === "string") setInjuries(d.injuries);
+    } catch {
+      /* invalid draft */
+    } finally {
+      setDraftReady(true);
+    }
+  }, [userId, draftKey]);
+  useEffect(() => {
+    if (!userId || !draftReady) return;
+    try {
+      sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          step,
+          name,
+          dream,
+          experience,
+          path,
+          sex,
+          age,
+          units,
+          heightCm,
+          weight,
+          location,
+          days,
+          minutes,
+          extraFocus,
+          injuries,
+        }),
+      );
+    } catch {
+      /* storage unavailable */
+    }
+  }, [
+    userId,
+    draftKey,
+    draftReady,
+    step,
+    name,
+    dream,
+    experience,
+    path,
+    sex,
+    age,
+    units,
+    heightCm,
+    weight,
+    location,
+    days,
+    minutes,
+    extraFocus,
+    injuries,
+  ]);
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!hasGoal) throw new Error("Choose a goal or analyze both photos first.");
+      const weightKg = units === "imperial" ? kgFromInput(weight, "imperial") : weight;
+      await upsertMyProfile({
+        data: {
+          displayName: name.trim() || me?.displayName || "Athlete",
+          goal,
+          experience: experience || "intermediate",
+          equipment,
+          availableDays: days,
+          daysPerWeek: days.length,
+          sessionMinutes: minutes,
+          units,
+          weightKg,
+          heightCm,
+          injuries,
+          focusMuscles: focus,
+          sex: sex === "prefer-not-to-say" ? null : sex,
+          birthYear: new Date().getFullYear() - age,
+        },
+      });
+      const result = await generateFirstPlan({
+        data: { goalScanId: goalMode === "photos" ? photoGoal?.id : undefined },
+      });
+      if (!result?.plan) throw new Error("Could not create a training plan. Please try again.");
+      await upsertMyProfile({
+        data: { displayName: name.trim() || me?.displayName || "Athlete", markOnboarded: true },
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["me"] }),
+        queryClient.invalidateQueries({ queryKey: ["plan"] }),
+      ]);
+      return result;
+    },
+    onSuccess: async () => {
+      track("onboarding_plan_built", {
+        source: goalMode === "photos" ? "body_photos" : "dream_body",
+        dream,
+        goal,
+      });
+      try {
+        sessionStorage.removeItem(draftKey);
+      } catch {
+        /* noop */
+      }
+      await navigate({ to: "/today" });
+    },
+    onError: (e: Error) => setError(e.message || "Could not build your plan"),
+    onSettled: () => {
+      submitting.current = false;
+    },
+  });
+  useEffect(() => {
+    if (draftReady) track("onboarding_step_viewed", { source: "dream_body", step: step + 1 });
+  }, [draftReady, step]);
+  if (isPending || profileQ.isPending || (user && !draftReady))
+    return <div className="min-h-[100svh] bg-background" />;
+  if (!user) return <RedirectToSignIn />;
+  if (profileQ.isError)
+    return (
+      <main className="space-y-4 p-8">
+        <p role="alert">Could not load your profile. {profileQ.error.message}</p>
+        <Button onClick={() => void profileQ.refetch()} disabled={profileQ.isFetching}>
+          Retry
+        </Button>
+      </main>
+    );
+  if (profileQ.data?.onboardedAt) return <Navigate to="/today" />;
+  const scrollToTop = () => {
+    document.body.scrollTo({ top: 0, behavior: "auto" });
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+  const next = () => {
+    setError(null);
+    setStep((s) => Math.min(total - 1, s + 1));
+    scrollToTop();
+  };
+  const back = () => {
+    if (step === 0) void navigate({ to: "/" });
+    else {
+      setStep((s) => s - 1);
+      scrollToTop();
+    }
+  };
+  const toggleFocus = (m: string) =>
+    setExtraFocus((v) => (v.includes(m) ? v.filter((x) => x !== m) : v.length < 3 ? [...v, m] : v));
 
-  if (step === 0) return <StepFrame step={step} total={total} onBack={back} action={next} actionLabel="Build my plan"><div className="flex flex-1 flex-col justify-center text-center"><div className="mx-auto mb-10 grid size-24 place-items-center rounded-[2rem] bg-primary text-primary-foreground shadow-xl shadow-primary/20"><Dumbbell className="size-11" /></div><div className="mx-auto mb-8"><Wordmark /></div><h1 className="display text-4xl font-semibold">Training built around you.</h1><p className="mx-auto mt-4 max-w-sm text-lg leading-relaxed text-muted-foreground">Tell Forge where you want your body and performance to go. We’ll design the route.</p><div className="mt-10 grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground"><span>Personalized</span><span>Progressive</span><span>Adaptable</span></div></div></StepFrame>;
-  if (step === 1) return <StepFrame step={step} total={total} onBack={back} action={next} disabled={!dream}><Heading title="What does your dream body feel like?" copy="Choose the result you want to work toward. Your split, exercises, reps, and progression will be built around it."/><div className="grid gap-3">{DREAMS.map((d, i) => <Option key={d.id} selected={dream === d.id} title={d.label} note={d.note} icon={[<Flame key="f"/>,<Zap key="z"/>,<Dumbbell key="d"/>,<Trophy key="t"/>,<Heart key="h"/>,<Target key="g"/>][i]} onClick={() => setDream(d.id)} />)}</div></StepFrame>;
-  if (step === 2) return <StepFrame step={step} total={total} onBack={back} action={next} disabled={!experience}><div className="my-auto"><Heading title="Lifting experience?" copy="We’ll start you at the right level and calibrate volume safely."/><div className="grid gap-3">{EXPERIENCE.map(([id, label, note]) => <Option key={id} selected={experience === id} title={label} note={note} onClick={() => setExperience(id)} />)}</div></div></StepFrame>;
-  if (step === 3) return <StepFrame step={step} total={total} onBack={back} action={next} disabled={!path}><div className="my-auto"><Heading title="How do you want to start?" copy="Pick the path that fits you best."/><div className="grid gap-4"><Option selected={path === "guided"} title="Build me a program" note="Forge designs your split, exercises, and progression from everything you tell us." icon={<Sparkles/>} onClick={() => setPath("guided")} /><Option selected={path === "self"} title="I know what I’m doing" note="Start with a tailored structure, then edit every part of it." icon={<Dumbbell/>} onClick={() => setPath("self")} /></div></div></StepFrame>;
-  if (step === 4) return <StepFrame step={step} total={total} onBack={back} action={next} disabled={!sex}><div className="my-auto"><Heading title="Tell us about you" copy="This helps calibrate starting loads and recovery."/><div className="grid gap-3">{[["male","Man"],["female","Woman"],["prefer-not-to-say","Prefer not to say"]].map(([id,label]) => <Option key={id} selected={sex === id} title={label} onClick={() => setSex(id)} />)}</div><div className="mt-10 text-center"><h2 className="display text-2xl font-semibold">How old are you?</h2><div className="mt-5 flex items-center justify-center gap-8"><button className="size-14 rounded-full bg-card text-2xl shadow-sm" onClick={() => setAge(Math.max(16, age - 1))}>−</button><strong className="display w-20 text-5xl tabular-nums">{age}</strong><button className="size-14 rounded-full bg-card text-2xl shadow-sm" onClick={() => setAge(Math.min(90, age + 1))}>+</button></div></div></div></StepFrame>;
-  if (step === 5) { const feet = Math.floor(heightCm / 2.54 / 12); const inches = Math.round(heightCm / 2.54 - feet * 12); return <StepFrame step={step} total={total} onBack={back} action={next}><Heading title="How tall are you?" copy="This helps us estimate range of motion and sensible starting loads."/><div className="text-center"><div className="mx-auto mb-8 inline-flex rounded-xl bg-card p-1 shadow-sm"><button onClick={() => setUnits("imperial")} className={cn("rounded-lg px-7 py-3 font-semibold", units === "imperial" && "bg-primary text-primary-foreground")}>FT</button><button onClick={() => setUnits("metric")} className={cn("rounded-lg px-7 py-3 font-semibold", units === "metric" && "bg-primary text-primary-foreground")}>CM</button></div><div className="display mb-8 text-5xl font-semibold tabular-nums">{units === "metric" ? `${heightCm} cm` : `${feet}' ${inches}\"`}</div><input aria-label="Height" type="range" min="145" max="210" value={heightCm} onChange={(e) => setHeightCm(Number(e.target.value))} className="forge-range w-full" /></div></StepFrame>; }
-  if (step === 6) return <StepFrame step={step} total={total} onBack={back} action={next}><Heading title="Current weight" copy="We’ll use this as your starting point and track progress from here."/><div className="text-center"><div className="display mb-8 text-6xl font-semibold tabular-nums">{weight}<span className="ml-2 text-2xl text-muted-foreground">{units === "metric" ? "kg" : "lb"}</span></div><input aria-label="Weight" type="range" min={units === "metric" ? 40 : 90} max={units === "metric" ? 160 : 350} value={weight} onChange={(e) => setWeight(Number(e.target.value))} className="forge-range w-full" /><div className="mx-auto mt-10 inline-flex rounded-xl bg-card p-1 shadow-sm"><button onClick={() => { if (units !== "imperial") setWeight(Math.round(weight * 2.20462)); setUnits("imperial"); }} className={cn("rounded-lg px-7 py-3 font-semibold", units === "imperial" && "bg-primary text-primary-foreground")}>LB</button><button onClick={() => { if (units !== "metric") setWeight(Math.round(weight / 2.20462)); setUnits("metric"); }} className={cn("rounded-lg px-7 py-3 font-semibold", units === "metric" && "bg-primary text-primary-foreground")}>KG</button></div></div></StepFrame>;
-  if (step === 7) return <StepFrame step={step} total={total} onBack={back} action={next} disabled={!name.trim()}><div className="my-auto"><Heading title="What’s your name?" copy="Let’s personalize your training experience."/><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your full name" className="h-16 rounded-none border-x-0 border-t-0 bg-transparent px-0 text-2xl font-semibold shadow-none focus-visible:ring-0" /></div></StepFrame>;
-  if (step === 8) return <StepFrame step={step} total={total} onBack={back} action={next} disabled={!location}><Heading title="Where do you train?" copy="Your workouts will only use equipment you can access."/><div className="grid gap-4"><Option selected={location === "home"} title="I work out at home" note="Bodyweight, dumbbells, and bands" icon={<Home/>} onClick={() => setLocation("home")} /><Option selected={location === "gym"} title="I go to a gym" note="Barbells, dumbbells, cables, and machines" icon={<Dumbbell/>} onClick={() => setLocation("gym")} /></div></StepFrame>;
-  if (step === 9) return <StepFrame step={step} total={total} onBack={back} action={next} disabled={days.length < 2}><Heading title="When can you train?" copy="Pick at least two days. Forge will balance work and recovery across your week."/><div className="grid grid-cols-7 gap-2">{DAYS.map((day, index) => <button key={`${day}-${index}`} onClick={() => setDays((v) => v.includes(index) ? v.filter((d) => d !== index) : [...v, index].sort())} className={cn("aspect-square rounded-full border text-sm font-semibold", days.includes(index) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}>{day}</button>)}</div><div className="mt-12"><div className="mb-3 flex justify-between"><strong>Session length</strong><span className="text-primary">{minutes} min</span></div><input aria-label="Session length" type="range" min="30" max="90" step="15" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} className="forge-range w-full" /></div></StepFrame>;
-  if (step === 10) return <StepFrame step={step} total={total} onBack={back} action={next} actionLabel="Design my program"><Heading title="What do you want to emphasize?" copy={`Your ${selectedDream?.label.toLowerCase() ?? "dream body"} already prioritizes ${selectedDream?.focus.join(", ")}. Add up to 3 personal priorities.`}/><div className="grid gap-3">{["Chest","Back","Shoulders","Arms","Legs","Core","Glutes"].map((m) => <Option key={m} selected={extraFocus.includes(m.toLowerCase())} title={m} onClick={() => toggleFocus(m.toLowerCase())} />)}</div><label className="mt-7 block text-sm font-semibold">Anything we should protect? <span className="font-normal text-muted-foreground">Optional</span><Input value={injuries} onChange={(e) => setInjuries(e.target.value)} placeholder="e.g. sensitive left knee" className="mt-2 h-12 rounded-xl bg-card" /></label></StepFrame>;
-  return <StepFrame step={step} total={total} onBack={back} action={() => { if (submitting.current) return; submitting.current = true; save.mutate(); }} actionLabel="Use this program" busy={save.isPending}><div className="mb-5 flex items-center gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground"><Sparkles/></span><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Designed for your dream body</p><h1 className="display text-3xl font-semibold">{split} plan</h1></div></div><div className="rounded-2xl bg-primary/8 p-4 text-sm leading-relaxed text-muted-foreground"><ShieldCheck className="mr-2 inline size-4 text-primary"/>Built around your {selectedDream?.label.toLowerCase()}, {experience} experience, {location} equipment, and {days.length}-day schedule.</div><div className="mt-5 rounded-[1.5rem] border bg-card p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Personalized for {name || "you"}</p><div className="mt-4 grid grid-cols-2 gap-4"><div><span className="text-xs text-muted-foreground">Goal</span><strong className="block capitalize">{selectedDream?.label}</strong></div><div><span className="text-xs text-muted-foreground">Weekly training</span><strong className="block">{days.length} × {minutes} min</strong></div><div className="col-span-2"><span className="text-xs text-muted-foreground">Priority areas</span><div className="mt-2 flex flex-wrap gap-2">{focus.map((m) => <span key={m} className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium capitalize text-primary">{m}</span>)}</div></div></div></div><div className="mt-4 rounded-[1.5rem] border bg-card p-5 shadow-sm"><div className="flex items-center justify-between"><h2 className="display text-xl font-semibold">Your first week</h2><span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">{days.length} workouts</span></div><div className="mt-5 space-y-3">{days.map((d, i) => <div key={d} className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">{DAYS[d]}</span><div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary/55" style={{ width: `${72 + (i % 3) * 10}%` }} /></div><span className="w-20 text-right text-xs text-muted-foreground">{i % 2 ? "Lower body" : "Upper body"}</span></div>)}</div></div>{error && <p role="alert" className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}<p className="mt-6 text-center text-sm text-muted-foreground">Your plan keeps adapting as you log workouts.</p></StepFrame>;
+  if (step === 0)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next} actionLabel="Build my plan">
+        <div className="flex flex-1 flex-col justify-center text-center">
+          <div className="mx-auto mb-10 grid size-24 place-items-center rounded-[2rem] bg-primary text-primary-foreground shadow-xl shadow-primary/20">
+            <Dumbbell className="size-11" />
+          </div>
+          <div className="mx-auto mb-8">
+            <Wordmark />
+          </div>
+          <h1 className="display text-4xl font-semibold">Training built around you.</h1>
+          <p className="mx-auto mt-4 max-w-sm text-lg leading-relaxed text-muted-foreground">
+            Tell Forge where you want your body and performance to go. We’ll design the route.
+          </p>
+          <div className="mt-10 grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground">
+            <span>Personalized</span>
+            <span>Progressive</span>
+            <span>Adaptable</span>
+          </div>
+        </div>
+      </StepFrame>
+    );
+  if (step === 1)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next} disabled={!hasGoal}>
+        <Heading
+          title="What are you working toward?"
+          copy="Choose a goal or use your current and dream body photos to guide your plan."
+        />
+        <div
+          role="group"
+          aria-label="How to set your training goal"
+          className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-secondary p-1.5"
+        >
+          <Button
+            type="button"
+            variant={goalMode === "preset" ? "default" : "ghost"}
+            aria-pressed={goalMode === "preset"}
+            className="min-h-12 rounded-xl"
+            onClick={() => setGoalMode("preset")}
+          >
+            Choose a goal
+          </Button>
+          <Button
+            type="button"
+            variant={goalMode === "photos" ? "default" : "ghost"}
+            aria-pressed={goalMode === "photos"}
+            className="min-h-12 rounded-xl"
+            onClick={() => setGoalMode("photos")}
+          >
+            Use my photos
+          </Button>
+        </div>
+        {goalMode === "photos" ? (
+          <BodyGoalUpload
+            key={userId}
+            value={photoGoal}
+            onChange={(scan) => setPhotoGoalState(scan && userId ? { userId, scan } : null)}
+          />
+        ) : (
+          <div className="grid gap-3">
+            {DREAMS.map((d, i) => (
+              <Option
+                key={d.id}
+                selected={dream === d.id}
+                title={d.label}
+                note={d.note}
+                icon={
+                  [
+                    <Flame key="f" />,
+                    <Zap key="z" />,
+                    <Dumbbell key="d" />,
+                    <Trophy key="t" />,
+                    <Heart key="h" />,
+                    <Target key="g" />,
+                  ][i]
+                }
+                onClick={() => setDream(d.id)}
+              />
+            ))}
+          </div>
+        )}
+      </StepFrame>
+    );
+  if (step === 2)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next} disabled={!experience}>
+        <div className="my-auto">
+          <Heading
+            title="Lifting experience?"
+            copy="We’ll start you at the right level and calibrate volume safely."
+          />
+          <div className="grid gap-3">
+            {EXPERIENCE.map(([id, label, note]) => (
+              <Option
+                key={id}
+                selected={experience === id}
+                title={label}
+                note={note}
+                onClick={() => setExperience(id)}
+              />
+            ))}
+          </div>
+        </div>
+      </StepFrame>
+    );
+  if (step === 3)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next} disabled={!path}>
+        <div className="my-auto">
+          <Heading title="How do you want to start?" copy="Pick the path that fits you best." />
+          <div className="grid gap-4">
+            <Option
+              selected={path === "guided"}
+              title="Build me a program"
+              note="Forge designs your split, exercises, and progression from everything you tell us."
+              icon={<Sparkles />}
+              onClick={() => setPath("guided")}
+            />
+            <Option
+              selected={path === "self"}
+              title="I know what I’m doing"
+              note="Start with a tailored structure, then edit every part of it."
+              icon={<Dumbbell />}
+              onClick={() => setPath("self")}
+            />
+          </div>
+        </div>
+      </StepFrame>
+    );
+  if (step === 4)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next} disabled={!sex}>
+        <div className="my-auto">
+          <Heading
+            title="Tell us about you"
+            copy="This helps calibrate starting loads and recovery."
+          />
+          <div className="grid gap-3">
+            {[
+              ["male", "Man"],
+              ["female", "Woman"],
+              ["prefer-not-to-say", "Prefer not to say"],
+            ].map(([id, label]) => (
+              <Option key={id} selected={sex === id} title={label} onClick={() => setSex(id)} />
+            ))}
+          </div>
+          <div className="mt-10 text-center">
+            <h2 className="display text-2xl font-semibold">How old are you?</h2>
+            <div className="mt-5 flex items-center justify-center gap-8">
+              <button
+                className="size-14 rounded-full bg-card text-2xl shadow-sm"
+                onClick={() => setAge(Math.max(16, age - 1))}
+              >
+                −
+              </button>
+              <strong className="display w-20 text-5xl tabular-nums">{age}</strong>
+              <button
+                className="size-14 rounded-full bg-card text-2xl shadow-sm"
+                onClick={() => setAge(Math.min(90, age + 1))}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+      </StepFrame>
+    );
+  if (step === 5) {
+    const feet = Math.floor(heightCm / 2.54 / 12);
+    const inches = Math.round(heightCm / 2.54 - feet * 12);
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next}>
+        <Heading
+          title="How tall are you?"
+          copy="This helps us estimate range of motion and sensible starting loads."
+        />
+        <div className="text-center">
+          <div className="mx-auto mb-8 inline-flex rounded-xl bg-card p-1 shadow-sm">
+            <button
+              onClick={() => setUnits("imperial")}
+              className={cn(
+                "rounded-lg px-7 py-3 font-semibold",
+                units === "imperial" && "bg-primary text-primary-foreground",
+              )}
+            >
+              FT
+            </button>
+            <button
+              onClick={() => setUnits("metric")}
+              className={cn(
+                "rounded-lg px-7 py-3 font-semibold",
+                units === "metric" && "bg-primary text-primary-foreground",
+              )}
+            >
+              CM
+            </button>
+          </div>
+          <div className="display mb-8 text-5xl font-semibold tabular-nums">
+            {units === "metric" ? `${heightCm} cm` : `${feet}' ${inches}\"`}
+          </div>
+          <input
+            aria-label="Height"
+            type="range"
+            min="145"
+            max="210"
+            value={heightCm}
+            onChange={(e) => setHeightCm(Number(e.target.value))}
+            className="forge-range w-full"
+          />
+        </div>
+      </StepFrame>
+    );
+  }
+  if (step === 6)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next}>
+        <Heading
+          title="Current weight"
+          copy="We’ll use this as your starting point and track progress from here."
+        />
+        <div className="text-center">
+          <div className="display mb-8 text-6xl font-semibold tabular-nums">
+            {weight}
+            <span className="ml-2 text-2xl text-muted-foreground">
+              {units === "metric" ? "kg" : "lb"}
+            </span>
+          </div>
+          <input
+            aria-label="Weight"
+            type="range"
+            min={units === "metric" ? 40 : 90}
+            max={units === "metric" ? 160 : 350}
+            value={weight}
+            onChange={(e) => setWeight(Number(e.target.value))}
+            className="forge-range w-full"
+          />
+          <div className="mx-auto mt-10 inline-flex rounded-xl bg-card p-1 shadow-sm">
+            <button
+              onClick={() => {
+                if (units !== "imperial") setWeight(Math.round(weight * 2.20462));
+                setUnits("imperial");
+              }}
+              className={cn(
+                "rounded-lg px-7 py-3 font-semibold",
+                units === "imperial" && "bg-primary text-primary-foreground",
+              )}
+            >
+              LB
+            </button>
+            <button
+              onClick={() => {
+                if (units !== "metric") setWeight(Math.round(weight / 2.20462));
+                setUnits("metric");
+              }}
+              className={cn(
+                "rounded-lg px-7 py-3 font-semibold",
+                units === "metric" && "bg-primary text-primary-foreground",
+              )}
+            >
+              KG
+            </button>
+          </div>
+        </div>
+      </StepFrame>
+    );
+  if (step === 7)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next} disabled={!name.trim()}>
+        <div className="my-auto">
+          <Heading title="What’s your name?" copy="Let’s personalize your training experience." />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Enter your full name"
+            className="h-16 rounded-none border-x-0 border-t-0 bg-transparent px-0 text-2xl font-semibold shadow-none focus-visible:ring-0"
+          />
+        </div>
+      </StepFrame>
+    );
+  if (step === 8)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next} disabled={!location}>
+        <Heading
+          title="Where do you train?"
+          copy="Your workouts will only use equipment you can access."
+        />
+        <div className="grid gap-4">
+          <Option
+            selected={location === "home"}
+            title="I work out at home"
+            note="Bodyweight, dumbbells, and bands"
+            icon={<Home />}
+            onClick={() => setLocation("home")}
+          />
+          <Option
+            selected={location === "gym"}
+            title="I go to a gym"
+            note="Barbells, dumbbells, cables, and machines"
+            icon={<Dumbbell />}
+            onClick={() => setLocation("gym")}
+          />
+        </div>
+      </StepFrame>
+    );
+  if (step === 9)
+    return (
+      <StepFrame step={step} total={total} onBack={back} action={next} disabled={days.length < 2}>
+        <Heading
+          title="When can you train?"
+          copy="Pick at least two days. Forge will balance work and recovery across your week."
+        />
+        <div className="grid grid-cols-7 gap-2">
+          {DAYS.map((day, index) => (
+            <button
+              key={`${day}-${index}`}
+              onClick={() =>
+                setDays((v) =>
+                  v.includes(index) ? v.filter((d) => d !== index) : [...v, index].sort(),
+                )
+              }
+              className={cn(
+                "aspect-square rounded-full border text-sm font-semibold",
+                days.includes(index)
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card",
+              )}
+            >
+              {day}
+            </button>
+          ))}
+        </div>
+        <div className="mt-12">
+          <div className="mb-3 flex justify-between">
+            <strong>Session length</strong>
+            <span className="text-primary">{minutes} min</span>
+          </div>
+          <input
+            aria-label="Session length"
+            type="range"
+            min="30"
+            max="90"
+            step="15"
+            value={minutes}
+            onChange={(e) => setMinutes(Number(e.target.value))}
+            className="forge-range w-full"
+          />
+        </div>
+      </StepFrame>
+    );
+  if (step === 10)
+    return (
+      <StepFrame
+        step={step}
+        total={total}
+        onBack={back}
+        action={next}
+        actionLabel="Design my program"
+      >
+        <Heading
+          title="What do you want to emphasize?"
+          copy={`Your ${goalDescription ?? "goal"} prioritizes ${(goalMode === "photos" ? photoGoal?.focusMuscles : selectedDream?.focus)?.join(", ") ?? "balanced training"}. Add up to 3 personal priorities.`}
+        />
+        <div className="grid gap-3">
+          {["Chest", "Back", "Shoulders", "Arms", "Legs", "Core", "Glutes"].map((m) => (
+            <Option
+              key={m}
+              selected={extraFocus.includes(m.toLowerCase())}
+              title={m}
+              onClick={() => toggleFocus(m.toLowerCase())}
+            />
+          ))}
+        </div>
+        <label className="mt-7 block text-sm font-semibold">
+          Anything we should protect?{" "}
+          <span className="font-normal text-muted-foreground">Optional</span>
+          <Input
+            value={injuries}
+            onChange={(e) => setInjuries(e.target.value)}
+            placeholder="e.g. sensitive left knee"
+            className="mt-2 h-12 rounded-xl bg-card"
+          />
+        </label>
+      </StepFrame>
+    );
+  return (
+    <StepFrame
+      step={step}
+      total={total}
+      onBack={back}
+      action={() => {
+        if (submitting.current) return;
+        submitting.current = true;
+        save.mutate();
+      }}
+      actionLabel="Use this program"
+      busy={save.isPending}
+    >
+      <div className="mb-5 flex items-center gap-3">
+        <span className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
+          <Sparkles />
+        </span>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+            Designed around your goal
+          </p>
+          <h1 className="display text-3xl font-semibold">{split} plan</h1>
+        </div>
+      </div>
+      <div className="rounded-2xl bg-primary/8 p-4 text-sm leading-relaxed text-muted-foreground">
+        <ShieldCheck className="mr-2 inline size-4 text-primary" />
+        Built around your {goalDescription}, {experience} experience, {location} equipment, and{" "}
+        {days.length}-day schedule.
+      </div>
+      <div className="mt-5 rounded-[1.5rem] border bg-card p-5 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          Personalized for {name || "you"}
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-xs text-muted-foreground">Goal</span>
+            <strong className="block capitalize">{goalLabel}</strong>
+          </div>
+          <div>
+            <span className="text-xs text-muted-foreground">Weekly training</span>
+            <strong className="block">
+              {days.length} × {minutes} min
+            </strong>
+          </div>
+          <div className="col-span-2">
+            <span className="text-xs text-muted-foreground">Priority areas</span>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {focus.map((m) => (
+                <span
+                  key={m}
+                  className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium capitalize text-primary"
+                >
+                  {m}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 rounded-[1.5rem] border bg-card p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="display text-xl font-semibold">Your first week</h2>
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">
+            {days.length} workouts
+          </span>
+        </div>
+        <div className="mt-5 space-y-3">
+          {days.map((d, i) => (
+            <div key={d} className="flex items-center gap-3">
+              <span className="grid size-9 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                {DAYS[d]}
+              </span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-primary/55"
+                  style={{ width: `${72 + (i % 3) * 10}%` }}
+                />
+              </div>
+              <span className="w-20 text-right text-xs text-muted-foreground">
+                {i % 2 ? "Lower body" : "Upper body"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {error && (
+        <p role="alert" className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Your plan keeps adapting as you log workouts.
+      </p>
+    </StepFrame>
+  );
 }
