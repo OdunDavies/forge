@@ -1,4 +1,4 @@
-import type { Sql } from "../db.ts";
+import type { Sql } from "../db.server.ts";
 import type { DatasetRecord } from "./catalog.ts";
 import type { ExerciseKind } from "./catalog-config.ts";
 import { equipmentGroup } from "./catalog.ts";

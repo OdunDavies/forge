@@ -1,4 +1,4 @@
-import type { Sql } from "../db.ts";
+import type { Sql } from "../db.server.ts";
 import { EXERCISE_CATALOG } from "./catalog.ts";
 import { CATALOG_VERSION } from "./catalog-config.ts";
 import { EQUIVALENT_ALIASES, CLOSEST_ALIASES, matchExercise, validateAliases } from "./match.ts";
@@ -106,7 +106,7 @@ export async function syncExerciseCatalog(force = false): Promise<void> {
   }
   if (seeded && !force) return;
   seeding = (async () => {
-    const { withTransaction } = await import("../db.ts");
+    const { withTransaction } = await import("../db.server.ts");
     await withTransaction((sql: Sql) => seedCatalog(sql, force));
     seeded = true;
   })();
@@ -125,7 +125,7 @@ export async function findExerciseByName(name: string) {
   const matched = matchExercise(name);
   if (!matched) return null;
   await ensureExerciseCatalog();
-  const { getSql } = await import("../db.ts");
+  const { getSql } = await import("../db.server.ts");
   const sql = await getSql();
   const rows = await sql<import("./library-query.ts").ExerciseRow>`
     select id, name, force, level, mechanic, equipment, primary_muscles, secondary_muscles,

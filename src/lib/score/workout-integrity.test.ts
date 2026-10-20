@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { loadScoreData } from "./data.server.ts";
 import { awardSession, loadProgression } from "../gamification/progression.server.ts";
-import type { Sql } from "../db.ts";
+import type { Sql } from "../db.server.ts";
 
 function client(query: <T>(text: string, params?: unknown[]) => Promise<{ rows: T[] }>): Sql {
   const sql = (async <T>(strings: TemplateStringsArray, ...values: unknown[]) => {

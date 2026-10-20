@@ -31,7 +31,7 @@ export function rankForXp(xp: number): (typeof RANKS)[number] {
 }
 
 // Experience needed for each rank up
-export const RANK_REQUIREMENTS = RANKS.map((rank, i) => ({
+export const RANK_REQUIREMENTS = RANKS.map((rank) => ({
   rank: rank.name,
   xpNeeded: rank.xpFloor,
   color: rank.color,

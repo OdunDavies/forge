@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql } from "@/lib/db";
+import { getSql } from "@/lib/db.server";
 import { num0 } from "@/lib/db-map";
 import { activityVisibilitySql } from "./activity-visibility";
 
@@ -130,10 +130,20 @@ export const getFeed = createServerFn({ method: "GET" })
     return hydrate(rows);
   });
 
+async function assertActivityVisible(activityId: number, userId: string) {
+  const sql = await getSql();
+  const rows = await sql<{id:number}>`select s.id from workout_sessions s
+    where s.id = ${activityId} and s.completed_at is not null and
+    (s.user_id = ${userId} or s.visibility = 'public' or (s.visibility = 'followers' and
+      exists(select 1 from follows f where f.follower_id = ${userId} and f.following_id = s.user_id)))`;
+  if (!rows.length) throw new Error("Activity not found");
+}
+
 export const toggleKudos = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((activityId: unknown) => z.number().int().positive().parse(activityId))
   .handler(async ({ context, data: activityId }) => {
+    await assertActivityVisible(activityId, context.userId);
     const sql = await getSql();
     const removed = await sql.query(
       `delete from activity_kudos k using workout_sessions s

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { before, after, test } from "node:test";
 import { PGlite, type Transaction } from "@electric-sql/pglite";
-import type { Sql } from "../db.ts";
+import type { Sql } from "../db.server.ts";
 import { EXERCISE_CATALOG } from "./catalog.ts";
 import { CATALOG_VERSION } from "./catalog-config.ts";
 import { seedCatalog } from "./seed.ts";

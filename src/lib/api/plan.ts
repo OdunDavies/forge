@@ -1,14 +1,15 @@
-import { createServerFn } from "@tanstack/react-start";
+import { consumeAiBudget } from "@/lib/ai/rate-limit.server";
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql, withTransaction, type Sql } from "@/lib/db";
+import { getSql, withTransaction, type Sql } from "@/lib/db.server";
 import { num } from "@/lib/db-map";
 import { extractJson, grokChat } from "@/lib/ai/grok";
 import { buildFallbackPlan, volumeBreakdown } from "@/lib/plan/fallback";
 import { loadProfileByUserId } from "./profile";
 import { ensureExerciseCatalog } from "@/lib/exercises/seed";
 import { generatedSchema, confirmTweakSchema, type GeneratedPlan } from "@/lib/plan/schema";
-import { replaceGeneratedPlan, replaceDayExercises } from "@/lib/plan/persistence";
+import { replaceGeneratedPlan, replaceDayExercises, resolveExerciseName } from "@/lib/plan/persistence";
 import type { ActivePlan, PlanDay, PlanExercise } from "./types";
 
 type PlanRow = {
@@ -42,7 +43,7 @@ type ExRow = {
   sort_order: number;
 };
 
-export async function loadPlan(userId: string, sql?: Sql): Promise<ActivePlan | null> {
+export const loadPlan = createServerOnlyFn(async (userId: string, sql?: Sql): Promise<ActivePlan | null> => {
   sql ??= await getSql();
   const plans = await sql<PlanRow>`
     select id, title, split, days_per_week, focus, notes, ai_rationale
@@ -94,7 +95,7 @@ export async function loadPlan(userId: string, sql?: Sql): Promise<ActivePlan | 
       exercises: byDay.get(d.id) ?? [],
     })),
   };
-}
+});
 
 export const getActivePlan = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -114,6 +115,7 @@ export const generateFirstPlan = createServerFn({ method: "POST" })
     const profile = await loadProfileByUserId(context.userId);
     if (!profile) throw new Error("Complete your profile first");
 
+    await consumeAiBudget(context.userId);
     const fallback = buildFallbackPlan(profile);
     const starterPayload = {
       title: fallback.title,
@@ -204,8 +206,11 @@ Rules:
         }
         const plan = await persistGenerated(context.userId, parsed);
         return { plan, source: "ai" as const };
-      } catch {
-        /* keep starter */
+      } catch (error) {
+        console.warn("[plan] rejected AI-generated plan; keeping validated starter", {
+          userId: context.userId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -249,6 +254,7 @@ export const tweakTodayPlan = createServerFn({ method: "POST" })
       where user_id = ${context.userId} and completed_at is not null
       order by completed_at desc limit 5`;
 
+    await consumeAiBudget(context.userId);
     const ai = await grokChat(
       [
         {
@@ -259,10 +265,14 @@ export const tweakTodayPlan = createServerFn({ method: "POST" })
           role: "user",
           content: `Adjust this upcoming session only (${target.title}).
 Injuries: ${profile.injuries || "none"}
+Goal and focus: ${profile.goal || "general"}; ${(profile.focusMuscles ?? []).join(", ") || "balanced"}
+Experience: ${profile.experience || "intermediate"}
+Available equipment: ${(profile.equipment ?? []).join(", ") || "body only"}
 Energy/soreness notes: ${data.reason ?? "none"}
 Recent sessions: ${JSON.stringify(recent)}
 Session: ${JSON.stringify(target)}
 Return {"message":"one paragraph to the athlete","exercises":[{"name":"...","sets":3,"reps":"8","restSec":90,"rpe":7,"notes":""}]}
+Use only the available equipment and catalog-style exercise names. Preserve the session's movement balance unless pain or equipment requires a swap.
 If they are beat up, cut volume. If they crushed last time, add a small load cue in notes, not extra junk volume.`,
         },
       ],
@@ -279,6 +289,13 @@ If they are beat up, cut volume. If they crushed last time, add a small load cue
     }
     try {
       const parsed = confirmTweakSchema.parse(extractJson(ai.text));
+
+      const currentNames = new Set(target.exercises.map((exercise) => exercise.exerciseName.trim().toLowerCase()));
+      for (const exercise of parsed.exercises) {
+        if (!resolveExerciseName(exercise).id && !currentNames.has(exercise.name.trim().toLowerCase())) {
+          throw new Error(`unknown exercise: ${exercise.name}`);
+        }
+      }
 
       if (data.preview) {
         return {

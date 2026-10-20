@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql, withTransaction, type Sql } from "@/lib/db";
+import { getSql, withTransaction, type Sql } from "@/lib/db.server";
 import { num, num0 } from "@/lib/db-map";
 import { parseTargetReps } from "@/lib/muscles";
 import { loadPlan } from "./plan";
@@ -399,6 +399,13 @@ export const getSessionById = createServerFn({ method: "GET" })
     );
     const row = rows[0];
     if (!row) return null;
+    if (!row.completed_at && row.user_id !== context.userId) return null;
+    if (row.user_id !== context.userId && row.visibility === "private") return null;
+    if (row.user_id !== context.userId && row.visibility === "followers") {
+      const follow = await sql<{ follower_id: string }>`
+        select follower_id from follows where follower_id = ${context.userId} and following_id = ${row.user_id}`;
+      if (!follow[0]) return null;
+    }
     return mapSession(row, await setsFor(row.id, row.user_id));
   });
 

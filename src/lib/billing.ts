@@ -9,17 +9,17 @@ export function parseMembership(raw: string | null | undefined): Membership {
   return raw && raw.toLowerCase() === "pro" ? "free" : "free";
 }
 
-export function membershipLabel(plan: Membership) {
+export function membershipLabel(_plan: Membership) {
   return "Free";
 }
 
 /** Weekly coach-question cap. null = unlimited. */
-export function coachWeekLimit(plan: Membership): number | null {
+export function coachWeekLimit(_plan: Membership): number | null {
   return null;
 }
 
 /** Plans to offer only after the current quota is used up. */
-export function upgradesWhenExhausted(plan: Membership): PaidMembership[] {
+export function upgradesWhenExhausted(_plan: Membership): PaidMembership[] {
   return [];
 }
 

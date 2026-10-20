@@ -6,6 +6,7 @@ import { generateFirstPlan, getActivePlan } from "@/lib/api/plan";
 import { track } from "@/lib/analytics";
 import { cn, weekdayName } from "@/lib/utils";
 import { CenteredLoading } from "@/components/ui/centered-loading";
+import { CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/_app/plan")({ component: PlanPage });
 
@@ -22,8 +23,14 @@ function PlanPage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const weekday = new Date().getDay();
+  if (plan.isPending) {
+    return <div role="status" aria-busy="true" className="space-y-4"><div className="h-8 w-52 animate-pulse rounded bg-secondary" /><div className="h-40 animate-pulse rounded-2xl bg-card" /><div className="h-40 animate-pulse rounded-2xl bg-card" /></div>;
+  }
+  if (plan.isError) {
+    return <div role="alert" className="rounded-2xl border bg-card p-6 text-center"><h1 className="display text-2xl font-semibold">Your plan couldn&apos;t load</h1><p className="mt-2 text-sm text-muted-foreground">Try again without leaving this page.</p><Button className="mt-5" onClick={() => void plan.refetch()}>Try again</Button></div>;
+  }
   if (!plan.data) {
-    return <p className="text-sm text-muted-foreground">No active plan. Finish onboarding to generate one.</p>;
+    return <div className="rounded-2xl border bg-card p-7 text-center"><CalendarDays className="mx-auto size-9 text-primary" aria-hidden="true"/><h1 className="display mt-4 text-2xl font-semibold">Build your first training week</h1><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Complete the quick setup so Forge can match sessions to your goal, schedule, and equipment.</p><Button className="mt-5" asChild><Link to="/onboarding">Start setup</Link></Button></div>;
   }
   return (
     <div>

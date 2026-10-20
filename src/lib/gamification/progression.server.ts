@@ -1,4 +1,4 @@
-import type { Sql } from "../db.ts";
+import type { Sql } from "../db.server.ts";
 import { BADGES, RANKS, nextRankGap, rankForXp, XP } from "./config.ts";
 import { getBadgeProgress, type BadgeId, type BadgeProgress } from "./badges.ts";
 import { workoutFacts } from "./compute.ts";

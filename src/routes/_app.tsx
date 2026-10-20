@@ -32,9 +32,10 @@ function AppLayout() {
     <RequireUser>
       <AppShell>
         {profile.isError ? (
-          <div className="space-y-4">
-            <p role="alert">Could not load your profile. {profile.error.message}</p>
-            <Button disabled={profile.isFetching} onClick={() => void profile.refetch()}>Retry</Button>
+          <div role="alert" className="mx-auto max-w-lg rounded-2xl border bg-card p-6 text-center">
+            <h1 className="display text-2xl font-semibold">We couldn&apos;t load your training profile</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Check your connection and try again. Your saved workouts are safe.</p>
+            <Button className="mt-5" onClick={() => void profile.refetch()}>Try again</Button>
           </div>
         ) : profile.isPending || !profile.data?.onboardedAt ? (
           <div role="status" aria-label="Loading your profile" className="space-y-4">

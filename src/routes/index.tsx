@@ -2,23 +2,15 @@ import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { ArrowRight, Brain, Dumbbell, Radio, Timer } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import { catalogStats } from "@/lib/api/library";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { formatPrice, useBillingRegion } from "@/lib/billing";
-import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/")({ component: Home });
 
 function Home() {
   const { user, isPending } = useCurrentUserState();
-  const stats = useQuery({ queryKey: ["catalog-stats"], queryFn: () => catalogStats() });
-  const { region } = useBillingRegion();
-  const localPrice = formatPrice(region, "month");
-
-
   if (!isPending && user) return <Navigate to="/today" />;
 
-  const count = stats.data?.count ?? 1500;
+  const count = 1500;
 
   return (
     <div className="min-h-dvh">
@@ -56,7 +48,7 @@ function Home() {
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link to="/pricing">Pro {localPrice}/mo</Link>
+              <Link to="/pricing">Explore free membership</Link>
             </Button>
           </div>
           <dl className="mt-14 grid grid-cols-3 gap-4 max-w-xl">
@@ -142,7 +134,7 @@ function Home() {
             {
               icon: Dumbbell,
               title: "Full movement library",
-              body: "Thousands of lifts with images and step-by-step cues so you know how to move.",
+              body: "Browse movements, setup instructions, and exercise cues in one place.",
             },
             {
               icon: Radio,

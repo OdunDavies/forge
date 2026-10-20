@@ -5,8 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SessionHeader, SetLogger } from "@/components/workout/set-logger";
-import { searchExercises, getExercise, type Exercise } from "@/lib/api/library";
-import { matchExercise, suggestExercise } from "@/lib/exercises/match";
+import { searchExercises } from "@/lib/api/library";
 import { getActivePlan } from "@/lib/api/plan";
 import { getMyProfile } from "@/lib/api/profile";
 import {
@@ -96,8 +95,7 @@ function LogPage() {
     setBusyName(name);
     try {
       // Resolve exercise name via matcher for correct catalog id
-      const resolved = matchExercise(name, new Map());
-      const exerciseName = resolved ? resolved.name : name;
+      const exerciseName = name;
       const res = await completeExercise({ data: { sessionId: sessionQ.data.id, exerciseName } });
       if (res.isPr) toast("New PR");
       qc.setQueryData(["active-session"], res.session);
@@ -113,8 +111,7 @@ function LogPage() {
     setBusyName(name);
     try {
       // Resolve exercise name via matcher for correct catalog id
-      const resolved = matchExercise(name, new Map());
-      const exerciseName = resolved ? resolved.name : name;
+      const exerciseName = name;
       const session = await addSetToSession({
         data: { sessionId: sessionQ.data.id, exerciseName },
       });
@@ -150,14 +147,7 @@ function LogPage() {
     }
     setAddingCustom(true);
     try {
-      // If we have a catalog id, use it; otherwise add as custom
-      let cid: string | null = null;
-      if (exerciseId) cid = exerciseId;
-      else {
-        // Try to resolve via matcher for suggestions
-        const resolved = matchExercise(trimmed, new Map());
-        if (resolved && resolved.id) cid = resolved.id;
-      }
+      const cid = exerciseId;
       const next = await addExerciseToSession({
         data: { sessionId: sessionQ.data.id, exerciseId: cid, exerciseName: trimmed, sets: 1 },
       });
@@ -178,7 +168,7 @@ function LogPage() {
     .filter((name) => !inSession.has(name.toLowerCase()))
     .filter((name) => !needle || name.toLowerCase().includes(needle))
     .slice(0, 8);
-  const exactLibrary = results.data?.items.some((ex) => ex.name.toLowerCase() === needle);
+  const exactLibrary = results.data?.items.find((ex) => ex.name.toLowerCase() === needle);
   const exactCustom = customHits.some((name) => name.toLowerCase() === needle);
 
   return (
@@ -228,8 +218,7 @@ function LogPage() {
                 e.preventDefault();
                 const name = q.trim();
                 // Use matcher to find the best match
-                const resolved = matchExercise(name, new Map());
-                void addLift(name, resolved?.id ?? null);
+                void addLift(name, exactLibrary?.id ?? null);
               }}
             >
               <Input
@@ -272,13 +261,12 @@ function LogPage() {
             )}
             {results.data?.items.map((ex) => {
               // Use matcher-resolved id for exact library entries
-              const resolved = matchExercise(ex.name, new Map());
               return (
                 <button
                   key={ex.id}
                   type="button"
                   className="flex h-12 w-full items-center justify-between rounded-md bg-secondary px-3 text-left text-sm"
-                  onClick={() => void addLift(ex.name, resolved?.id ?? ex.id)}
+                  onClick={() => void addLift(ex.name, ex.id)}
                 >
                   <span>{ex.name}</span>
                   <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{ex.equipment}</span>

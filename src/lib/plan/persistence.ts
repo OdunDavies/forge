@@ -1,4 +1,4 @@
-import type { Sql } from "../db.ts";
+import type { Sql } from "../db.server.ts";
 import { getExercise, matchExercise, suggestExercise } from "../exercises/catalog.ts";
 import type { GeneratedExercise } from "./schema.ts";
 import { generatedSchema, confirmTweakSchema, type GeneratedPlan } from "./schema.ts";

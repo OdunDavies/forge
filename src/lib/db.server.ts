@@ -16,6 +16,11 @@ const databaseUrl =
  * the app has a working database even with nothing configured — the live preview
  * included. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
  */
+export const databaseConfigured = Boolean(databaseUrl);
+const ephemeralDatabaseAllowed =
+  process.env.NODE_ENV !== "production" ||
+  process.env.ALLOW_EPHEMERAL_DATABASE === "true";
+
 export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
 
 /**
@@ -48,6 +53,7 @@ const globalRef = globalThis as typeof globalThis & {
   __pgSqlPromise__?: Promise<Sql>;
   __pgliteInstance__?: Promise<import("@electric-sql/pglite").PGlite>;
   __pgliteMigrateChain__?: Promise<void>;
+  __pgPool__?: import("pg").Pool;
 };
 
 /**
@@ -93,7 +99,8 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
-    const pool = new Pool({ connectionString: databaseUrl });
+    const pool = new Pool({ connectionString: databaseUrl, max: 5, connectionTimeoutMillis: 10_000, idleTimeoutMillis: 30_000 });
+    globalRef.__pgPool__ = pool;
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];
@@ -176,6 +183,11 @@ async function createSql(): Promise<Sql> {
         "or a server route loader, never from client code.",
     );
   }
+  if (!databaseConfigured && !ephemeralDatabaseAllowed) {
+    throw new Error(
+      "DATABASE_URL is required for data-backed features in production.",
+    );
+  }
   return dbSource === "neon" ? createNeonSql() : createPgliteSql();
 }
 
@@ -192,6 +204,37 @@ export function getSql(): Promise<Sql> {
     throw err;
   });
   return sqlPromise;
+}
+
+/** Run all callback queries on one connection and commit them atomically. */
+export async function withTransaction<T>(work: (sql: Sql) => Promise<T>): Promise<T> {
+  await getSql();
+  if (dbSource === "pglite") {
+    const pg = await getPglite();
+    return pg.transaction((tx) =>
+      work(toSql(async <R>(text: string, params: unknown[]) => {
+        const result = await tx.query<R>(text, params);
+        return result.rows;
+      })),
+    );
+  }
+  const pool = globalRef.__pgPool__;
+  if (!pool) throw new Error("Database pool is unavailable");
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const result = await work(toSql(async <R>(text: string, params: unknown[]) => {
+      const response = await client.query(text, params);
+      return response.rows as R[];
+    }));
+    await client.query("commit");
+    return result;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -229,7 +272,11 @@ export function ensureDbReady(): Promise<void> {
 const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
 };
-if (typeof window === "undefined" && dbSource === "pglite") {
+if (
+  typeof window === "undefined" &&
+  dbSource === "pglite" &&
+  ephemeralDatabaseAllowed
+) {
   globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] PGLite bootstrap failed:", err);

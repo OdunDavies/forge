@@ -1,4 +1,4 @@
-import type { Sql } from "../db";
+import type { Sql } from "../db.server";
 import type { WorkoutSession } from "../api/types";
 import { asStringArray } from "../db-map.ts";
 import type { MuscleResolver, ScoreProfile } from "./compute";

@@ -11,7 +11,7 @@ import {
   validatePayment,
   type CheckoutIntent,
 } from "./billing-integrity.server.ts";
-import type { Sql } from "./db.ts";
+import type { Sql } from "./db.server.ts";
 
 const intent: CheckoutIntent = {
   id: "intent",

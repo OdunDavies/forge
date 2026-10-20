@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getSql } from "@/lib/db";
+import { getSql } from "@/lib/db.server";
 import { ensureExerciseCatalog } from "@/lib/exercises/seed";
 import { queryLibrary, queryExercise } from "@/lib/exercises/library-query";
 import { CATALOG_KINDS } from "@/lib/exercises/catalog-config";

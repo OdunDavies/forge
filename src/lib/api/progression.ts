@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql, withTransaction, type Sql } from "@/lib/db";
+import { getSql, withTransaction, type Sql } from "@/lib/db.server";
 import { awardSession, loadProgression } from "@/lib/gamification/progression.server";
 export type { ProgressionState, SessionRewards } from "@/lib/gamification/progression.server";
 

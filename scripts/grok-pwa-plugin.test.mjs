@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   appNameFromHost,
-  createHeadInjector,
+  createHeadInjector as rawCreateHeadInjector,
   grokXCreatorHeadTags,
-  injectGrokPwaHead,
+  injectGrokPwaHead as rawInjectGrokPwaHead,
   isDocumentPath,
   isInstallQuery,
   publicAppHost,
@@ -18,6 +18,11 @@ import {
   stripInstallParams,
 } from "./grok-pwa-shared.mjs";
 import { renderInstallPage } from "./grok-pwa-plugin.mjs";
+
+// Each helper test starts with a blank workspace, independent of Forge branding.
+const FIXTURE_ROOT = mkdtempSync(join(tmpdir(), "pwa-fixture-"));
+const injectGrokPwaHead = (html, ctx = {}) => rawInjectGrokPwaHead(html, {cwd:FIXTURE_ROOT, ...ctx});
+const createHeadInjector = (ctx = {}) => rawCreateHeadInjector({cwd:FIXTURE_ROOT, ...ctx});
 
 const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 

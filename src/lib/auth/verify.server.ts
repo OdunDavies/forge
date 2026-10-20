@@ -6,7 +6,7 @@ import {
 } from "./gate-identity.server";
 import { gateRequestSessionAllowed, sessionRequestHeaders } from "./gate-request.server";
 import { GATE_PROVIDER_ID } from "./gate-session.server";
-import { getSql } from "../db";
+import { getSql } from "../db.server";
 import { auth, authConfigured } from "./server";
 
 /**

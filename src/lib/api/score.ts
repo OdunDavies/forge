@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getSql } from "@/lib/db";
+import { getSql } from "@/lib/db.server";
 import { computeForgeScore, DAY_MS, weekStart } from "@/lib/score/compute";
 import { loadScoreData } from "@/lib/score/data.server";
 

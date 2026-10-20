@@ -16,6 +16,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AppCoachRouteImport } from './routes/_app/coach'
 import { Route as AppFeedRouteImport } from './routes/_app/feed'
+import { Route as AppGoalScanRouteImport } from './routes/_app/goal-scan'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
 import { Route as AppLogRouteImport } from './routes/_app/log'
 import { Route as AppPlanRouteImport } from './routes/_app/plan'
@@ -61,6 +62,11 @@ const AppCoachRoute = AppCoachRouteImport.update({
 const AppFeedRoute = AppFeedRouteImport.update({
   id: '/feed',
   path: '/feed',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGoalScanRoute = AppGoalScanRouteImport.update({
+  id: '/goal-scan',
+  path: '/goal-scan',
   getParentRoute: () => AppRoute,
 } as any)
 const AppHistoryRoute = AppHistoryRouteImport.update({
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/coach': typeof AppCoachRoute
   '/feed': typeof AppFeedRoute
+  '/goal-scan': typeof AppGoalScanRoute
   '/history': typeof AppHistoryRoute
   '/log': typeof AppLogRoute
   '/plan': typeof AppPlanRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/coach': typeof AppCoachRoute
   '/feed': typeof AppFeedRoute
+  '/goal-scan': typeof AppGoalScanRoute
   '/history': typeof AppHistoryRoute
   '/log': typeof AppLogRoute
   '/plan': typeof AppPlanRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/_app/coach': typeof AppCoachRoute
   '/_app/feed': typeof AppFeedRoute
+  '/_app/goal-scan': typeof AppGoalScanRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/log': typeof AppLogRoute
   '/_app/plan': typeof AppPlanRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/coach'
     | '/feed'
+    | '/goal-scan'
     | '/history'
     | '/log'
     | '/plan'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/coach'
     | '/feed'
+    | '/goal-scan'
     | '/history'
     | '/log'
     | '/plan'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/_app/coach'
     | '/_app/feed'
+    | '/_app/goal-scan'
     | '/_app/history'
     | '/_app/log'
     | '/_app/plan'
@@ -310,6 +322,13 @@ declare module '@tanstack/react-router' {
       path: '/feed'
       fullPath: '/feed'
       preLoaderRoute: typeof AppFeedRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/goal-scan': {
+      id: '/_app/goal-scan'
+      path: '/goal-scan'
+      fullPath: '/goal-scan'
+      preLoaderRoute: typeof AppGoalScanRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/history': {
@@ -402,6 +421,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppCoachRoute: typeof AppCoachRoute
   AppFeedRoute: typeof AppFeedRoute
+  AppGoalScanRoute: typeof AppGoalScanRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppLogRoute: typeof AppLogRoute
   AppPlanRoute: typeof AppPlanRoute
@@ -416,6 +436,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppCoachRoute: AppCoachRoute,
   AppFeedRoute: AppFeedRoute,
+  AppGoalScanRoute: AppGoalScanRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppLogRoute: AppLogRoute,
   AppPlanRoute: AppPlanRoute,

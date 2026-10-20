@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { Sql } from "./db";
+import type { Sql } from "./db.server";
 import { z } from "zod";
 
 export type CheckoutIntent = {
@@ -216,7 +216,7 @@ export async function processStripeEvent(sql: Sql, stripe: StripeClient, event: 
     if (
       object.mode !== "subscription" ||
       object.payment_status !== "paid" ||
-      metadata?.intentId !== intent.id
+      !metadata || metadata.intentId !== intent.id
     ) {
       throw new Error("Stripe checkout is not paid or bound");
     }
