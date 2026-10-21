@@ -5,7 +5,8 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withTransaction, type Sql } from "@/lib/db.server";
 import { num } from "@/lib/db-map";
 import { extractJson, grokChat } from "@/lib/ai/grok";
-import { buildFallbackPlan, volumeBreakdown } from "@/lib/plan/fallback";
+import { buildFallbackPlan } from "@/lib/plan/fallback";
+import { assertPlanStructure } from "@/lib/plan/refinement";
 import { loadProfileByUserId } from "./profile";
 import { ensureExerciseCatalog } from "@/lib/exercises/seed";
 import { generatedSchema, confirmTweakSchema, type GeneratedPlan } from "@/lib/plan/schema";
@@ -165,13 +166,7 @@ export const generateFirstPlan = createServerFn({ method: "POST" })
     };
     const starter = await persistGenerated(context.userId, starterPayload);
 
-    // Build a catalog hint from the fallback: popular/canonical names for the focus muscles
-    const catalogHint = fallback.days
-      .flatMap((d) => d.exercises.map((e) => e.name))
-      .slice(0, 40)
-      .join(", ");
-
-    const prompt = `You are the strength coach inside Forge. Write a week of lifting for this athlete as JSON.
+    const prompt = `You are the strength coach inside Forge. Explain this prescribed week of lifting for this athlete as JSON.
 Profile:
 ${JSON.stringify({
   goal: profile.goal,
@@ -191,47 +186,25 @@ Rules:
 - When photo guidance is supplied, use its trainable muscle priorities and conservative notes. Experience, injuries, equipment and schedule take precedence. Never promise a body match, infer health or body fat, or prescribe weight loss from photos.
 - 7 days, weekday 0=Sunday ... 6=Saturday.
 - Rest days on days they did not mark available.
-- SPLIT is already chosen: ${fallback.split}. Use its session names (e.g. Full Body A / Upper A / Push / Chest Day) — do not rename to a different split.
-- HARD VOLUME RULE: ~40% of all working sets this week must train the focus muscles (${(profile.focusMuscles ?? []).join(", ") || "none listed"}), ~60% must train other major muscle groups the split has room for (variety, not the same 2 muscles repeated). Count secondary activation (rows hit back + biceps). Keep the split's structure while placing the 60% variety work (upper variety on upper days, leg variety on leg days).
-- Prefer compounds first. Respect injuries by swapping the offending pattern, never by ignoring it.
-- Use exercise names close to: ${catalogHint}
-- JSON shape: {"title":"...","split":"${fallback.split}","focus":"...","rationale":"2-3 practical sentences explaining how this plan supports the the athlete's goals; omit internal ratios and implementation details","days":[{"weekday":1,"title":"${fallback.days.find((d) => !d.isRest)?.title ?? "Push"}","isRest":false,"notes":"...","exercises":[{"name":"...","sets":4,"reps":"6-8","restSec":180,"rpe":8,"notes":""}]}]}
-- Keep each training day to 4-6 lifts.`;
+- The prescribed plan below already balances compound lifts, accessory work and alternating movement angles across the available days. It adapts a bodybuilding approach to this user's experience and equipment.
+- Preserve every weekday, day title, rest flag, exerciseId, exercise name, order, sets, reps, restSec and rpe exactly. Never add, swap or remove exercises. Only personalize the plan title, rationale, day notes and exercise notes.
+- Keep notes concise, practical and conservative. Warm up, leave reps in reserve, and increase load gradually only after completing the prescribed reps with good form. Never recommend maximal lifts or training through pain.
+- Focus priorities influence selection within the session's movement balance; do not force an arbitrary percentage of sets or neglect another muscle group.
+- Return this same JSON shape, including all seven days and all exercise fields, with personalized notes and rationale:
+${JSON.stringify(starterPayload)}`;
 
     const ai = await grokChat(
       [
         { role: "system", content: "You output only valid JSON. No markdown." },
         { role: "user", content: prompt },
       ],
-      { maxTokens: 1800, json: true },
+      { maxTokens: 6500, json: true },
     );
 
     if (ai.ok) {
       try {
         const parsed = generatedSchema.parse(extractJson(ai.text));
-        const focus = (profile.focusMuscles ?? []).map((m) => m.toLowerCase());
-        const scheduled = fallback.days.filter((d) => !d.isRest).map((d) => d.weekday);
-        const training = parsed.days.filter((d) => !d.isRest && d.exercises?.length);
-        if (
-          parsed.split !== fallback.split ||
-          parsed.days.length !== 7 ||
-          training.length !== scheduled.length ||
-          training.some((d) => !scheduled.includes(d.weekday))
-        ) {
-          throw new Error("plan changed the chosen split or schedule");
-        }
-        if (focus.length) {
-          const { ratio } = volumeBreakdown(
-            training.flatMap((d) => d.exercises ?? []),
-            focus,
-          );
-          if (ratio < 0.3 || ratio > 0.5) {
-            console.warn(
-              `[plan] 40/60 proxy failed: focus ratio ${ratio.toFixed(2)} outside 0.30-0.50, falling back`,
-            );
-            throw new Error(`focus ratio ${ratio.toFixed(2)} outside 0.30-0.50`);
-          }
-        }
+        assertPlanStructure(parsed, starterPayload);
         const plan = await persistGenerated(context.userId, parsed);
         return { plan, source: "ai" as const };
       } catch (error) {

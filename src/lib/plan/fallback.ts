@@ -1,3 +1,9 @@
+import {
+  weeklySessions,
+  movementCandidates,
+  matchesMovement,
+  prioritizeAccessories,
+} from "./routines.ts";
 import type { Profile } from "../api/types.ts";
 import { FOCUS_MUSCLES } from "../muscles.ts";
 import {
@@ -34,13 +40,13 @@ export type FallbackProfile = Pick<
 
 export function determineSplit(
   daysPerWeek: number,
-  experience: string | null = null,
+  _experience: string | null = null,
   _focusMuscles: readonly string[] = [],
   _goal: string | null = null,
 ): string {
-  if (daysPerWeek <= 3 || experience === "beginner") return "Full Body";
+  if (daysPerWeek <= 3) return "Full Body";
   if (daysPerWeek === 4) return "Upper / Lower";
-  return "Push / Pull / Legs";
+  return daysPerWeek === 5 ? "Upper / Lower + Pull / Push / Legs" : "Pull / Push / Legs";
 }
 
 const preferred = [
@@ -59,6 +65,12 @@ const preferred = [
   "Side_Lateral_Raise",
   "Leg_Press",
   "Lying_Leg_Curls",
+  "Wide-Grip_Lat_Pulldown",
+  "Close-Grip_Front_Lat_Pulldown",
+  "Incline_Dumbbell_Press",
+  "Barbell_Incline_Bench_Press_-_Medium_Grip",
+  "Seated_Calf_Raise",
+  "Face_Pull",
   "Triceps_Pushdown",
   "Standing_Calf_Raises",
   "Bodyweight_Squat",
@@ -162,8 +174,11 @@ export function buildFallbackPlan(profile: FallbackProfile) {
   const available = [...new Set(profile.availableDays)]
     .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
     .sort();
-  const count = Math.min(Math.max(1, Math.trunc(profile.daysPerWeek)), available.length);
-  const trainingDays = available.slice(0, count);
+  const count = Math.min(6, Math.max(1, Math.trunc(profile.daysPerWeek)), available.length);
+  const trainingDays =
+    available.length === 7
+      ? available.filter((d) => d !== 0).slice(0, count)
+      : available.slice(0, count);
   const split = determineSplit(count, profile.experience, profile.focusMuscles, profile.goal);
   const focus = new Set(profile.focusMuscles.filter((m) => FOCUS_MUSCLES.some((f) => f.id === m)));
   const equipment = new Set(profile.equipment.map(equipmentGroup));
@@ -202,45 +217,10 @@ export function buildFallbackPlan(profile: FallbackProfile) {
       };
       return rank(a) - rank(b) || a.id.localeCompare(b.id);
     });
-  const hasFocus = (ex: Exercise) =>
-    [...ex.focusPrimary, ...ex.focusSecondary].some((m) => focus.has(m));
-  const upper = ["chest", "back", "shoulders", "arms", "core"];
-  const lower = ["quads", "hamstrings", "glutes", "calves", "core"];
   const used = new Map<string, number>();
+  // Allow warm-up and rest time rather than cramming six lifts into a short session.
   const liftCount = profile.sessionMinutes <= 30 ? 4 : profile.sessionMinutes >= 75 ? 6 : 5;
-  const sessions = trainingDays.map((_, index) => {
-    const title =
-      split === "Full Body"
-        ? `Full Body ${String.fromCharCode(65 + index)}`
-        : split === "Upper / Lower"
-          ? `${index % 2 ? "Lower" : "Upper"} ${index < 2 ? "A" : "B"}`
-          : ["Push", "Pull", "Legs"][index % 3];
-    const allowed: readonly string[] =
-      split === "Full Body"
-        ? FOCUS_MUSCLES.map((m) => m.id)
-        : title.startsWith("Upper")
-          ? upper
-          : title.startsWith("Lower") || title === "Legs"
-            ? lower
-            : title === "Push"
-              ? ["chest", "shoulders", "arms", "core"]
-              : ["back", "arms", "core"];
-    const pool = candidates.filter(
-      (ex) =>
-        ex.focusPrimary.every((m) => allowed.includes(m)) &&
-        (title !== "Push" || ex.force !== "pull") &&
-        (title !== "Pull" || ex.force !== "push"),
-    );
-    const focusCapacity = Math.min(
-      liftCount,
-      pool.filter((ex) => ex.focusPrimary.some((m) => focus.has(m))).length,
-    );
-    return { title, pool, focusCapacity };
-  });
-  const capacity = sessions.reduce((n, s) => n + s.focusCapacity, 0);
-  const focusTarget = Math.min(Math.round(trainingDays.length * liftCount * 0.4), capacity);
-  let remainingFocus = focusTarget;
-  let remainingCapacity = capacity;
+  const sessions = weeklySessions(count);
   const days = Array.from({ length: 7 }, (_, weekday) => {
     const index = trainingDays.indexOf(weekday);
     if (index < 0)
@@ -251,32 +231,27 @@ export function buildFallbackPlan(profile: FallbackProfile) {
         coachNotes: "Recover and move gently.",
         exercises: [] as Slot[],
       };
-    const { title: session, pool, focusCapacity } = sessions[index];
+    const template = sessions[index];
+    const session = template.title;
+    const movements = prioritizeAccessories(template, [...focus]);
     const picked: Exercise[] = [];
-    const focusCount = remainingCapacity
-      ? Math.min(focusCapacity, Math.round((remainingFocus * focusCapacity) / remainingCapacity))
-      : 0;
-    remainingFocus -= focusCount;
-    remainingCapacity -= focusCapacity;
-    const muscles = new Map<string, number>();
-    for (let slot = 0; slot < liftCount; slot++) {
-      const remaining = pool.filter((e) => !picked.some((p) => p.id === e.id));
-      const wantFocus = slot < focusCount;
-      const matching = remaining.filter((e) =>
-        wantFocus ? e.focusPrimary.some((m) => focus.has(m)) : !hasFocus(e),
+    for (const movement of movements.slice(0, liftCount)) {
+      const pool = movementCandidates(candidates, movement).filter(
+        (ex) => !picked.some((p) => p.id === ex.id),
       );
-      const options = matching.length ? matching : remaining;
-      options.sort((a, b) => {
-        const penalty = (ex: Exercise) =>
-          (used.get(ex.id) ?? 0) * 2 +
-          ex.focusPrimary.reduce((sum, m) => sum + (muscles.get(m) ?? 0), 0) * 4;
-        return penalty(a) - penalty(b);
+      // Prefer the requested pattern, then a familiar variation not used earlier this week.
+      // Focus affects choices within a pattern; it never displaces legs or another essential pattern.
+      pool.sort((a, b) => {
+        const score = (ex: Exercise) =>
+          (matchesMovement(ex, movement) ? 100 : 0) -
+          (used.get(ex.id) ?? 0) * 25 +
+          (ex.focusPrimary.some((m) => focus.has(m)) ? 5 : 0);
+        return score(b) - score(a);
       });
-      const ex = options[0];
-      if (!ex) break;
+      const ex = pool[0];
+      if (!ex) continue; // Do not fill an excluded pattern with unrelated or unsafe exercises.
       picked.push(ex);
       used.set(ex.id, (used.get(ex.id) ?? 0) + 1);
-      for (const muscle of ex.focusPrimary) muscles.set(muscle, (muscles.get(muscle) ?? 0) + 1);
     }
     picked.sort((a, b) => Number(b.mechanic === "compound") - Number(a.mechanic === "compound"));
     const exercises = picked.map((ex) => {
@@ -289,6 +264,7 @@ export function buildFallbackPlan(profile: FallbackProfile) {
         slot.reps = "5-8";
         slot.restSec = 180;
       }
+      if (profile.sessionMinutes <= 30) slot.sets = 2;
       return slot;
     });
     return {
@@ -297,16 +273,16 @@ export function buildFallbackPlan(profile: FallbackProfile) {
       isRest: exercises.length === 0,
       coachNotes: profile.injuries
         ? "Use a pain-free range. Stop if symptoms worsen; seek qualified guidance."
-        : "Warm up first. Leave 2-3 reps in reserve and progress gradually.",
+        : "Warm up first. Leave 2-3 reps in reserve. When all sets reach the top of the rep range with good form, increase the load slightly.",
       exercises,
     };
   });
   return {
-    title: `${split} Starter`,
+    title: `${split} Plan`,
     split,
     focus: [...focus].join(", "),
     rationale: focus.size
-      ? `Emphasizes ${[...focus].join(", ")} while training the rest of your body. Sessions match your schedule, equipment, and movement restrictions.`
+      ? `Emphasizes ${[...focus].join(", ")} while training the rest of your body. Alternate movement angles while matching your schedule, equipment, and movement restrictions.`
       : "A balanced starter using your available equipment and training days. Keep effort conservative while building consistency.",
     days,
   };
