@@ -44,6 +44,10 @@ Migrations in `migrations/` apply automatically during `npm run build` when `DAT
 
 Onboarding offers **Use my photos** alongside preset goals. Users can upload a current photo and a goal reference, review suggested training priorities, and use that analysis when generating their first plan. Photos are compressed in the browser and sent to Gemini; only the derived notes and priorities are stored in `goal_scans`. Migration `0011_body_goal_comparisons.sql` adds comparison metadata. Photo analysis requires `GEMINI_API_KEY`; users can continue with a preset goal when analysis is unavailable.
 
+## Exercise demonstrations
+
+The library includes bundled video demos with playback controls and recovery options. See [Exercise media](docs/EXERCISE_MEDIA.md) for supported movements, validation commands, and source notices.
+
 ## Release checks
 
 ```bash

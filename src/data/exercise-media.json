@@ -1,0 +1,1638 @@
+{
+  "demos": {
+    "demo-1": {
+      "name": "Front Plank",
+      "videos": ["/exercise-demos/demo-1.mp4"],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/female/front-plank-female.jpg"
+    },
+    "demo-3": {
+      "name": "Band Assisted Pull-up",
+      "videos": [
+        "/exercise-demos/demo-3.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/band-assisted-pull-up.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/band-assisted-pull-up.jpg"
+    },
+    "demo-4": {
+      "name": "Barbell Bench Press",
+      "videos": [
+        "/exercise-demos/demo-4.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-bench-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-bench-press.jpg"
+    },
+    "demo-5": {
+      "name": "Barbell Clean And Press",
+      "videos": [
+        "/exercise-demos/demo-5.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-clean-and-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-clean-and-press.jpg"
+    },
+    "demo-6": {
+      "name": "Barbell Close Grip Bench Press",
+      "videos": ["/exercise-demos/demo-6.mp4"],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-close-grip-bench-press.jpg"
+    },
+    "demo-7": {
+      "name": "Barbell Curl",
+      "videos": [
+        "/exercise-demos/demo-7.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-curl.jpg"
+    },
+    "demo-8": {
+      "name": "Barbell Decline Bench Press",
+      "videos": [
+        "/exercise-demos/demo-8.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-decline-bench-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-decline-bench-press.jpg"
+    },
+    "demo-9": {
+      "name": "Barbell Drag Curl",
+      "videos": [
+        "/exercise-demos/demo-9.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-drag-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-drag-curl.jpg"
+    },
+    "demo-10": {
+      "name": "Barbell Incline Bench Press",
+      "videos": [
+        "/exercise-demos/demo-10.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-incline-bench-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-incline-bench-press.jpg"
+    },
+    "demo-11": {
+      "name": "Barbell Lunge",
+      "videos": [
+        "/exercise-demos/demo-11.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-lunge.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-lunge.jpg"
+    },
+    "demo-12": {
+      "name": "Barbell Reverse Wrist Curl",
+      "videos": [
+        "/exercise-demos/demo-12.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-reverse-wrist-curl-over-grip.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-reverse-wrist-curl-over-grip.jpg"
+    },
+    "demo-13": {
+      "name": "Barbell Shrug",
+      "videos": [
+        "/exercise-demos/demo-13.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-shrug.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-shrug.jpg"
+    },
+    "demo-14": {
+      "name": "Barbell Straight Leg Deadlift",
+      "videos": [
+        "/exercise-demos/demo-14.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/barbell-straight-leg-deadlift.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/barbell-straight-leg-deadlift.jpg"
+    },
+    "demo-15": {
+      "name": "Battling Ropes",
+      "videos": [
+        "/exercise-demos/demo-15.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/battling-ropes.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/battling-ropes.jpg"
+    },
+    "demo-16": {
+      "name": "Wide Grip Cable Lat Pulldown",
+      "videos": [
+        "/exercise-demos/demo-16.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-bar-lateral-pulldown-wide-shoulder-grip.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-bar-lateral-pulldown-wide-shoulder-grip.jpg"
+    },
+    "demo-17": {
+      "name": "Cable Close Grip Lat Pulldown",
+      "videos": [
+        "/exercise-demos/demo-17.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-close-grip-front-lat-pulldown.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-close-grip-front-lat-pulldown.jpg"
+    },
+    "demo-18": {
+      "name": "Cable Crossover Reverse Fly",
+      "videos": [
+        "/exercise-demos/demo-18.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-crossover-reverse-fly.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-crossover-reverse-fly.jpg"
+    },
+    "demo-19": {
+      "name": "Cable Lateral Raise",
+      "videos": [
+        "/exercise-demos/demo-19.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-lateral-raise.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-lateral-raise.jpg"
+    },
+    "demo-20": {
+      "name": "Cable Lying Triceps Extension",
+      "videos": [
+        "/exercise-demos/demo-20.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-lying-triceps-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-lying-triceps-extension.jpg"
+    },
+    "demo-21": {
+      "name": "Cable One Arm Curl",
+      "videos": [
+        "/exercise-demos/demo-21.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-one-arm-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-one-arm-curl.jpg"
+    },
+    "demo-23": {
+      "name": "Cable Rope Triceps Pushdown",
+      "videos": [
+        "/exercise-demos/demo-23.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-pushdown-rope-attachment.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-pushdown-rope-attachment.jpg"
+    },
+    "demo-24": {
+      "name": "Cable Rope Overhead Triceps Extension",
+      "videos": [
+        "/exercise-demos/demo-24.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-rope-high-pulley-overhead-triceps-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-rope-high-pulley-overhead-triceps-extension.jpg"
+    },
+    "demo-26": {
+      "name": "Cable Standing Lift",
+      "videos": [
+        "/exercise-demos/demo-26.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-standing-lift.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-standing-lift.jpg"
+    },
+    "demo-27": {
+      "name": "Cable Straight Arm Pulldown",
+      "videos": [
+        "/exercise-demos/demo-27.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-straight-arm-pulldown.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-straight-arm-pulldown.jpg"
+    },
+    "demo-28": {
+      "name": "Seated Cable Row (V-Grip)",
+      "videos": [
+        "/exercise-demos/demo-28.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/cable-straight-back-seated-row-v-grip.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/cable-straight-back-seated-row-v-grip.jpg"
+    },
+    "demo-30": {
+      "name": "Barbell Back Squat",
+      "videos": [
+        "/exercise-demos/demo-30.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/classic-barbell-squat.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/classic-barbell-squat.jpg"
+    },
+    "demo-31": {
+      "name": "Close Feet Leg Press",
+      "videos": [
+        "/exercise-demos/demo-31.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/close-feet-leg-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/close-feet-leg-press.jpg"
+    },
+    "demo-32": {
+      "name": "Commando Pull-Up",
+      "videos": [
+        "/exercise-demos/demo-32.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/commando-pull-up.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/commando-pull-up.jpg"
+    },
+    "demo-33": {
+      "name": "Decline Dumbbell Bench Press",
+      "videos": [
+        "/exercise-demos/demo-33.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/decline-dumbbell-bench-press-45-degree.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/decline-dumbbell-bench-press-45-degree.jpg"
+    },
+    "demo-34": {
+      "name": "Donkey Calf Raise",
+      "videos": [
+        "/exercise-demos/demo-34.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/donkey-calf-raise.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/donkey-calf-raise.jpg"
+    },
+    "demo-36": {
+      "name": "Dumbbell Arnold Press",
+      "videos": [
+        "/exercise-demos/demo-36.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-arnold-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-arnold-press.jpg"
+    },
+    "demo-37": {
+      "name": "Seated Dumbbell Shoulder Press",
+      "videos": [
+        "/exercise-demos/demo-37.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-bench-seated-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-bench-seated-press.jpg"
+    },
+    "demo-38": {
+      "name": "Dumbbell Close-Grip Press",
+      "videos": [
+        "/exercise-demos/demo-38.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-close-grip-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-close-grip-press.jpg"
+    },
+    "demo-39": {
+      "name": "Dumbbell Cross Body Hammer Curl",
+      "videos": [
+        "/exercise-demos/demo-39.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-cross-body-hammer-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-cross-body-hammer-curl.jpg"
+    },
+    "demo-40": {
+      "name": "Dumbbell Fly",
+      "videos": [
+        "/exercise-demos/demo-40.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-fly.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-fly.jpg"
+    },
+    "demo-41": {
+      "name": "Dumbbell Goblet Squat",
+      "videos": [
+        "/exercise-demos/demo-41.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-goblet-squat.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-goblet-squat.jpg"
+    },
+    "demo-42": {
+      "name": "Dumbbell Incline Bench Press",
+      "videos": [
+        "/exercise-demos/demo-42.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-incline-bench-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-incline-bench-press.jpg"
+    },
+    "demo-43": {
+      "name": "Dumbbell Incline Curl",
+      "videos": [
+        "/exercise-demos/demo-43.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-incline-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-incline-curl.jpg"
+    },
+    "demo-44": {
+      "name": "Dumbbell Incline Row",
+      "videos": [
+        "/exercise-demos/demo-44.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-incline-row.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-incline-row.jpg"
+    },
+    "demo-45": {
+      "name": "Dumbbell Lateral Raise",
+      "videos": [
+        "/exercise-demos/demo-45.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-lateral-raise.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-lateral-raise.jpg"
+    },
+    "demo-46": {
+      "name": "Dumbbell Lying Triceps Extension",
+      "videos": [
+        "/exercise-demos/demo-46.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-lying-triceps-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-lying-triceps-extension.jpg"
+    },
+    "demo-47": {
+      "name": "Dumbbell One-Arm Triceps Extension",
+      "videos": [
+        "/exercise-demos/demo-47.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-one-arm-triceps-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-one-arm-triceps-extension.jpg"
+    },
+    "demo-48": {
+      "name": "Dumbbell Prone Incline Curl",
+      "videos": [
+        "/exercise-demos/demo-48.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-prone-incline-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-prone-incline-curl.jpg"
+    },
+    "demo-49": {
+      "name": "Dumbbell Seated Calf Raise",
+      "videos": [
+        "/exercise-demos/demo-49.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-seated-calf-raise.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-seated-calf-raise.jpg"
+    },
+    "demo-50": {
+      "name": "Dumbbell Seated Triceps Extension",
+      "videos": [
+        "/exercise-demos/demo-50.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-seated-triceps-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-seated-triceps-extension.jpg"
+    },
+    "demo-51": {
+      "name": "Dumbbell Shrug",
+      "videos": [
+        "/exercise-demos/demo-51.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-shrug.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-shrug.jpg"
+    },
+    "demo-52": {
+      "name": "Dumbbell Side Bend",
+      "videos": [
+        "/exercise-demos/demo-52.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-side-bend.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-side-bend.jpg"
+    },
+    "demo-54": {
+      "name": "Dumbbell Standing Calf Raise",
+      "videos": [
+        "/exercise-demos/demo-54.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-standing-calf-raise.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-standing-calf-raise.jpg"
+    },
+    "demo-55": {
+      "name": "Dumbbell Stiff Leg Deadlift",
+      "videos": [
+        "/exercise-demos/demo-55.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-stiff-leg-deadlift.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-stiff-leg-deadlift.jpg"
+    },
+    "demo-56": {
+      "name": "Dumbbell Upright Row",
+      "videos": ["/exercise-demos/demo-56.mp4"],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-upright-row.jpg"
+    },
+    "demo-57": {
+      "name": "Elliptical Trainer",
+      "videos": [
+        "/exercise-demos/demo-57.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/elliptical.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/elliptical.jpg"
+    },
+    "demo-58": {
+      "name": "EZ Bar Biceps Curl",
+      "videos": [
+        "/exercise-demos/demo-58.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/ez-barbell-biceps-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/ez-barbell-biceps-curl.jpg"
+    },
+    "demo-59": {
+      "name": "EZ Bar Lying Triceps Extension",
+      "videos": [
+        "/exercise-demos/demo-59.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/ez-barbell-lying-triceps-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/ez-barbell-lying-triceps-extension.jpg"
+    },
+    "demo-60": {
+      "name": "Incline Push-Up",
+      "videos": [
+        "/exercise-demos/demo-60.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/incline-push-ups.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/incline-push-ups.jpg"
+    },
+    "demo-62": {
+      "name": "Inverted Row With Straps",
+      "videos": [
+        "/exercise-demos/demo-62.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/inverted-row-with-straps.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/inverted-row-with-straps.jpg"
+    },
+    "demo-64": {
+      "name": "Kettlebell Deadlift",
+      "videos": [
+        "/exercise-demos/demo-64.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/kettlebell-deadlift.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/kettlebell-deadlift.jpg"
+    },
+    "demo-65": {
+      "name": "Landmine 180",
+      "videos": [
+        "/exercise-demos/demo-65.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/landmine-180.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/landmine-180.jpg"
+    },
+    "demo-66": {
+      "name": "Lever Back Extension",
+      "videos": [
+        "/exercise-demos/demo-66.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-back-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-back-extension.jpg"
+    },
+    "demo-67": {
+      "name": "Lever Leg Extension",
+      "videos": [
+        "/exercise-demos/demo-67.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-leg-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-leg-extension.jpg"
+    },
+    "demo-68": {
+      "name": "Lever Lying Chest Press",
+      "videos": [
+        "/exercise-demos/demo-68.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-lying-chest-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-lying-chest-press.jpg"
+    },
+    "demo-69": {
+      "name": "Lever Lying Leg Curl",
+      "videos": [
+        "/exercise-demos/demo-69.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-lying-leg-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-lying-leg-curl.jpg"
+    },
+    "demo-70": {
+      "name": "Pec Deck Fly",
+      "videos": [
+        "/exercise-demos/demo-70.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-pec-deck-fly.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-pec-deck-fly.jpg"
+    },
+    "demo-71": {
+      "name": "Lever Seated Calf Raise",
+      "videos": [
+        "/exercise-demos/demo-71.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-seated-calf-raise.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-seated-calf-raise.jpg"
+    },
+    "demo-72": {
+      "name": "Lever Seated Crunch",
+      "videos": ["/exercise-demos/demo-72.mp4"],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-seated-crunch-1.jpg"
+    },
+    "demo-73": {
+      "name": "Lever Seated Leg Curl",
+      "videos": [
+        "/exercise-demos/demo-73.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-seated-leg-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-seated-leg-curl.jpg"
+    },
+    "demo-74": {
+      "name": "Lever Standing Calf Raise",
+      "videos": [
+        "/exercise-demos/demo-74.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-standing-calf-raise.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-standing-calf-raise.jpg"
+    },
+    "demo-76": {
+      "name": "Lever Triceps Extension",
+      "videos": [
+        "/exercise-demos/demo-76.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lever-triceps-extension.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lever-triceps-extension.jpg"
+    },
+    "demo-77": {
+      "name": "Supine Dumbbell Biceps Curl",
+      "videos": [
+        "/exercise-demos/demo-77.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/lying-supine-dumbbell-curl.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/lying-supine-dumbbell-curl.jpg"
+    },
+    "demo-78": {
+      "name": "Military Press",
+      "videos": [
+        "/exercise-demos/demo-78.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/military-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/military-press.jpg"
+    },
+    "demo-79": {
+      "name": "Otis-Up",
+      "videos": [
+        "/exercise-demos/demo-79.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/otis-ups.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/otis-ups.jpg"
+    },
+    "demo-80": {
+      "name": "Push-Up",
+      "videos": [
+        "/exercise-demos/demo-80.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/push-ups.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/push-ups.jpg"
+    },
+    "demo-82": {
+      "name": "Side Plank",
+      "videos": [
+        "/exercise-demos/demo-82.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/side-bridge-side-plank.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/side-bridge-side-plank.jpg"
+    },
+    "demo-83": {
+      "name": "Sled Hack Squat",
+      "videos": [
+        "/exercise-demos/demo-83.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/sled-hack-squat.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/sled-hack-squat.jpg"
+    },
+    "demo-84": {
+      "name": "Smith Machine Calf Raise",
+      "videos": [
+        "/exercise-demos/demo-84.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/smith-calf-raise.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/smith-calf-raise.jpg"
+    },
+    "demo-86": {
+      "name": "Smith Machine Leg Press",
+      "videos": [
+        "/exercise-demos/demo-86.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/smith-leg-press.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/smith-leg-press.jpg"
+    },
+    "demo-87": {
+      "name": "Spell Caster",
+      "videos": [
+        "/exercise-demos/demo-87.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/spell-caster.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/spell-caster.jpg"
+    },
+    "demo-88": {
+      "name": "Squat",
+      "videos": [
+        "/exercise-demos/demo-88.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/squat.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/squat.jpg"
+    },
+    "demo-90": {
+      "name": "Overhead Chest Stretch",
+      "videos": [
+        "/exercise-demos/demo-90.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-above-head-chest-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-above-head-chest-stretch.jpg"
+    },
+    "demo-91": {
+      "name": "Chin-to-Chest Stretch",
+      "videos": [
+        "/exercise-demos/demo-91.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-chin-to-chest-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-chin-to-chest-stretch.jpg"
+    },
+    "demo-92": {
+      "name": "Dynamic Chest Stretch",
+      "videos": [
+        "/exercise-demos/demo-92.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-dynamic-chest-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-dynamic-chest-stretch.jpg"
+    },
+    "demo-93": {
+      "name": "Hip Flexor and Quadriceps Stretch",
+      "videos": [
+        "/exercise-demos/demo-93.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-hip-flexor-and-quad-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-hip-flexor-and-quad-stretch.jpg"
+    },
+    "demo-94": {
+      "name": "Middle Back Stretch",
+      "videos": ["/exercise-demos/demo-94.mp4"],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-middle-back-stretch-1.jpg"
+    },
+    "demo-95": {
+      "name": "Neck Side Stretch",
+      "videos": [
+        "/exercise-demos/demo-95.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-neck-side-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-neck-side-stretch.jpg"
+    },
+    "demo-96": {
+      "name": "Peroneals Stretch",
+      "videos": [
+        "/exercise-demos/demo-96.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-peroneals-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-peroneals-stretch.jpg"
+    },
+    "demo-98": {
+      "name": "Rear Deltoid Stretch",
+      "videos": [
+        "/exercise-demos/demo-98.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-rear-deltoid-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-rear-deltoid-stretch.jpg"
+    },
+    "demo-99": {
+      "name": "Standing Lateral Stretch",
+      "videos": ["/exercise-demos/demo-99.mp4"],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-standing-lateral-stretch-1.jpg"
+    },
+    "demo-100": {
+      "name": "Wrist Circles",
+      "videos": [
+        "/exercise-demos/demo-100.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-wrist-circles.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-wrist-circles.jpg"
+    },
+    "demo-101": {
+      "name": "Twisting Crunch",
+      "videos": [
+        "/exercise-demos/demo-101.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/twisting-crunch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/twisting-crunch.jpg"
+    },
+    "demo-102": {
+      "name": "Weighted Sissy Squat",
+      "videos": [
+        "/exercise-demos/demo-102.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/weighted-sissy-squat.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/weighted-sissy-squat.jpg"
+    },
+    "exact-Bench_Dips": {
+      "name": "Bench Dips",
+      "videos": [
+        "/exercise-demos/exact-Bench_Dips.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/bench-dips.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/bench-dips.jpg"
+    },
+    "exact-Dumbbell_Squat": {
+      "name": "Dumbbell Squat",
+      "videos": [
+        "/exercise-demos/exact-Dumbbell_Squat.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-squat.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-squat.jpg"
+    },
+    "exact-Reverse_Crunch": {
+      "name": "Reverse Crunch",
+      "videos": ["/exercise-demos/exact-Reverse_Crunch.mp4"],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/female/reverse-crunch-female.jpg"
+    },
+    "exact-Runners_Stretch": {
+      "name": "Runner's Stretch",
+      "videos": [
+        "/exercise-demos/exact-Runners_Stretch.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-runners-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-runners-stretch.jpg"
+    },
+    "exact-Seated_Calf_Stretch": {
+      "name": "Seated Calf Stretch",
+      "videos": [
+        "/exercise-demos/exact-Seated_Calf_Stretch.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/stretching-seated-calf-stretch.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/stretching-seated-calf-stretch.jpg"
+    },
+    "exact-Dumbbell_Kickback": {
+      "name": "Dumbbell Kickback",
+      "videos": [
+        "/exercise-demos/exact-Dumbbell_Kickback.mp4",
+        "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/dumbbell-kickback.mp4"
+      ],
+      "poster": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-posters/male/dumbbell-kickback.jpg"
+    }
+  },
+  "exercises": {
+    "Ab_Crunch_Machine": {
+      "demo": "demo-72",
+      "baseExercise": null
+    },
+    "Arnold_Dumbbell_Press": {
+      "demo": "demo-36",
+      "baseExercise": null
+    },
+    "Band_Assisted_Pull-Up": {
+      "demo": "demo-3",
+      "baseExercise": null
+    },
+    "Barbell_Bench_Press_-_Medium_Grip": {
+      "demo": "demo-4",
+      "baseExercise": null
+    },
+    "Barbell_Curl": {
+      "demo": "demo-7",
+      "baseExercise": null
+    },
+    "Barbell_Full_Squat": {
+      "demo": "demo-30",
+      "baseExercise": null
+    },
+    "Barbell_Incline_Bench_Press_-_Medium_Grip": {
+      "demo": "demo-10",
+      "baseExercise": null
+    },
+    "Barbell_Lunge": {
+      "demo": "demo-11",
+      "baseExercise": null
+    },
+    "Barbell_Shrug": {
+      "demo": "demo-13",
+      "baseExercise": null
+    },
+    "Barbell_Squat": {
+      "demo": "demo-30",
+      "baseExercise": null
+    },
+    "Battling_Ropes": {
+      "demo": "demo-15",
+      "baseExercise": null
+    },
+    "Behind_Head_Chest_Stretch": {
+      "demo": "demo-90",
+      "baseExercise": null
+    },
+    "Bodyweight_Squat": {
+      "demo": "demo-88",
+      "baseExercise": null
+    },
+    "Cable_Lying_Triceps_Extension": {
+      "demo": "demo-20",
+      "baseExercise": null
+    },
+    "Cable_Rear_Delt_Fly": {
+      "demo": "demo-18",
+      "baseExercise": null
+    },
+    "Cable_Rope_Overhead_Triceps_Extension": {
+      "demo": "demo-24",
+      "baseExercise": null
+    },
+    "Chin_To_Chest_Stretch": {
+      "demo": "demo-91",
+      "baseExercise": null
+    },
+    "Clean_and_Press": {
+      "demo": "demo-5",
+      "baseExercise": null
+    },
+    "Close-Grip_Barbell_Bench_Press": {
+      "demo": "demo-6",
+      "baseExercise": null
+    },
+    "Close-Grip_Dumbbell_Press": {
+      "demo": "demo-38",
+      "baseExercise": null
+    },
+    "Cross-Body_Crunch": {
+      "demo": "demo-101",
+      "baseExercise": null
+    },
+    "Cross_Body_Hammer_Curl": {
+      "demo": "demo-39",
+      "baseExercise": null
+    },
+    "Decline_Barbell_Bench_Press": {
+      "demo": "demo-8",
+      "baseExercise": null
+    },
+    "Decline_Dumbbell_Bench_Press": {
+      "demo": "demo-33",
+      "baseExercise": null
+    },
+    "Drag_Curl": {
+      "demo": "demo-9",
+      "baseExercise": null
+    },
+    "Dumbbell_Flyes": {
+      "demo": "demo-40",
+      "baseExercise": null
+    },
+    "Dumbbell_Incline_Row": {
+      "demo": "demo-44",
+      "baseExercise": null
+    },
+    "Dumbbell_One-Arm_Triceps_Extension": {
+      "demo": "demo-47",
+      "baseExercise": null
+    },
+    "Dumbbell_Prone_Incline_Curl": {
+      "demo": "demo-48",
+      "baseExercise": null
+    },
+    "Dumbbell_Shrug": {
+      "demo": "demo-51",
+      "baseExercise": null
+    },
+    "Dumbbell_Side_Bend": {
+      "demo": "demo-52",
+      "baseExercise": null
+    },
+    "Dynamic_Chest_Stretch": {
+      "demo": "demo-92",
+      "baseExercise": null
+    },
+    "EZ-Bar_Curl": {
+      "demo": "demo-58",
+      "baseExercise": null
+    },
+    "EZ-Bar_Skullcrusher": {
+      "demo": "demo-59",
+      "baseExercise": null
+    },
+    "Elliptical_Trainer": {
+      "demo": "demo-57",
+      "baseExercise": null
+    },
+    "Goblet_Squat": {
+      "demo": "demo-41",
+      "baseExercise": null
+    },
+    "Hack_Squat": {
+      "demo": "demo-83",
+      "baseExercise": null
+    },
+    "Incline_Dumbbell_Press": {
+      "demo": "demo-42",
+      "baseExercise": null
+    },
+    "Incline_Push-Up": {
+      "demo": "demo-60",
+      "baseExercise": null
+    },
+    "Intermediate_Hip_Flexor_and_Quad_Stretch": {
+      "demo": "demo-93",
+      "baseExercise": null
+    },
+    "Inverted_Row_with_Straps": {
+      "demo": "demo-62",
+      "baseExercise": null
+    },
+    "Lying_Supine_Dumbbell_Curl": {
+      "demo": "demo-77",
+      "baseExercise": null
+    },
+    "Machine_Bench_Press": {
+      "demo": "demo-68",
+      "baseExercise": null
+    },
+    "Machine_Triceps_Extension": {
+      "demo": "demo-76",
+      "baseExercise": null
+    },
+    "Middle_Back_Stretch": {
+      "demo": "demo-94",
+      "baseExercise": null
+    },
+    "Narrow_Stance_Leg_Press": {
+      "demo": "demo-31",
+      "baseExercise": null
+    },
+    "Otis-Up": {
+      "demo": "demo-79",
+      "baseExercise": null
+    },
+    "Peroneals_Stretch": {
+      "demo": "demo-96",
+      "baseExercise": null
+    },
+    "Plank": {
+      "demo": "demo-1",
+      "baseExercise": null
+    },
+    "Pushups": {
+      "demo": "demo-80",
+      "baseExercise": null
+    },
+    "Seated_Cable_Rows": {
+      "demo": "demo-28",
+      "baseExercise": null
+    },
+    "Seated_Calf_Raise": {
+      "demo": "demo-71",
+      "baseExercise": null
+    },
+    "Seated_Dumbbell_Press": {
+      "demo": "demo-37",
+      "baseExercise": null
+    },
+    "Seated_Leg_Curl": {
+      "demo": "demo-73",
+      "baseExercise": null
+    },
+    "Seated_Triceps_Press": {
+      "demo": "demo-50",
+      "baseExercise": null
+    },
+    "Side_Bridge": {
+      "demo": "demo-82",
+      "baseExercise": null
+    },
+    "Side_Lateral_Raise": {
+      "demo": "demo-45",
+      "baseExercise": null
+    },
+    "Side_Neck_Stretch": {
+      "demo": "demo-95",
+      "baseExercise": null
+    },
+    "Smith_Machine_Calf_Raise": {
+      "demo": "demo-84",
+      "baseExercise": null
+    },
+    "Smith_Machine_Leg_Press": {
+      "demo": "demo-86",
+      "baseExercise": null
+    },
+    "Spell_Caster": {
+      "demo": "demo-87",
+      "baseExercise": null
+    },
+    "Standing_Cable_Lift": {
+      "demo": "demo-26",
+      "baseExercise": null
+    },
+    "Standing_Dumbbell_Calf_Raise": {
+      "demo": "demo-54",
+      "baseExercise": null
+    },
+    "Standing_Dumbbell_Upright_Row": {
+      "demo": "demo-56",
+      "baseExercise": null
+    },
+    "Standing_Lateral_Stretch": {
+      "demo": "demo-99",
+      "baseExercise": null
+    },
+    "Standing_Military_Press": {
+      "demo": "demo-78",
+      "baseExercise": null
+    },
+    "Standing_One-Arm_Cable_Curl": {
+      "demo": "demo-21",
+      "baseExercise": null
+    },
+    "Stiff-Legged_Barbell_Deadlift": {
+      "demo": "demo-14",
+      "baseExercise": null
+    },
+    "Straight-Arm_Pulldown": {
+      "demo": "demo-27",
+      "baseExercise": null
+    },
+    "Triceps_Pushdown_-_Rope_Attachment": {
+      "demo": "demo-23",
+      "baseExercise": null
+    },
+    "V-Bar_Pulldown": {
+      "demo": "demo-17",
+      "baseExercise": null
+    },
+    "Weighted_Sissy_Squat": {
+      "demo": "demo-102",
+      "baseExercise": null
+    },
+    "Wide-Grip_Lat_Pulldown": {
+      "demo": "demo-16",
+      "baseExercise": null
+    },
+    "Wrist_Circles": {
+      "demo": "demo-100",
+      "baseExercise": null
+    },
+    "Commando_Pull_Up": {
+      "demo": "demo-32",
+      "baseExercise": null
+    },
+    "Hack_Squat_Machine": {
+      "demo": "demo-83",
+      "baseExercise": null
+    },
+    "Lying_Leg_Curl": {
+      "demo": "demo-69",
+      "baseExercise": null
+    },
+    "Leg_Extension": {
+      "demo": "demo-67",
+      "baseExercise": null
+    },
+    "Back_Extension_Machine": {
+      "demo": "demo-66",
+      "baseExercise": null
+    },
+    "Pec_Deck": {
+      "demo": "demo-70",
+      "baseExercise": null
+    },
+    "Cable_Lateral_Raise": {
+      "demo": "demo-19",
+      "baseExercise": null
+    },
+    "Standing_Calf_Raise_Machine": {
+      "demo": "demo-74",
+      "baseExercise": null
+    },
+    "Seated_Calf_Raise_Machine": {
+      "demo": "demo-71",
+      "baseExercise": null
+    },
+    "Donkey_Calf_Raise": {
+      "demo": "demo-34",
+      "baseExercise": null
+    },
+    "Kettlebell_Deadlift": {
+      "demo": "demo-64",
+      "baseExercise": null
+    },
+    "Cross_Body_Shoulder_Stretch": {
+      "demo": "demo-98",
+      "baseExercise": null
+    },
+    "Chest_Supported_Dumbbell_Row": {
+      "demo": "demo-44",
+      "baseExercise": null
+    },
+    "Dumbbell_Arnold_Press": {
+      "demo": "demo-36",
+      "baseExercise": null
+    },
+    "Dumbbell_Incline_Curl": {
+      "demo": "demo-43",
+      "baseExercise": null
+    },
+    "Dumbbell_Cross_Body_Hammer_Curl": {
+      "demo": "demo-39",
+      "baseExercise": null
+    },
+    "Dumbbell_Skull_Crusher": {
+      "demo": "demo-46",
+      "baseExercise": null
+    },
+    "Dumbbell_Stiff_Leg_Deadlift": {
+      "demo": "demo-55",
+      "baseExercise": null
+    },
+    "Dumbbell_Seated_Calf_Raise": {
+      "demo": "demo-49",
+      "baseExercise": null
+    },
+    "Landmine_Rotation": {
+      "demo": "demo-65",
+      "baseExercise": null
+    },
+    "Barbell_Reverse_Wrist_Curl": {
+      "demo": "demo-12",
+      "baseExercise": null
+    },
+    "Tempo_Ab_Crunch_Machine": {
+      "demo": "demo-72",
+      "baseExercise": "Ab Crunch Machine"
+    },
+    "Pause_Arnold_Dumbbell_Press": {
+      "demo": "demo-36",
+      "baseExercise": "Arnold Dumbbell Press"
+    },
+    "Tempo_Arnold_Dumbbell_Press": {
+      "demo": "demo-36",
+      "baseExercise": "Arnold Dumbbell Press"
+    },
+    "Tempo_Barbell_Curl": {
+      "demo": "demo-7",
+      "baseExercise": "Barbell Curl"
+    },
+    "Pause_Barbell_Full_Squat": {
+      "demo": "demo-30",
+      "baseExercise": "Barbell Full Squat"
+    },
+    "Tempo_Barbell_Full_Squat": {
+      "demo": "demo-30",
+      "baseExercise": "Barbell Full Squat"
+    },
+    "Pause_Barbell_Lunge": {
+      "demo": "demo-11",
+      "baseExercise": "Barbell Lunge"
+    },
+    "Tempo_Barbell_Lunge": {
+      "demo": "demo-11",
+      "baseExercise": "Barbell Lunge"
+    },
+    "Tempo_Barbell_Shrug": {
+      "demo": "demo-13",
+      "baseExercise": "Barbell Shrug"
+    },
+    "Pause_Barbell_Squat": {
+      "demo": "demo-30",
+      "baseExercise": "Barbell Squat"
+    },
+    "Tempo_Barbell_Squat": {
+      "demo": "demo-30",
+      "baseExercise": "Barbell Squat"
+    },
+    "Tempo_Battling_Ropes": {
+      "demo": "demo-15",
+      "baseExercise": "Battling Ropes"
+    },
+    "Tempo_Cable_Lying_Triceps_Extension": {
+      "demo": "demo-20",
+      "baseExercise": "Cable Lying Triceps Extension"
+    },
+    "Tempo_Cable_Rear_Delt_Fly": {
+      "demo": "demo-18",
+      "baseExercise": "Cable Rear Delt Fly"
+    },
+    "Tempo_Cable_Rope_Overhead_Triceps_Extension": {
+      "demo": "demo-24",
+      "baseExercise": "Cable Rope Overhead Triceps Extension"
+    },
+    "Pause_Clean_and_Press": {
+      "demo": "demo-5",
+      "baseExercise": "Clean and Press"
+    },
+    "Tempo_Clean_and_Press": {
+      "demo": "demo-5",
+      "baseExercise": "Clean and Press"
+    },
+    "Tempo_Cross_Body_Hammer_Curl": {
+      "demo": "demo-39",
+      "baseExercise": "Cross Body Hammer Curl"
+    },
+    "Pause_Decline_Barbell_Bench_Press": {
+      "demo": "demo-8",
+      "baseExercise": "Decline Barbell Bench Press"
+    },
+    "Tempo_Decline_Barbell_Bench_Press": {
+      "demo": "demo-8",
+      "baseExercise": "Decline Barbell Bench Press"
+    },
+    "Pause_Decline_Dumbbell_Bench_Press": {
+      "demo": "demo-33",
+      "baseExercise": "Decline Dumbbell Bench Press"
+    },
+    "Tempo_Decline_Dumbbell_Bench_Press": {
+      "demo": "demo-33",
+      "baseExercise": "Decline Dumbbell Bench Press"
+    },
+    "Pause_Drag_Curl": {
+      "demo": "demo-9",
+      "baseExercise": "Drag Curl"
+    },
+    "Tempo_Drag_Curl": {
+      "demo": "demo-9",
+      "baseExercise": "Drag Curl"
+    },
+    "Tempo_Dumbbell_Flyes": {
+      "demo": "demo-40",
+      "baseExercise": "Dumbbell Flyes"
+    },
+    "Pause_Dumbbell_Incline_Row": {
+      "demo": "demo-44",
+      "baseExercise": "Dumbbell Incline Row"
+    },
+    "Tempo_Dumbbell_Incline_Row": {
+      "demo": "demo-44",
+      "baseExercise": "Dumbbell Incline Row"
+    },
+    "Tempo_Dumbbell_Prone_Incline_Curl": {
+      "demo": "demo-48",
+      "baseExercise": "Dumbbell Prone Incline Curl"
+    },
+    "Tempo_Dumbbell_Shrug": {
+      "demo": "demo-51",
+      "baseExercise": "Dumbbell Shrug"
+    },
+    "Tempo_Dumbbell_Side_Bend": {
+      "demo": "demo-52",
+      "baseExercise": "Dumbbell Side Bend"
+    },
+    "Tempo_Goblet_Squat": {
+      "demo": "demo-41",
+      "baseExercise": "Goblet Squat"
+    },
+    "Pause_Hack_Squat": {
+      "demo": "demo-83",
+      "baseExercise": "Hack Squat"
+    },
+    "Tempo_Hack_Squat": {
+      "demo": "demo-83",
+      "baseExercise": "Hack Squat"
+    },
+    "Pause_Incline_Dumbbell_Press": {
+      "demo": "demo-42",
+      "baseExercise": "Incline Dumbbell Press"
+    },
+    "Tempo_Incline_Dumbbell_Press": {
+      "demo": "demo-42",
+      "baseExercise": "Incline Dumbbell Press"
+    },
+    "Tempo_Inverted_Row_with_Straps": {
+      "demo": "demo-62",
+      "baseExercise": "Inverted Row with Straps"
+    },
+    "Tempo_Lying_Supine_Dumbbell_Curl": {
+      "demo": "demo-77",
+      "baseExercise": "Lying Supine Dumbbell Curl"
+    },
+    "Pause_Machine_Bench_Press": {
+      "demo": "demo-68",
+      "baseExercise": "Machine Bench Press"
+    },
+    "Tempo_Machine_Bench_Press": {
+      "demo": "demo-68",
+      "baseExercise": "Machine Bench Press"
+    },
+    "Tempo_Machine_Triceps_Extension": {
+      "demo": "demo-76",
+      "baseExercise": "Machine Triceps Extension"
+    },
+    "Pause_Narrow_Stance_Leg_Press": {
+      "demo": "demo-31",
+      "baseExercise": "Narrow Stance Leg Press"
+    },
+    "Tempo_Narrow_Stance_Leg_Press": {
+      "demo": "demo-31",
+      "baseExercise": "Narrow Stance Leg Press"
+    },
+    "Tempo_Seated_Cable_Rows": {
+      "demo": "demo-28",
+      "baseExercise": "Seated Cable Rows"
+    },
+    "Tempo_Seated_Calf_Raise": {
+      "demo": "demo-71",
+      "baseExercise": "Seated Calf Raise"
+    },
+    "Pause_Seated_Dumbbell_Press": {
+      "demo": "demo-37",
+      "baseExercise": "Seated Dumbbell Press"
+    },
+    "Tempo_Seated_Dumbbell_Press": {
+      "demo": "demo-37",
+      "baseExercise": "Seated Dumbbell Press"
+    },
+    "Tempo_Seated_Leg_Curl": {
+      "demo": "demo-73",
+      "baseExercise": "Seated Leg Curl"
+    },
+    "Tempo_Seated_Triceps_Press": {
+      "demo": "demo-50",
+      "baseExercise": "Seated Triceps Press"
+    },
+    "Tempo_Side_Lateral_Raise": {
+      "demo": "demo-45",
+      "baseExercise": "Side Lateral Raise"
+    },
+    "Tempo_Smith_Machine_Calf_Raise": {
+      "demo": "demo-84",
+      "baseExercise": "Smith Machine Calf Raise"
+    },
+    "Pause_Smith_Machine_Leg_Press": {
+      "demo": "demo-86",
+      "baseExercise": "Smith Machine Leg Press"
+    },
+    "Tempo_Smith_Machine_Leg_Press": {
+      "demo": "demo-86",
+      "baseExercise": "Smith Machine Leg Press"
+    },
+    "Pause_Spell_Caster": {
+      "demo": "demo-87",
+      "baseExercise": "Spell Caster"
+    },
+    "Tempo_Spell_Caster": {
+      "demo": "demo-87",
+      "baseExercise": "Spell Caster"
+    },
+    "Tempo_Standing_Cable_Lift": {
+      "demo": "demo-26",
+      "baseExercise": "Standing Cable Lift"
+    },
+    "Tempo_Standing_Dumbbell_Calf_Raise": {
+      "demo": "demo-54",
+      "baseExercise": "Standing Dumbbell Calf Raise"
+    },
+    "Pause_Standing_Dumbbell_Upright_Row": {
+      "demo": "demo-56",
+      "baseExercise": "Standing Dumbbell Upright Row"
+    },
+    "Tempo_Standing_Dumbbell_Upright_Row": {
+      "demo": "demo-56",
+      "baseExercise": "Standing Dumbbell Upright Row"
+    },
+    "Pause_Standing_Military_Press": {
+      "demo": "demo-78",
+      "baseExercise": "Standing Military Press"
+    },
+    "Tempo_Standing_Military_Press": {
+      "demo": "demo-78",
+      "baseExercise": "Standing Military Press"
+    },
+    "Pause_Weighted_Sissy_Squat": {
+      "demo": "demo-102",
+      "baseExercise": "Weighted Sissy Squat"
+    },
+    "Tempo_Weighted_Sissy_Squat": {
+      "demo": "demo-102",
+      "baseExercise": "Weighted Sissy Squat"
+    },
+    "Pause_Hack_Squat_Machine": {
+      "demo": "demo-83",
+      "baseExercise": "Hack Squat (Machine)"
+    },
+    "Tempo_Hack_Squat_Machine": {
+      "demo": "demo-83",
+      "baseExercise": "Hack Squat (Machine)"
+    },
+    "Pause_Lying_Leg_Curl": {
+      "demo": "demo-69",
+      "baseExercise": "Lying Leg Curl"
+    },
+    "Tempo_Lying_Leg_Curl": {
+      "demo": "demo-69",
+      "baseExercise": "Lying Leg Curl"
+    },
+    "Pause_Leg_Extension": {
+      "demo": "demo-67",
+      "baseExercise": "Leg Extension"
+    },
+    "Tempo_Leg_Extension": {
+      "demo": "demo-67",
+      "baseExercise": "Leg Extension"
+    },
+    "Pause_Back_Extension_Machine": {
+      "demo": "demo-66",
+      "baseExercise": "Back Extension Machine"
+    },
+    "Tempo_Back_Extension_Machine": {
+      "demo": "demo-66",
+      "baseExercise": "Back Extension Machine"
+    },
+    "Pause_Pec_Deck": {
+      "demo": "demo-70",
+      "baseExercise": "Pec Deck"
+    },
+    "Tempo_Pec_Deck": {
+      "demo": "demo-70",
+      "baseExercise": "Pec Deck"
+    },
+    "Tempo_Cable_Lateral_Raise": {
+      "demo": "demo-19",
+      "baseExercise": "Cable Lateral Raise"
+    },
+    "Pause_Standing_Calf_Raise_Machine": {
+      "demo": "demo-74",
+      "baseExercise": "Standing Calf Raise Machine"
+    },
+    "Tempo_Standing_Calf_Raise_Machine": {
+      "demo": "demo-74",
+      "baseExercise": "Standing Calf Raise Machine"
+    },
+    "Pause_Seated_Calf_Raise_Machine": {
+      "demo": "demo-71",
+      "baseExercise": "Seated Calf Raise Machine"
+    },
+    "Tempo_Seated_Calf_Raise_Machine": {
+      "demo": "demo-71",
+      "baseExercise": "Seated Calf Raise Machine"
+    },
+    "Pause_Donkey_Calf_Raise": {
+      "demo": "demo-34",
+      "baseExercise": "Donkey Calf Raise"
+    },
+    "Tempo_Donkey_Calf_Raise": {
+      "demo": "demo-34",
+      "baseExercise": "Donkey Calf Raise"
+    },
+    "Tempo_Kettlebell_Deadlift": {
+      "demo": "demo-64",
+      "baseExercise": "Kettlebell Deadlift"
+    },
+    "Pause_Chest_Supported_Dumbbell_Row": {
+      "demo": "demo-44",
+      "baseExercise": "Chest-Supported Dumbbell Row"
+    },
+    "Tempo_Chest_Supported_Dumbbell_Row": {
+      "demo": "demo-44",
+      "baseExercise": "Chest-Supported Dumbbell Row"
+    },
+    "Pause_Dumbbell_Arnold_Press": {
+      "demo": "demo-36",
+      "baseExercise": "Dumbbell Arnold Press"
+    },
+    "Tempo_Dumbbell_Arnold_Press": {
+      "demo": "demo-36",
+      "baseExercise": "Dumbbell Arnold Press"
+    },
+    "Tempo_Dumbbell_Incline_Curl": {
+      "demo": "demo-43",
+      "baseExercise": "Dumbbell Incline Curl"
+    },
+    "Tempo_Dumbbell_Cross_Body_Hammer_Curl": {
+      "demo": "demo-39",
+      "baseExercise": "Dumbbell Cross-Body Hammer Curl"
+    },
+    "Pause_Dumbbell_Skull_Crusher": {
+      "demo": "demo-46",
+      "baseExercise": "Dumbbell Skull Crusher"
+    },
+    "Tempo_Dumbbell_Skull_Crusher": {
+      "demo": "demo-46",
+      "baseExercise": "Dumbbell Skull Crusher"
+    },
+    "Pause_Dumbbell_Stiff_Leg_Deadlift": {
+      "demo": "demo-55",
+      "baseExercise": "Dumbbell Stiff-Leg Deadlift"
+    },
+    "Tempo_Dumbbell_Stiff_Leg_Deadlift": {
+      "demo": "demo-55",
+      "baseExercise": "Dumbbell Stiff-Leg Deadlift"
+    },
+    "Tempo_Dumbbell_Seated_Calf_Raise": {
+      "demo": "demo-49",
+      "baseExercise": "Dumbbell Seated Calf Raise"
+    },
+    "Pause_Landmine_Rotation": {
+      "demo": "demo-65",
+      "baseExercise": "Landmine Rotation"
+    },
+    "Tempo_Landmine_Rotation": {
+      "demo": "demo-65",
+      "baseExercise": "Landmine Rotation"
+    },
+    "Pause_Barbell_Reverse_Wrist_Curl": {
+      "demo": "demo-12",
+      "baseExercise": "Barbell Reverse Wrist Curl"
+    },
+    "Tempo_Barbell_Reverse_Wrist_Curl": {
+      "demo": "demo-12",
+      "baseExercise": "Barbell Reverse Wrist Curl"
+    },
+    "Bench_Dips": {
+      "demo": "exact-Bench_Dips",
+      "baseExercise": null
+    },
+    "Dumbbell_Squat": {
+      "demo": "exact-Dumbbell_Squat",
+      "baseExercise": null
+    },
+    "Reverse_Crunch": {
+      "demo": "exact-Reverse_Crunch",
+      "baseExercise": null
+    },
+    "Runners_Stretch": {
+      "demo": "exact-Runners_Stretch",
+      "baseExercise": null
+    },
+    "Seated_Calf_Stretch": {
+      "demo": "exact-Seated_Calf_Stretch",
+      "baseExercise": null
+    },
+    "Dumbbell_Kickback": {
+      "demo": "exact-Dumbbell_Kickback",
+      "baseExercise": null
+    },
+    "Pause_Dumbbell_Squat": {
+      "demo": "exact-Dumbbell_Squat",
+      "baseExercise": "Dumbbell Squat"
+    },
+    "Tempo_Dumbbell_Squat": {
+      "demo": "exact-Dumbbell_Squat",
+      "baseExercise": "Dumbbell Squat"
+    },
+    "Tempo_Dumbbell_Kickback": {
+      "demo": "exact-Dumbbell_Kickback",
+      "baseExercise": "Dumbbell Kickback"
+    }
+  },
+  "sources": {
+    "demo-1": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/front-plank-female.mp4",
+    "demo-3": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/band-assisted-pull-up.mp4",
+    "demo-4": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-bench-press.mp4",
+    "demo-5": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-clean-and-press.mp4",
+    "demo-6": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-close-grip-bench-press.mp4",
+    "demo-7": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-curl.mp4",
+    "demo-8": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-decline-bench-press.mp4",
+    "demo-9": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-drag-curl.mp4",
+    "demo-10": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-incline-bench-press.mp4",
+    "demo-11": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-lunge.mp4",
+    "demo-12": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-reverse-wrist-curl-over-grip.mp4",
+    "demo-13": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-shrug.mp4",
+    "demo-14": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/barbell-straight-leg-deadlift.mp4",
+    "demo-15": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/battling-ropes.mp4",
+    "demo-16": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-bar-lateral-pulldown-wide-shoulder-grip.mp4",
+    "demo-17": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-close-grip-front-lat-pulldown.mp4",
+    "demo-18": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-crossover-reverse-fly.mp4",
+    "demo-19": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-lateral-raise.mp4",
+    "demo-20": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-lying-triceps-extension.mp4",
+    "demo-21": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-one-arm-curl.mp4",
+    "demo-23": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-pushdown-rope-attachment.mp4",
+    "demo-24": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-rope-high-pulley-overhead-triceps-extension.mp4",
+    "demo-26": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-standing-lift.mp4",
+    "demo-27": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-straight-arm-pulldown.mp4",
+    "demo-28": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-straight-back-seated-row-v-grip.mp4",
+    "demo-30": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/classic-barbell-squat.mp4",
+    "demo-31": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/close-feet-leg-press.mp4",
+    "demo-32": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/commando-pull-up.mp4",
+    "demo-33": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/decline-dumbbell-bench-press-45-degree.mp4",
+    "demo-34": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/donkey-calf-raise.mp4",
+    "demo-36": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-arnold-press.mp4",
+    "demo-37": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-bench-seated-press.mp4",
+    "demo-38": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-close-grip-press.mp4",
+    "demo-39": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-cross-body-hammer-curl.mp4",
+    "demo-40": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-fly.mp4",
+    "demo-41": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-goblet-squat.mp4",
+    "demo-42": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-incline-bench-press.mp4",
+    "demo-43": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-incline-curl.mp4",
+    "demo-44": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-incline-row.mp4",
+    "demo-45": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-lateral-raise.mp4",
+    "demo-46": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-lying-triceps-extension.mp4",
+    "demo-47": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-one-arm-triceps-extension.mp4",
+    "demo-48": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-prone-incline-curl.mp4",
+    "demo-49": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-seated-calf-raise.mp4",
+    "demo-50": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-seated-triceps-extension.mp4",
+    "demo-51": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-shrug.mp4",
+    "demo-52": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-side-bend.mp4",
+    "demo-54": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-standing-calf-raise.mp4",
+    "demo-55": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-stiff-leg-deadlift.mp4",
+    "demo-56": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-upright-row.mp4",
+    "demo-57": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/elliptical.mp4",
+    "demo-58": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/ez-barbell-biceps-curl.mp4",
+    "demo-59": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/ez-barbell-lying-triceps-extension.mp4",
+    "demo-60": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/incline-push-ups.mp4",
+    "demo-62": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/inverted-row-with-straps.mp4",
+    "demo-64": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/kettlebell-deadlift.mp4",
+    "demo-65": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/landmine-180.mp4",
+    "demo-66": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-back-extension.mp4",
+    "demo-67": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-leg-extension.mp4",
+    "demo-68": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-lying-chest-press.mp4",
+    "demo-69": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-lying-leg-curl.mp4",
+    "demo-70": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-pec-deck-fly.mp4",
+    "demo-71": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-seated-calf-raise.mp4",
+    "demo-72": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-seated-crunch-1.mp4",
+    "demo-73": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-seated-leg-curl.mp4",
+    "demo-74": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-standing-calf-raise.mp4",
+    "demo-76": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lever-triceps-extension.mp4",
+    "demo-77": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/lying-supine-dumbbell-curl.mp4",
+    "demo-78": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/military-press.mp4",
+    "demo-79": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/otis-ups.mp4",
+    "demo-80": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/push-ups.mp4",
+    "demo-82": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/side-bridge-side-plank.mp4",
+    "demo-83": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/sled-hack-squat.mp4",
+    "demo-84": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/smith-calf-raise.mp4",
+    "demo-86": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/smith-leg-press.mp4",
+    "demo-87": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/spell-caster.mp4",
+    "demo-88": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/squat.mp4",
+    "demo-90": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-above-head-chest-stretch.mp4",
+    "demo-91": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-chin-to-chest-stretch.mp4",
+    "demo-92": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-dynamic-chest-stretch.mp4",
+    "demo-93": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-hip-flexor-and-quad-stretch.mp4",
+    "demo-94": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-middle-back-stretch-1.mp4",
+    "demo-95": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-neck-side-stretch.mp4",
+    "demo-96": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-peroneals-stretch.mp4",
+    "demo-98": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-rear-deltoid-stretch.mp4",
+    "demo-99": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-standing-lateral-stretch-1.mp4",
+    "demo-100": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-wrist-circles.mp4",
+    "demo-101": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/twisting-crunch.mp4",
+    "demo-102": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/weighted-sissy-squat.mp4",
+    "exact-Bench_Dips": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/bench-dips.mp4",
+    "exact-Dumbbell_Squat": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-squat.mp4",
+    "exact-Reverse_Crunch": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/female/reverse-crunch-female.mp4",
+    "exact-Runners_Stretch": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-runners-stretch.mp4",
+    "exact-Seated_Calf_Stretch": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/stretching-seated-calf-stretch.mp4",
+    "exact-Dumbbell_Kickback": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-kickback.mp4"
+  }
+}

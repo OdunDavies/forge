@@ -3,6 +3,7 @@ import type { DatasetRecord } from "./catalog.ts";
 import type { ExerciseKind } from "./catalog-config.ts";
 import { equipmentGroup } from "./catalog.ts";
 import { normalizeName } from "./taxonomy.ts";
+import { getExerciseDemo, VIDEO_EXERCISE_IDS } from "./media.ts";
 
 export type ExerciseRow = {
   id: string;
@@ -33,6 +34,7 @@ export function mapExerciseRow(row: ExerciseRow): DatasetRecord {
     category: row.category,
     imageUrl: row.image_url,
     source: row.source,
+    demo: getExerciseDemo(row.id),
   };
 }
 
@@ -44,9 +46,17 @@ export type LibraryFilters = {
   kind?: ExerciseKind;
   limit?: number;
   offset?: number;
+  withVideo?: boolean;
 };
 
-export function buildWhereClauses({ q, muscle, equipment, category, kind }: LibraryFilters) {
+export function buildWhereClauses({
+  q,
+  muscle,
+  equipment,
+  category,
+  kind,
+  withVideo,
+}: LibraryFilters) {
   const clauses = ["canonical_id = id"];
   const params: unknown[] = [];
   const param = (value: unknown) => {
@@ -72,6 +82,7 @@ export function buildWhereClauses({ q, muscle, equipment, category, kind }: Libr
   if (eq.length) clauses.push(`equipment_group && ${param(eq)}::text[]`);
   if (category?.trim()) clauses.push(`lower(category) = ${param(category.trim().toLowerCase())}`);
   if (kind) clauses.push(`kind = ${param(kind)}`);
+  if (withVideo) clauses.push(`id = any(${param(VIDEO_EXERCISE_IDS)}::text[])`);
   return { where: clauses.join(" and "), params };
 }
 

@@ -18,6 +18,7 @@ export const searchExercises = createServerFn({ method: "GET" })
         kind: z.enum(CATALOG_KINDS).optional(),
         limit: z.number().int().min(1).max(100).optional(),
         offset: z.number().int().min(0).optional(),
+        withVideo: z.boolean().optional(),
       })
       .parse(input ?? {}),
   )

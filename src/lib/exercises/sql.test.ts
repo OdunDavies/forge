@@ -5,6 +5,7 @@ import { PGlite, type Transaction } from "@electric-sql/pglite";
 import type { Sql } from "../db.server.ts";
 import { EXERCISE_CATALOG } from "./catalog.ts";
 import { CATALOG_VERSION } from "./catalog-config.ts";
+import { VIDEO_EXERCISE_IDS } from "./media.ts";
 import { seedCatalog } from "./seed.ts";
 import { queryLibrary, queryExercise, buildWhereClauses } from "./library-query.ts";
 import { replaceGeneratedPlan, replaceDayExercises } from "../plan/persistence.ts";
@@ -24,6 +25,19 @@ function asSql(client: PGlite | Transaction): Sql {
 }
 const sql = asSql(pg);
 const transaction = <T>(fn: (sql: Sql) => Promise<T>) => pg.transaction((tx) => fn(asSql(tx)));
+
+test("video filter queries real supported IDs and returns demonstration metadata", async () => {
+  const result = await queryLibrary(sql, { q: "bench", withVideo: true, limit: 100 });
+  assert.ok(result.total > 0);
+  assert.ok(
+    result.items.every(
+      (exercise) => VIDEO_EXERCISE_IDS.includes(exercise.id) && exercise.demo?.videos.length,
+    ),
+  );
+  const exercise = await queryExercise(sql, "Barbell_Bench_Press_-_Medium_Grip");
+  assert.equal(exercise?.demo?.name, "Barbell Bench Press");
+  assert.equal((await queryLibrary(sql, { q: "not-an-exercise", withVideo: true })).total, 0);
+});
 
 before(async () => {
   await pg.exec(

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ExerciseDemo } from "@/components/exercise-demo";
 import { getExercise } from "@/lib/api/library";
 import { addExerciseToSession, getActiveSession, startEmptySession } from "@/lib/api/sessions";
 
@@ -52,16 +53,12 @@ function ExercisePage() {
       <Link to="/library" className="text-sm text-muted-foreground">
         ← Library
       </Link>
-      {ex.data.imageUrl && (
-        <img
-          src={ex.data.imageUrl}
-          alt=""
-          className="aspect-[4/3] w-full rounded-xl object-cover shadow-[var(--shadow-border)]"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-      )}
+      <ExerciseDemo
+        key={ex.data.id}
+        name={ex.data.name}
+        demo={ex.data.demo}
+        imageUrl={ex.data.imageUrl}
+      />
       <div>
         <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
           {ex.data.equipment} · {ex.data.mechanic} · {ex.data.level}

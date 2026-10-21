@@ -1,6 +1,7 @@
 import data from "../../data/exercises.json" with { type: "json" };
 import { normalizeName, resolveFocusPrimary } from "./taxonomy.ts";
 import { validateStrengthFocus, type ExerciseKind } from "./catalog-config.ts";
+import type { ExerciseDemo } from "./media.ts";
 
 /** The actual checked-in dataset and public library shape. IDs are persisted. */
 export interface DatasetRecord {
@@ -16,6 +17,7 @@ export interface DatasetRecord {
   category: string | null;
   imageUrl: string | null;
   source: string;
+  demo?: ExerciseDemo | null;
 }
 
 export interface Exercise extends DatasetRecord {
