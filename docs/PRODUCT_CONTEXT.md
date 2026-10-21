@@ -15,3 +15,5 @@
 ## Maintenance
 
 Historical database migrations are retained for existing installations; their old billing columns do not grant or restrict access. Payment processing and billing UI have been removed.
+
+AI supports NVIDIA and Gemini through shared server-side configuration. Production uses NVIDIA with `AI_PROVIDER=nvidia`; the existing key can remain under `GEMINI_API_KEY`. Never route an ambiguous key to a provider based only on that legacy variable name. Keep provider details out of customer copy and verify model availability before changing defaults.

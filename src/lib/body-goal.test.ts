@@ -31,7 +31,7 @@ test("photo validation rejects wrong types, disguised files, oversized content a
 test("comparison sends two separately labeled photos and handles unavailable analysis", async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.GEMINI_API_KEY;
-  process.env.GEMINI_API_KEY = "test-only-key";
+  process.env.GEMINI_API_KEY = "AIza-test-only-fixture";
   try {
     globalThis.fetch = async (_url, options) => {
       const request = JSON.parse(String(options?.body));

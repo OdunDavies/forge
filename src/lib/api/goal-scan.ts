@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db.server";
 import { asStringArray } from "@/lib/db-map";
+import { getAiConfig } from "@/lib/ai/config";
 import { consumeAiBudget } from "@/lib/ai/rate-limit.server";
 import { analyzeGoalImage, comparePhysiquePhotos, extractJson } from "@/lib/ai/grok";
 import { loadProfileByUserId } from "./profile";
@@ -53,8 +54,7 @@ export const scanGoalBody = createServerFn({ method: "POST" })
     const match = imagePattern.exec(data.image);
     if (!match || Buffer.from(match[2], "base64").length > 1_000_000)
       throw new Error("Choose a JPEG, PNG, or WebP photo under 1 MB.");
-    const apiKey = process.env.GEMINI_API_KEY?.trim();
-    if (!apiKey) throw new Error("Photo analysis is unavailable right now.");
+    if (!getAiConfig()) throw new Error("Photo analysis is unavailable right now.");
     await consumeAiBudget(context.userId);
     const profile = await loadProfileByUserId(context.userId);
     const contextText = JSON.stringify({
@@ -93,7 +93,7 @@ export const compareBodyPhotos = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<BodyGoalScan> => {
     const current = parseGoalPhoto(data.currentImage);
     const goal = parseGoalPhoto(data.goalImage);
-    if (!process.env.GEMINI_API_KEY?.trim())
+    if (!getAiConfig())
       throw new Error("Photo analysis is unavailable right now. You can choose a goal instead.");
     await consumeAiBudget(context.userId);
     const profile = await loadProfileByUserId(context.userId);
